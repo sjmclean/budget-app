@@ -121,6 +121,41 @@
   ],
   "findings": [
     {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 402
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 405
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 491
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 496
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 508
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 519
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 531
+    },
+    {
       "kind": "localStorage",
       "path": "apps/web/src/app/errors/appErrorDiagnostics.ts",
       "line": 25,
@@ -1147,6 +1182,87 @@
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4/rollbackYnab4Import.ts",
       "line": 87
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 452,
+      "classification": "review-required"
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 14
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 206
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 360
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 366
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 427
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 483
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 818
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 852
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 888
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 899
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 1006
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 1327
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 1575
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 1648
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 1676
     },
     {
       "kind": "localStorage",
@@ -2336,122 +2452,6 @@
       "path": "apps/web/src/stores/uiStore.ts",
       "line": 83,
       "classification": "ui-preference"
-    },
-    {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 402
-    },
-    {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 405
-    },
-    {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 491
-    },
-    {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 496
-    },
-    {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 508
-    },
-    {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 519
-    },
-    {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 531
-    },
-    {
-      "kind": "localStorage",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 452,
-      "classification": "review-required"
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 14
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 206
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 360
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 366
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 427
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 483
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 818
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 852
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 888
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 899
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 1006
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 1327
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 1575
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 1648
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 1676
     }
   ]
 }
