@@ -1532,10 +1532,6 @@ export function createLocalBudgetRuntime(
       await syncThenDatabase(input.budgetId);
       return client.getLocalBudgetMonthView(input);
     },
-    async getBudgetProjectionDiagnostic(input) {
-      const local = await requireDatabase(input.budgetId);
-      return local.getBudgetProjectionDiagnostic(input.budgetId, input.month);
-    },
     async getLocalBudgetMonthView(input) {
       const local = await requireDatabase(input.budgetId);
       const view = await local.readEntity<BudgetMonthView>(
