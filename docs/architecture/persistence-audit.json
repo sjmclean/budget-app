@@ -1150,87 +1150,6 @@
     },
     {
       "kind": "localStorage",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 452,
-      "classification": "review-required"
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 14
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 206
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 360
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 366
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 427
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 483
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 818
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 852
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 888
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 899
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 1006
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 1319
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 1567
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 1640
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 1668
-    },
-    {
-      "kind": "localStorage",
       "path": "apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts",
       "line": 561,
       "classification": "review-required"
@@ -2452,6 +2371,87 @@
       "kind": "replicationApi",
       "path": "apps/server/src/server.mjs",
       "line": 531
+    },
+    {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 452,
+      "classification": "review-required"
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 14
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 206
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 360
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 366
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 427
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 483
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 818
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 852
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 888
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 899
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 1006
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 1327
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 1575
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 1648
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 1676
     }
   ]
 }
