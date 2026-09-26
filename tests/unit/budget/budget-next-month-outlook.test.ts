@@ -82,3 +82,15 @@ test("future month panes write assignments through their own month workspace", (
     /function BudgetFutureMonthPane[\s\S]*useBudgetWorkspace\(budgetId, month\)[\s\S]*updateAssigned=\{workspace\.updateAssigned\}/,
   );
 });
+
+
+test("Budget summary preserves the authoritative monthly Ready to Assign equation", () => {
+  assert.match(
+    budgetPageSource,
+    /Carried forward[\s\S]*Previous overspending[\s\S]*Income for \{monthName\}[\s\S]*Assigned in \{monthName\}/,
+  );
+  assert.match(
+    budgetPageSource,
+    /Assigned in \{monthName\}[\s\S]*formatMoney\(-data\.totalAssigned, data\.currencyCode\)/,
+  );
+});
