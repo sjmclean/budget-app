@@ -94,3 +94,11 @@ test("Budget summary preserves the authoritative monthly Ready to Assign equatio
     /Assigned in \{monthName\}[\s\S]*formatMoney\(-data\.totalAssigned, data\.currencyCode\)/,
   );
 });
+
+
+test("Budget status copy follows the selected month instead of assuming the present month", () => {
+  assert.doesNotMatch(budgetPageSource, /Based on your current budget/);
+  assert.match(budgetPageSource, /Based on \$\{monthName\}'s budget/);
+  assert.doesNotMatch(budgetPageSource, /: "this month"\}/);
+  assert.match(budgetPageSource, /: monthLabel\}/);
+});
