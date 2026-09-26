@@ -7,7 +7,7 @@ import { createTransaction } from "../../budget-engine/src/services/createTransa
 import { createTransfer } from "../../budget-engine/src/services/createTransfer.js";
 import { updateAccountBalance } from "../../budget-engine/src/services/updateAccountBalance.js";
 import { applyActivityToCategoryMonth } from "../../budget-engine/src/services/applyActivityToCategoryMonth.js";
-import { addIncomeToBudgetMonth } from "../../budget-engine/src/services/addIncomeToBudgetMonth.js";
+import { addIncomeForBudgetMonth } from "../../budget-engine/src/services/addIncomeForBudgetMonth.js";
 import { AccountRepository } from "../../repository/src/AccountRepository.js";
 import { TransactionRepository } from "../../repository/src/TransactionRepository.js";
 import { BudgetMonthRepository } from "../../repository/src/BudgetMonthRepository.js";
@@ -125,8 +125,8 @@ export class TransactionApplicationService {
 
     const budgetMonth = await this.budgetService.createMonth(input.budgetId, input.month);
 
-    if (input.destination === InflowDestination.ReadyToBudget || input.destination === InflowDestination.BufferFund) {
-      const updatedBudgetMonth = addIncomeToBudgetMonth(budgetMonth, input.amount);
+    if (input.destination === InflowDestination.GeneralIncome) {
+      const updatedBudgetMonth = addIncomeForBudgetMonth(budgetMonth, input.amount);
       await this.budgetMonthRepo.update(updatedBudgetMonth);
     }
 
