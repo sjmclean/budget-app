@@ -2659,7 +2659,12 @@ function readBudgetMonth(month: string): BudgetMonthView | null {
   const cached = resultRows<{ projectionJson: string }>(
     `SELECT projection_json AS projectionJson
      FROM local_budget_projection_cache
-     WHERE budget_id = ? AND month = ? AND engine_version = ?`,
+     WHERE budget_id = ? AND month = ? AND engine_version = ?
+       AND NOT EXISTS (
+         SELECT 1 FROM local_budget_projection_dirty AS dirty
+         WHERE dirty.budget_id = local_budget_projection_cache.budget_id
+           AND dirty.earliest_month <= local_budget_projection_cache.month
+       )`,
     [activeBudgetId, month, BUDGET_PROJECTION_ENGINE_VERSION],
   )[0];
   let projection: LocalBudgetProjectionDiagnostic["projection"];
