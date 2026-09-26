@@ -169,8 +169,7 @@ export function TransactionEntryRow({
       ? findCategoryOption(category, categoryOptions)
       : undefined;
   const showCountCategoryInflowAsIncome =
-    Boolean(directCategoryInflowOption) &&
-    directCategoryInflowOption?.id !== "__ready_to_assign__";
+    Boolean(directCategoryInflowOption);
 
   function buildInput(): NewRegisterTransactionInput | null {
     return buildNewRegisterTransactionInput({
@@ -373,10 +372,7 @@ export function TransactionEntryRow({
       : [];
 
     const visibleCategories = categoryOptions
-      .filter(
-        (option) =>
-          !option.isArchived && option.id !== "__ready_to_assign__",
-      )
+      .filter((option) => !option.isArchived)
       .filter((option) => !searchTerm || `${option.groupName} ${option.name}`.toLocaleLowerCase().includes(searchTerm));
     const visibleIncomeCategories = incomeCategoryOptions.filter(
       (option) =>
@@ -1172,13 +1168,8 @@ export function TransactionEditRow({
     initialSplitLines.length === 0 &&
     transaction.inflow > 0 &&
     !transaction.transferAccountId &&
-    (
-      (
-        transaction.inflowClassification === "income" &&
-        !transaction.categoryId
-      ) ||
-      transaction.categoryId === "__ready_to_assign__"
-    )
+    transaction.inflowClassification === "income" &&
+    !transaction.categoryId
       ? registerIncomeCategoryValue(
           transaction.date,
           transaction.incomeBudgetMonth ?? transaction.date.slice(0, 7),
@@ -1241,8 +1232,7 @@ export function TransactionEditRow({
       ? findCategoryOption(category, categoryOptions)
       : undefined;
   const showEditCountCategoryInflowAsIncome =
-    Boolean(editDirectCategoryInflowOption) &&
-    editDirectCategoryInflowOption?.id !== "__ready_to_assign__";
+    Boolean(editDirectCategoryInflowOption);
 
   function handleInitialTextFocus(
     field: TransactionEditableField,
