@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS split_transaction_lines (
       income INTEGER NOT NULL,
       assigned INTEGER NOT NULL,
       activity INTEGER NOT NULL,
-      ready_to_budget INTEGER NOT NULL,
+      ready_to_assign INTEGER NOT NULL,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
