@@ -56,15 +56,19 @@ export function applyScheduledSavedPayee<
       option.isArchived !== true,
   );
 
-  return category
-    ? {
-        ...next,
-        category: category.name,
-        categoryId: category.id,
-        incomeBudgetMonthOffset: undefined,
-        inflowClassification: undefined,
-      }
-    : next;
+  if (!category) return next;
+
+  const {
+    incomeBudgetMonthOffset: _incomeBudgetMonthOffset,
+    inflowClassification: _inflowClassification,
+    ...withoutIncomeIntent
+  } = next;
+
+  return {
+    ...withoutIncomeIntent,
+    category: category.name,
+    categoryId: category.id,
+  } as TState;
 }
 
 export function applyScheduledTransferAccount<
@@ -72,14 +76,19 @@ export function applyScheduledTransferAccount<
 >(current: TState, transferAccountId: string | undefined): TState {
   if (!transferAccountId) return current;
 
+  const {
+    categoryId: _categoryId,
+    incomeBudgetMonthOffset: _incomeBudgetMonthOffset,
+    inflowClassification: _inflowClassification,
+    splitLines: _splitLines,
+    ...withoutCategoryMetadata
+  } = current;
+
   return {
-    ...current,
+    ...withoutCategoryMetadata,
     transferAccountId,
     payeeId: undefined,
-    category: "",
-    categoryId: undefined,
-    incomeBudgetMonthOffset: undefined,
-    inflowClassification: undefined,
-    splitLines: [],
-  };
+    ...("category" in current ? { category: "" } : {}),
+    ...("splitLines" in current ? { splitLines: [] } : {}),
+  } as TState;
 }
