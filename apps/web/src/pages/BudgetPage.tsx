@@ -259,6 +259,14 @@ function BudgetNextMonthOutlook({
       {data && summary ? (
         <span className="budget-next-month-outlook-breakdown">
           <span>
+            <span>Carried into {monthName}</span>
+            <strong>{formatMoney(summary.carriedForwardReadyToAssign, currencyCode)}</strong>
+          </span>
+          <span>
+            <span>Previous-month overspending</span>
+            <strong>{formatMoney(summary.previousOverspending, currencyCode)}</strong>
+          </span>
+          <span>
             <span>Income for {monthName}</span>
             <strong>{formatMoney(summary.incomeForMonth, currencyCode)}</strong>
           </span>
@@ -980,11 +988,11 @@ function BudgetMultiMonthPane({
         {summary ? (
           <dl className="budget-ready-summary-breakdown">
             <div>
-              <dt>Carried forward</dt>
+              <dt>Carried into {monthName}</dt>
               <dd>{formatMoney(summary.carriedForwardReadyToAssign, data.currencyCode)}</dd>
             </div>
             <div>
-              <dt>Previous overspending</dt>
+              <dt>Previous-month overspending</dt>
               <dd>{formatMoney(summary.previousOverspending, data.currencyCode)}</dd>
             </div>
             <div>
@@ -1772,11 +1780,11 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
                   </div>
                   <dl className="budget-ready-summary-breakdown">
                     <div>
-                      <dt>Carried forward</dt>
+                      <dt>Carried into {monthName}</dt>
                       <dd>{formatMoney(carriedForward, data.currencyCode)}</dd>
                     </div>
                     <div>
-                      <dt>Previous overspending</dt>
+                      <dt>Previous-month overspending</dt>
                       <dd className="budget-ready-summary-negative-value">
                         {formatMoney(previousOverspending, data.currencyCode)}
                       </dd>
