@@ -1,7 +1,8 @@
 import type {
-  RegisterTransactionView,
+  RegisterSplitLineView,
   ScheduledAttachmentTemplate,
 } from "./accountRegisterTypes";
+import type { InflowClassification } from "./incomeTransactionSemantics";
 
 export type ScheduledFrequency =
   | "once"
@@ -37,6 +38,13 @@ export type ScheduledRecurrenceKind =
   | "rule"
   | "specific-dates";
 
+export type ScheduledIncomeBudgetMonthOffset = 0 | 1;
+
+export interface ScheduledSplitLineView
+  extends Omit<RegisterSplitLineView, "incomeBudgetMonth"> {
+  incomeBudgetMonthOffset?: ScheduledIncomeBudgetMonthOffset;
+}
+
 export interface ScheduledInstalment {
   date: string;
   outflow: number;
@@ -69,10 +77,12 @@ export interface ScheduledTransactionView {
   transferAccountId?: string;
   category: string;
   categoryId?: string;
+  incomeBudgetMonthOffset?: ScheduledIncomeBudgetMonthOffset;
+  inflowClassification?: InflowClassification;
   memo?: string;
   outflow: number;
   inflow: number;
-  splitLines?: RegisterTransactionView["splitLines"];
+  splitLines?: ScheduledSplitLineView[];
   createdAt: string;
   updatedAt: string;
 }
@@ -103,8 +113,10 @@ export interface UpsertScheduledTransactionInput {
   transferAccountId?: string;
   category: string;
   categoryId?: string;
+  incomeBudgetMonthOffset?: ScheduledIncomeBudgetMonthOffset;
+  inflowClassification?: InflowClassification;
   memo?: string;
   outflow: number;
   inflow: number;
-  splitLines?: RegisterTransactionView["splitLines"];
+  splitLines?: ScheduledSplitLineView[];
 }
