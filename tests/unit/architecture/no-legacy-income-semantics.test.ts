@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { extname, join, relative, resolve } from "node:path";
 import test from "node:test";
 
@@ -56,5 +56,72 @@ test("runtime source contains no arbitrary-future income month APIs", () => {
     violations,
     [],
     `Arbitrary-future income API found in runtime source: ${violations.join(", ")}`,
+  );
+});
+
+
+test("runtime source contains no pre-canonical ready-to-budget income model", () => {
+  const legacySymbols = [
+    "readyToBudget",
+    "ready_to_budget",
+    "ReadyToBudget",
+    "BufferFund",
+    "calculateReadyToBudget",
+    "addIncomeToBudgetMonth",
+    "postIncomeToReadyToBudget",
+  ];
+
+  const violations = sourceRoots
+    .flatMap(walk)
+    .flatMap((path) => {
+      const source = readFileSync(path, "utf8");
+      return legacySymbols
+        .filter((symbol) => source.includes(symbol))
+        .map((symbol) =>
+          `${relative(root, path).replaceAll("\\", "/")}: ${symbol}`,
+        );
+    });
+
+  assert.deepEqual(
+    violations,
+    [],
+    `Pre-canonical Ready to Budget model found in runtime source: ${violations.join(", ")}`,
+  );
+});
+
+
+test("obsolete parallel budget-income service files stay removed", () => {
+  const legacyPaths = [
+    "packages/application/src/BudgetApplicationService.ts",
+    "packages/application/src/TransactionApplicationService.ts",
+    "packages/budget-engine/src/calculations/calculateReadyToBudget.ts",
+    "packages/budget-engine/src/calculations/calculateReadyToAssign.ts",
+    "packages/budget-engine/src/services/addIncomeToBudgetMonth.ts",
+    "packages/budget-engine/src/services/addIncomeForBudgetMonth.ts",
+    "packages/budget-engine/src/services/createBudgetMonth.ts",
+    "packages/budget-engine/src/services/assignToCategoryMonth.ts",
+    "packages/budget-engine/src/services/rolloverBudgetMonth.ts",
+    "packages/budget-engine/src/services/leaveOverspent.ts",
+    "packages/budget-engine/src/services/budgetEngineScenario.ts",
+    "packages/types/src/InflowDestination.ts",
+    "packages/types/src/BudgetMonth.ts",
+    "packages/types/src/CategoryMonth.ts",
+    "packages/repository/src/BudgetMonthRepository.ts",
+    "packages/repository/src/SqliteBudgetMonthRepository.ts",
+    "packages/repository/src/CategoryMonthRepository.ts",
+    "packages/repository/src/SqliteCategoryMonthRepository.ts",
+    "packages/ynab4-importer/src/Ynab4DatabaseImportService.ts",
+    "packages/ynab4-importer/src/auditYnab4MonthlyBudgetMapping.ts",
+    "packages/ynab4-importer/src/proveYnab4MonthlyBudgetMapping.ts",
+  ];
+
+  const violations = legacyPaths.filter((path) =>
+    existsSync(resolve(root, path)),
+  );
+
+  assert.deepEqual(
+    violations,
+    [],
+    `Obsolete parallel budget-income service files found: ${violations.join(", ")}`,
   );
 });

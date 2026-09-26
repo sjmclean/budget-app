@@ -1,3 +1,3 @@
-export function validateAssignment(readyToBudget: number, amount: number): void {
-  if (amount > readyToBudget) throw new Error("Insufficient Ready To Budget");
+export function validateAssignment(readyToAssign: number, amount: number): void {
+  if (amount > readyToAssign) throw new Error("Insufficient Ready to Assign");
 }
