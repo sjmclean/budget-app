@@ -5,7 +5,7 @@ export interface BudgetMonth {
   income: number;
   assigned: number;
   activity: number;
-  readyToBudget: number;
+  readyToAssign: number;
   createdAt: Date;
   updatedAt: Date;
 }
