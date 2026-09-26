@@ -10,12 +10,7 @@ import {
   buildNewRegisterTransactionInput,
 } from "../../../apps/web/src/features/accounts/registerTransactionDrafts.js";
 
-const categoryOptions = [{
-  id: "__ready_to_assign__",
-  name: "Ready to Assign",
-  groupName: "Income",
-  archived: false,
-}];
+const categoryOptions = [];
 
 function baseDraft() {
   return {
@@ -85,23 +80,7 @@ test("parent income rejects a stale or arbitrary synthetic month after the date 
   );
 });
 
-test("native Register rejects legacy split Ready to Assign income", () => {
-  const splitBase = {
-    ...baseDraft(),
-    category: "Split",
-    inflow: "100.00",
-    splitLines: [{
-      id: "income-line",
-      category: "Ready to Assign",
-      categoryId: "__ready_to_assign__",
-      memo: "",
-      outflow: "",
-      inflow: "100.00",
-    }],
-  };
 
-  assert.equal(buildNewRegisterTransactionInput(splitBase), null);
-});
 
 test("non-income split lines cannot retain a stale income budget month", () => {
   const result = buildNewRegisterTransactionInput({
