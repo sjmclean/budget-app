@@ -59,6 +59,7 @@ describe("merchant icon catalogue", () => {
     assert.ok(reviewed.length > MERCHANT_ICON_CATALOGUE.length / 2);
     assert.equal(reviewed.length, 503);
     assert.equal(generatedFallbacks.length, 257);
+    assert.ok(MERCHANT_ICON_CATALOGUE.every(({ provenance }) => !provenance || !("source" in provenance)));
   });
 
   it("protects high-priority merchants from reverting to generated tiles", () => {

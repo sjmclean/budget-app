@@ -5,8 +5,8 @@ The live catalogue contains deliberately different asset tiers:
 - **110 reviewed merchant artworks** from the original user-supplied catalogue. These retain
   `provenance.kind: "user-supplied"` and `reviewed: true`.
 - **313 reviewed official-site assets** use icons fetched from the merchant or organisation's own
-  website. Runtime provenance records the homepage, while the sourcing manifest records both the
-  homepage and exact asset URL, with `provenance.kind: "official"`.
+  website. The sourcing manifest records both the homepage and exact asset URL, with runtime
+  `provenance.kind: "official"`.
 - **80 reviewed community artworks** come from named, traceable open-source brand-icon projects.
   These are recognizable community-maintained marks, not claims of official endorsement, and use
   `provenance.kind: "community"`.
@@ -23,6 +23,8 @@ provenance, and review state are recorded accurately.
 
 Run `pnpm merchant-icons:check` after changing the catalogue. Validation reports reviewed and
 fallback counts and rejects any reviewed entry that points back to a generated fallback sprite.
+Detailed source URLs stay in build-time official and community manifests; validators cross-check
+those manifests against compact runtime provenance rather than shipping audit URLs to the browser.
 
 Automatic matching remains exact and conservative. Region-specific identity collisions are not
 resolved by the catalogue without a region hint. Because payees do not currently persist a region,

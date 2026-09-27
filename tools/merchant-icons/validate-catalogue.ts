@@ -14,6 +14,17 @@ const identityEntries = new Map<string, typeof MERCHANT_ICON_CATALOGUE[number][]
 const spriteCache = new Map<string, string>();
 let reviewedArtworkCount = 0;
 let generatedFallbackCount = 0;
+const manifestDirectory = resolve(root, "tools/merchant-icons/manifests");
+const officialManifest = JSON.parse(await readFile(resolve(manifestDirectory, "reviewed-official-assets.json"), "utf8")) as {
+  entries: { key: string; assetPath: string; source: string; assetSource: string }[];
+};
+const communityManifest = JSON.parse(await readFile(resolve(manifestDirectory, "reviewed-community-assets.json"), "utf8")) as {
+  entries: { key: string; asset: { kind: "sprite"; spritePath: string; symbolId: string }; source: string }[];
+};
+const officialByKey = new Map(officialManifest.entries.map((entry) => [entry.key, entry]));
+const communityByKey = new Map(communityManifest.entries.map((entry) => [entry.key, entry]));
+if (officialByKey.size !== officialManifest.entries.length) errors.push("Official provenance manifest contains duplicate keys.");
+if (communityByKey.size !== communityManifest.entries.length) errors.push("Community provenance manifest contains duplicate keys.");
 
 async function readSprite(path: string): Promise<string | undefined> {
   const cached = spriteCache.get(path);
@@ -52,6 +63,32 @@ for (const entry of MERCHANT_ICON_CATALOGUE) {
   if (entry.provenance?.kind === "generated" && entry.provenance.reviewed) {
     errors.push(`Generated merchant "${entry.key}" must not be marked reviewed.`);
   }
+  if (entry.provenance?.kind === "official") {
+    const manifestEntry = officialByKey.get(entry.key);
+    if (!manifestEntry) {
+      errors.push(`Official merchant "${entry.key}" has no official provenance manifest entry.`);
+    } else {
+      if (entry.asset.kind !== "image" || entry.asset.assetPath !== manifestEntry.assetPath) {
+        errors.push(`Official merchant "${entry.key}" does not match its manifest asset.`);
+      }
+      if (!manifestEntry.source.startsWith("https://") || !manifestEntry.assetSource.startsWith("https://")) {
+        errors.push(`Official merchant "${entry.key}" has invalid source URLs in its provenance manifest.`);
+      }
+    }
+  }
+  if (entry.provenance?.kind === "community") {
+    const manifestEntry = communityByKey.get(entry.key);
+    if (!manifestEntry) {
+      errors.push(`Community merchant "${entry.key}" has no community provenance manifest entry.`);
+    } else {
+      if (entry.asset.kind !== "sprite" || entry.asset.spritePath !== manifestEntry.asset.spritePath || entry.asset.symbolId !== manifestEntry.asset.symbolId) {
+        errors.push(`Community merchant "${entry.key}" does not match its manifest asset.`);
+      }
+      if (!manifestEntry.source.startsWith("https://")) {
+        errors.push(`Community merchant "${entry.key}" has an invalid source URL in its provenance manifest.`);
+      }
+    }
+  }
 
   for (const identity of [entry.name, ...entry.aliases]) {
     const normalised = normaliseMerchantIconIdentity(identity);
@@ -89,6 +126,17 @@ for (const entry of MERCHANT_ICON_CATALOGUE) {
   const escaped = entry.asset.symbolId.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
   if (!new RegExp(`<symbol\\s+id=["']${escaped}["'](?:\\s|>)`, "u").test(sprite)) {
     errors.push(`Merchant "${entry.key}" references missing symbol "${entry.asset.symbolId}" in "${entry.asset.spritePath}".`);
+  }
+}
+
+for (const entry of officialManifest.entries) {
+  if (MERCHANT_ICON_CATALOGUE.find(({ key }) => key === entry.key)?.provenance?.kind !== "official") {
+    errors.push(`Official provenance manifest entry "${entry.key}" is not an official runtime entry.`);
+  }
+}
+for (const entry of communityManifest.entries) {
+  if (MERCHANT_ICON_CATALOGUE.find(({ key }) => key === entry.key)?.provenance?.kind !== "community") {
+    errors.push(`Community provenance manifest entry "${entry.key}" is not a community runtime entry.`);
   }
 }
 

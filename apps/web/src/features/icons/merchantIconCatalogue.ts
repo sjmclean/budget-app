@@ -18,7 +18,6 @@ export type MerchantIconProvenanceKind = "official" | "community" | "user-suppli
 
 export interface MerchantIconProvenance {
   readonly kind: MerchantIconProvenanceKind;
-  readonly source?: string;
   readonly reviewed: boolean;
 }
 
@@ -55,7 +54,6 @@ export const MERCHANT_ICON_CATALOGUE: readonly MerchantIconCatalogueEntry[] = [
     category: entry.category ?? "other" as const,
     provenance: entry.provenance ?? {
       kind: "user-supplied" as const,
-      source: "Initial user-supplied merchant artwork",
       reviewed: true,
     },
   })),
