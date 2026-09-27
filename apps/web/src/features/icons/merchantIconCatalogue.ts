@@ -32,6 +32,7 @@ export function normaliseMerchantIconIdentity(value: string): string {
   return value
     .normalize("NFKC")
     .toLocaleLowerCase()
+    .replace(/[’']/gu, "")
     .replace(/&/gu, " and ")
     .replace(/[^a-z0-9]+/gu, " ")
     .replace(/\s+/gu, " ")
