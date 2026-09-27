@@ -1,21 +1,38 @@
+import { IMPORTED_MERCHANT_ICON_BATCH } from "./merchantIconImportedBatch.js";
+
+export type MerchantIconAsset =
+  | { readonly kind: "image"; readonly assetPath: string }
+  | { readonly kind: "sprite"; readonly spritePath: string; readonly symbolId: string };
+
 export interface MerchantIconCatalogueEntry {
   readonly key: string;
   readonly name: string;
   readonly regions: readonly string[];
   readonly aliases: readonly string[];
-  readonly assetPath: string;
+  readonly asset: MerchantIconAsset;
 }
 
-export const MERCHANT_ICON_CATALOGUE: readonly MerchantIconCatalogueEntry[] = [
-  { key: "coles-au", name: "Coles", regions: ["AU"], aliases: ["Coles Supermarkets", "Coles Express", "Coles Online"], assetPath: "seed/coles-au.svg" },
-  { key: "woolworths-au", name: "Woolworths", regions: ["AU"], aliases: ["Woolworths Metro", "Woolworths Online"], assetPath: "seed/woolworths-au.svg" },
-  { key: "aldi-au", name: "ALDI", regions: ["AU"], aliases: ["Aldi Australia"], assetPath: "seed/aldi-au.svg" },
-  { key: "bunnings-au", name: "Bunnings", regions: ["AU"], aliases: ["Bunnings Warehouse"], assetPath: "seed/bunnings-au.svg" },
-  { key: "amazon-global", name: "Amazon", regions: ["GLOBAL"], aliases: ["Amazon Marketplace", "Amazon.com.au"], assetPath: "seed/amazon-global.svg" },
-  { key: "netflix-global", name: "Netflix", regions: ["GLOBAL"], aliases: [], assetPath: "seed/netflix-global.svg" },
-  { key: "spotify-global", name: "Spotify", regions: ["GLOBAL"], aliases: [], assetPath: "seed/spotify-global.svg" },
-  { key: "mcdonalds-global", name: "McDonald's", regions: ["GLOBAL"], aliases: ["McDonalds", "McDonald's Australia"], assetPath: "seed/mcdonalds-global.svg" },
+const USER_SEED_SPRITE = (spritePath: string, symbolId: string): MerchantIconAsset => ({
+  kind: "sprite",
+  spritePath,
+  symbolId,
+});
+
+const SEED_MERCHANT_ICONS: readonly MerchantIconCatalogueEntry[] = [
+  { key: "coles-au", name: "Coles", regions: ["AU"], aliases: ["Coles Supermarkets", "Coles Online"], asset: USER_SEED_SPRITE("user-seed-03.svg", "coles-au") },
+  { key: "woolworths-au", name: "Woolworths", regions: ["AU"], aliases: ["Woolworths Metro", "Woolworths Online"], asset: USER_SEED_SPRITE("user-seed-08.svg", "woolworths-au") },
+  { key: "aldi-au", name: "ALDI", regions: ["AU"], aliases: ["Aldi Australia"], asset: USER_SEED_SPRITE("user-seed-01.svg", "aldi-au") },
+  { key: "bunnings-au", name: "Bunnings", regions: ["AU"], aliases: ["Bunnings Warehouse"], asset: USER_SEED_SPRITE("user-seed-03.svg", "bunnings-au") },
+  { key: "amazon-global", name: "Amazon", regions: ["GLOBAL"], aliases: ["Amazon Marketplace", "Amazon.com.au"], asset: USER_SEED_SPRITE("user-seed-01.svg", "amazon-global") },
+  { key: "netflix-global", name: "Netflix", regions: ["GLOBAL"], aliases: [], asset: USER_SEED_SPRITE("user-seed-06.svg", "netflix-global") },
+  { key: "spotify-global", name: "Spotify", regions: ["GLOBAL"], aliases: [], asset: USER_SEED_SPRITE("user-seed-07.svg", "spotify-global") },
+  { key: "mcdonalds-global", name: "McDonald's", regions: ["GLOBAL"], aliases: ["McDonalds", "McDonald's Australia"], asset: USER_SEED_SPRITE("user-seed-05.svg", "mcdonalds-global") },
 ] as const;
+
+export const MERCHANT_ICON_CATALOGUE: readonly MerchantIconCatalogueEntry[] = [
+  ...SEED_MERCHANT_ICONS,
+  ...IMPORTED_MERCHANT_ICON_BATCH,
+];
 
 const entriesByKey = new Map(MERCHANT_ICON_CATALOGUE.map((entry) => [entry.key, entry] as const));
 const entriesByIdentity = new Map<string, MerchantIconCatalogueEntry>();
@@ -52,9 +69,22 @@ export function findMerchantIconByPayeeName(name: string): MerchantIconCatalogue
   return normalised ? entriesByIdentity.get(normalised) : undefined;
 }
 
-export function merchantIconAssetUrl(entryOrKey: MerchantIconCatalogueEntry | string): string | undefined {
+export type ResolvedMerchantIconAsset =
+  | { readonly kind: "image"; readonly src: string }
+  | { readonly kind: "sprite"; readonly href: string };
+
+export function resolveMerchantIconAsset(
+  entryOrKey: MerchantIconCatalogueEntry | string,
+): ResolvedMerchantIconAsset | undefined {
   const entry = typeof entryOrKey === "string" ? getMerchantIconEntry(entryOrKey) : entryOrKey;
-  return entry ? `/merchant-icons/${entry.assetPath}` : undefined;
+  if (!entry) return undefined;
+  if (entry.asset.kind === "image") {
+    return { kind: "image", src: `/merchant-icons/${entry.asset.assetPath}` };
+  }
+  return {
+    kind: "sprite",
+    href: `/merchant-icons/${entry.asset.spritePath}#${entry.asset.symbolId}`,
+  };
 }
 
 export function searchMerchantIcons(query: string, limit = 48): MerchantIconCatalogueEntry[] {
