@@ -4,11 +4,27 @@ export type MerchantIconAsset =
   | { readonly kind: "image"; readonly assetPath: string }
   | { readonly kind: "sprite"; readonly spritePath: string; readonly symbolId: string };
 
+export type MerchantIconCategory =
+  | "groceries" | "food" | "fuel" | "shopping" | "home" | "electronics"
+  | "health" | "finance" | "insurance" | "utilities" | "telecom" | "government"
+  | "transport" | "travel" | "entertainment" | "sport" | "delivery"
+  | "digital" | "marketplace" | "automotive" | "services" | "other";
+
+export type MerchantIconProvenanceKind = "official" | "user-supplied" | "generated";
+
+export interface MerchantIconProvenance {
+  readonly kind: MerchantIconProvenanceKind;
+  readonly source?: string;
+  readonly reviewed: boolean;
+}
+
 export interface MerchantIconCatalogueEntry {
   readonly key: string;
   readonly name: string;
   readonly regions: readonly string[];
   readonly aliases: readonly string[];
+  readonly category?: MerchantIconCategory;
+  readonly provenance?: MerchantIconProvenance;
   readonly asset: MerchantIconAsset;
 }
 
