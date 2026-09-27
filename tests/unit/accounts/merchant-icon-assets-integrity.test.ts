@@ -30,9 +30,8 @@ test("merchant catalogue entries have unique identities and real lazy assets", (
       assert.ok(existsSync(spritePath), `missing merchant sprite: ${entry.asset.spritePath}`);
       const sprite = spriteCache.get(spritePath) ?? readFileSync(spritePath, "utf8");
       spriteCache.set(spritePath, sprite);
-      assert.match(
-        sprite,
-        new RegExp(`<symbol\\s+id=["']${entry.asset.symbolId}["'](?:\\s|>)`, "u"),
+      assert.ok(
+        sprite.includes(`<symbol id="${entry.asset.symbolId}"`),
         `missing sprite symbol: ${entry.asset.symbolId}`,
       );
       assert.ok(!symbols.has(entry.asset.symbolId), `duplicate sprite symbol: ${entry.asset.symbolId}`);
