@@ -1,3 +1,5 @@
+import { isMerchantIconKey } from "./merchantIconCatalogue.js";
+
 export const PAYEE_BUILTIN_ICONS = [
   { key: "merchant", label: "General merchant" },
   { key: "shopping", label: "Shopping" },
@@ -17,6 +19,7 @@ export type PayeeEmbeddedIconFormat = "webp" | "png";
 export type PayeeIconReference =
   | { readonly kind: "automatic" }
   | { readonly kind: "builtin"; readonly key: PayeeBuiltinIconKey }
+  | { readonly kind: "merchant"; readonly key: string }
   | { readonly kind: "embedded"; readonly format: PayeeEmbeddedIconFormat; readonly data: string }
   | { readonly kind: "content"; readonly contentHash: string }
   | { readonly kind: "unknown"; readonly raw: string };
@@ -52,6 +55,12 @@ export function parsePayeeIconReference(raw: string | null | undefined): PayeeIc
       ? { kind: "builtin", key: key as PayeeBuiltinIconKey }
       : { kind: "unknown", raw };
   }
+  if (raw.startsWith("merchant:v1:")) {
+    const key = raw.slice("merchant:v1:".length);
+    return isMerchantIconKey(key)
+      ? { kind: "merchant", key }
+      : { kind: "unknown", raw };
+  }
   if (raw.startsWith("embedded:v1:")) {
     return parseEmbeddedIconReference(raw) ?? { kind: "unknown", raw };
   }
@@ -67,6 +76,10 @@ export function parsePayeeIconReference(raw: string | null | undefined): PayeeIc
 export function serialisePayeeIconReference(reference: Exclude<PayeeIconReference, { kind: "unknown" }>): string {
   if (reference.kind === "automatic") return "";
   if (reference.kind === "builtin") return `builtin:v1:${reference.key}`;
+  if (reference.kind === "merchant") {
+    if (!isMerchantIconKey(reference.key)) throw new TypeError("Invalid merchant payee icon.");
+    return `merchant:v1:${reference.key}`;
+  }
   if (reference.kind === "embedded") {
     const raw = `embedded:v1:${reference.format}:${reference.data}`;
     if (parseEmbeddedIconReference(raw)?.kind !== "embedded") {
@@ -86,7 +99,7 @@ export function validatePayeeIconReferenceForWrite(raw: string): string {
 
 export function isExplicitPayeeIconReference(raw: string | null | undefined): boolean {
   const parsed = parsePayeeIconReference(raw);
-  return parsed.kind === "builtin" || parsed.kind === "embedded" || parsed.kind === "content";
+  return parsed.kind === "builtin" || parsed.kind === "merchant" || parsed.kind === "embedded" || parsed.kind === "content";
 }
 
 export function mergePayeeIconReferences(
