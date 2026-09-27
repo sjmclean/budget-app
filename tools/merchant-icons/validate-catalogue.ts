@@ -1,4 +1,4 @@
-import { access } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
   MERCHANT_ICON_CATALOGUE,
@@ -8,17 +8,26 @@ import {
 const root = process.cwd();
 const errors: string[] = [];
 const keys = new Map<string, string>();
-const assetPaths = new Map<string, string>();
+const spriteSymbols = new Map<string, string>();
 const identities = new Map<string, string>();
+const spriteCache = new Map<string, string>();
+
+async function readSprite(path: string): Promise<string | undefined> {
+  const cached = spriteCache.get(path);
+  if (cached !== undefined) return cached;
+  try {
+    const text = await readFile(resolve(root, "apps/web/public/merchant-icons", path), "utf8");
+    spriteCache.set(path, text);
+    return text;
+  } catch {
+    return undefined;
+  }
+}
 
 for (const entry of MERCHANT_ICON_CATALOGUE) {
   const keyOwner = keys.get(entry.key);
   if (keyOwner) errors.push(`Duplicate merchant key "${entry.key}" (${keyOwner}, ${entry.name}).`);
   else keys.set(entry.key, entry.name);
-
-  const pathOwner = assetPaths.get(entry.assetPath);
-  if (pathOwner) errors.push(`Duplicate merchant asset path "${entry.assetPath}" (${pathOwner}, ${entry.name}).`);
-  else assetPaths.set(entry.assetPath, entry.name);
 
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(entry.key)) {
     errors.push(`Merchant key "${entry.key}" is not a stable lowercase slug.`);
@@ -41,10 +50,30 @@ for (const entry of MERCHANT_ICON_CATALOGUE) {
     }
   }
 
-  try {
-    await access(resolve(root, "apps/web/public/merchant-icons", entry.assetPath));
-  } catch {
-    errors.push(`Merchant "${entry.key}" references missing asset "${entry.assetPath}".`);
+  if (entry.asset.kind === "image") {
+    try {
+      await access(resolve(root, "apps/web/public/merchant-icons", entry.asset.assetPath));
+    } catch {
+      errors.push(`Merchant "${entry.key}" references missing asset "${entry.asset.assetPath}".`);
+    }
+    continue;
+  }
+
+  const symbolOwner = spriteSymbols.get(entry.asset.symbolId);
+  if (symbolOwner && symbolOwner !== entry.key) {
+    errors.push(`Sprite symbol "${entry.asset.symbolId}" is shared by "${symbolOwner}" and "${entry.key}".`);
+  } else {
+    spriteSymbols.set(entry.asset.symbolId, entry.key);
+  }
+
+  const sprite = await readSprite(entry.asset.spritePath);
+  if (sprite === undefined) {
+    errors.push(`Merchant "${entry.key}" references missing sprite "${entry.asset.spritePath}".`);
+    continue;
+  }
+  const escaped = entry.asset.symbolId.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  if (!new RegExp(`<symbol\\s+id=["']${escaped}["'](?:\\s|>)`, "u").test(sprite)) {
+    errors.push(`Merchant "${entry.key}" references missing symbol "${entry.asset.symbolId}" in "${entry.asset.spritePath}".`);
   }
 }
 
@@ -55,5 +84,5 @@ if (errors.length) {
 }
 
 console.log(
-  `Merchant icon catalogue valid: ${MERCHANT_ICON_CATALOGUE.length} entries, ${identities.size} canonical identities.`,
+  `Merchant icon catalogue valid: ${MERCHANT_ICON_CATALOGUE.length} entries, ${identities.size} canonical identities, ${spriteCache.size} sprite shards.`,
 );
