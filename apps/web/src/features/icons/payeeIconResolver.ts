@@ -1,13 +1,14 @@
 import type { PayeeView } from "../accounts/payeeService.js";
 import {
   findMerchantIconByPayeeName,
-  merchantIconAssetUrl,
+  resolveMerchantIconAsset,
 } from "./merchantIconCatalogue.js";
 import { parsePayeeIconReference, type PayeeBuiltinIconKey } from "./payeeIconReference.js";
 
 export type ResolvedPayeeIcon =
   | { readonly kind: "builtin"; readonly key: PayeeBuiltinIconKey }
   | { readonly kind: "image"; readonly src: string }
+  | { readonly kind: "sprite"; readonly href: string }
   | { readonly kind: "initials"; readonly initials: string; readonly token: string }
   | { readonly kind: "transfer" }
   | { readonly kind: "none" };
@@ -24,8 +25,8 @@ export function resolvePayeeIcon({ payee, state = "payee" }: ResolvePayeeIconInp
   const reference = parsePayeeIconReference(payee.iconRef);
   if (reference.kind === "builtin") return reference;
   if (reference.kind === "merchant") {
-    const src = merchantIconAssetUrl(reference.key);
-    if (src) return { kind: "image", src };
+    const asset = resolveMerchantIconAsset(reference.key);
+    if (asset) return asset;
   }
   if (reference.kind === "embedded") {
     return {
@@ -36,8 +37,8 @@ export function resolvePayeeIcon({ payee, state = "payee" }: ResolvePayeeIconInp
 
   if (reference.kind === "automatic") {
     const merchant = findMerchantIconByPayeeName(payee.name);
-    const src = merchant ? merchantIconAssetUrl(merchant) : undefined;
-    if (src) return { kind: "image", src };
+    const asset = merchant ? resolveMerchantIconAsset(merchant) : undefined;
+    if (asset) return asset;
   }
 
   return {
