@@ -12,6 +12,8 @@ const spriteSymbols = new Map<string, string>();
 const identities = new Map<string, string>();
 const identityEntries = new Map<string, typeof MERCHANT_ICON_CATALOGUE[number][]>();
 const spriteCache = new Map<string, string>();
+let reviewedArtworkCount = 0;
+let generatedFallbackCount = 0;
 
 async function readSprite(path: string): Promise<string | undefined> {
   const cached = spriteCache.get(path);
@@ -39,6 +41,16 @@ for (const entry of MERCHANT_ICON_CATALOGUE) {
   if (!entry.category) errors.push(`Merchant "${entry.key}" has no category.`);
   if (!entry.provenance?.kind || typeof entry.provenance.reviewed !== "boolean") {
     errors.push(`Merchant "${entry.key}" has invalid provenance.`);
+  }
+  if (entry.provenance?.reviewed) reviewedArtworkCount += 1;
+  if (entry.provenance?.kind === "generated" && entry.provenance.reviewed === false) {
+    generatedFallbackCount += 1;
+  }
+  if (entry.provenance?.reviewed && entry.asset.kind === "sprite" && entry.asset.spritePath.startsWith("major-expansion-")) {
+    errors.push(`Reviewed merchant "${entry.key}" references generated fallback sprite "${entry.asset.spritePath}".`);
+  }
+  if (entry.provenance?.kind === "generated" && entry.provenance.reviewed) {
+    errors.push(`Generated merchant "${entry.key}" must not be marked reviewed.`);
   }
 
   for (const identity of [entry.name, ...entry.aliases]) {
@@ -97,5 +109,5 @@ if (errors.length) {
 }
 
 console.log(
-  `Merchant icon catalogue valid: ${MERCHANT_ICON_CATALOGUE.length} entries, ${identities.size} canonical identities, ${spriteCache.size} sprite shards, ${new Set(MERCHANT_ICON_CATALOGUE.flatMap(({ regions }) => regions)).size} regions.`,
+  `Merchant icon catalogue valid: ${MERCHANT_ICON_CATALOGUE.length} entries, ${reviewedArtworkCount} reviewed artworks, ${generatedFallbackCount} generated fallbacks, ${identities.size} canonical identities, ${spriteCache.size} sprite shards, ${new Set(MERCHANT_ICON_CATALOGUE.flatMap(({ regions }) => regions)).size} regions.`,
 );

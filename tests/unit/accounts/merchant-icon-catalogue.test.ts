@@ -50,13 +50,41 @@ describe("merchant icon catalogue", () => {
     assert.equal(getMerchantIconEntry("qantas-global")?.category, "airline");
   });
 
-  it("keeps reviewed legacy artwork distinct from generated fallback marks", () => {
+  it("keeps reviewed artwork in the majority and fallbacks explicitly unreviewed", () => {
     const reviewed = MERCHANT_ICON_CATALOGUE.filter(({ provenance }) => provenance?.reviewed);
     const generatedFallbacks = MERCHANT_ICON_CATALOGUE.filter(({ provenance }) =>
       provenance?.kind === "generated" && provenance.reviewed === false
     );
-    assert.equal(reviewed.length, 110);
-    assert.equal(generatedFallbacks.length, 650);
+    assert.equal(MERCHANT_ICON_CATALOGUE.length, 760);
+    assert.ok(reviewed.length > MERCHANT_ICON_CATALOGUE.length / 2);
+    assert.equal(reviewed.length, 503);
+    assert.equal(generatedFallbacks.length, 257);
+  });
+
+  it("protects high-priority merchants from reverting to generated tiles", () => {
+    const keys = [
+      "qantas-global",
+      "commonwealth-bank-au",
+      "telstra-au",
+      "origin-energy-au",
+      "medibank-au",
+      "stan-au",
+      "disney-plus-global",
+      "david-jones-global",
+      "hertz-global",
+      "wilson-parking-global",
+      "banyule-city-council-au",
+    ];
+
+    for (const key of keys) {
+      const entry = getMerchantIconEntry(key);
+      assert.ok(entry, `Missing high-priority merchant ${key}`);
+      assert.equal(entry.provenance?.reviewed, true, `${key} must keep reviewed artwork`);
+      assert.notEqual(entry.provenance?.kind, "generated", `${key} must not use a generated tile`);
+      if (entry.asset.kind === "sprite") {
+        assert.ok(!entry.asset.spritePath.startsWith("major-expansion-"), `${key} points at a fallback sprite`);
+      }
+    }
   });
 
   it("provides lazy sprite references and bounded search", () => {

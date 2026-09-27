@@ -24,6 +24,24 @@ importers:
       '@eslint/js':
         specifier: 10.0.1
         version: 10.0.1(eslint@10.10.0)
+      '@iconify-json/cbi':
+        specifier: ^1.2.59
+        version: 1.2.59
+      '@iconify-json/cib':
+        specifier: ^1.2.3
+        version: 1.2.3
+      '@iconify-json/logos':
+        specifier: ^1.2.14
+        version: 1.2.14
+      '@iconify-json/selfhst':
+        specifier: ^1.2.21
+        version: 1.2.21
+      '@iconify-json/thesvg':
+        specifier: ^1.2.7
+        version: 1.2.7
+      '@iconify-json/thesvg-color':
+        specifier: ^1.2.13
+        version: 1.2.13
       '@playwright/test':
         specifier: 1.63.0
         version: 1.63.0
@@ -39,6 +57,9 @@ importers:
       react-test-renderer:
         specifier: 19.2.7
         version: 19.2.7(react@19.2.7)
+      simple-icons:
+        specifier: ^16.32.0
+        version: 16.32.0
       tsx:
         specifier: ^4.22.4
         version: 4.22.4
@@ -402,6 +423,27 @@ packages:
   '@humanwhocodes/retry@0.4.3':
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
+
+  '@iconify-json/cbi@1.2.59':
+    resolution: {integrity: sha512-kvp05ix+eJk509JJ8CTEUvdNx0F5x9Xg5oBMMDnjyLzKYZTh7nEWswvGKPmAmnEQ0pVjt8R+eS65LwYmi1OvFA==}
+
+  '@iconify-json/cib@1.2.3':
+    resolution: {integrity: sha512-MMvRXVTHt82z3bYN19JDAjv/X8OBNC/1B3I334SV/1nyhdPeeyvJZVoI1cGuNqYznBjMnWxKPtIhhiVgGQ1CzQ==}
+
+  '@iconify-json/logos@1.2.14':
+    resolution: {integrity: sha512-O36DicXkgAMT6NAsH7MTWlOql8NktHz9fBCItTjz6L/9gyRXw4vQj6qTeVgww5UZWiVugUV1MhVFA/g9HWIkBw==}
+
+  '@iconify-json/selfhst@1.2.21':
+    resolution: {integrity: sha512-GUO/oOYhHdVrkymNrGShi1nyL1uEvfCTv5DkGnP1jtOg/LROW+LON3vUBWAx8GZ/mIXN8rArgNOfaLHzad1Wjw==}
+
+  '@iconify-json/thesvg-color@1.2.13':
+    resolution: {integrity: sha512-SXjH5WhAt8wH47Dqg0ZHBJnslhKGVzgB1IFy8376PDfpNQjOdLtJGpwEaV4xsbMljGgUAmz2gy5QoLex7+zBpQ==}
+
+  '@iconify-json/thesvg@1.2.7':
+    resolution: {integrity: sha512-NX4auJjCHDd9GZwd0u5Cwywagtvpk9iRFJnSJifYVxTP/BgnicmWcgOhvj7V00IWMI0tJ1YuF+5uYFB7geq6bA==}
+
+  '@iconify/types@2.0.0':
+    resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -1308,6 +1350,10 @@ packages:
   simple-get@4.0.1:
     resolution: {integrity: sha512-brv7p5WgH0jmQJr1ZDDfKDOSeWWg+OVypG99A/5vYGPqJ6pxiaHLy8nxtFjBA7oMa01ebA9gfh1uMCFqOuXxvA==}
 
+  simple-icons@16.32.0:
+    resolution: {integrity: sha512-BwqATHxAulx7X6kNdTkecy7PBjLkgtAHcgrwYLd9iA+cD2At9DzhJwdwaSELk2+aZe01IfiM/Wxtyp68Dvup2A==}
+    engines: {node: '>=0.12.18'}
+
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
@@ -1724,6 +1770,32 @@ snapshots:
   '@humanwhocodes/module-importer@1.0.1': {}
 
   '@humanwhocodes/retry@0.4.3': {}
+
+  '@iconify-json/cbi@1.2.59':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify-json/cib@1.2.3':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify-json/logos@1.2.14':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify-json/selfhst@1.2.21':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify-json/thesvg-color@1.2.13':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify-json/thesvg@1.2.7':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify/types@2.0.0': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -2501,6 +2573,8 @@ snapshots:
       decompress-response: 6.0.0
       once: 1.4.0
       simple-concat: 1.0.1
+
+  simple-icons@16.32.0: {}
 
   source-map-js@1.2.1: {}
 

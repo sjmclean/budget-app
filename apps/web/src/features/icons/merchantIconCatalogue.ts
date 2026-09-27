@@ -14,7 +14,7 @@ export type MerchantIconCategory =
   | "streaming-video" | "streaming-music" | "streaming-sport" | "gaming-subscription"
   | "digital" | "marketplace" | "automotive" | "services" | "local-government" | "other";
 
-export type MerchantIconProvenanceKind = "official" | "user-supplied" | "generated";
+export type MerchantIconProvenanceKind = "official" | "community" | "user-supplied" | "generated";
 
 export interface MerchantIconProvenance {
   readonly kind: MerchantIconProvenanceKind;

@@ -1,0 +1,1883 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "key": "banyule-city-council-au",
+      "assetPath": "official/banyule-city-council-au.ico",
+      "source": "https://www.banyule.vic.gov.au",
+      "assetSource": "https://www.banyule.vic.gov.au/files/ocfavicon/Public/favicon.ico?V=638624460906739232"
+    },
+    {
+      "key": "south-east-water-au",
+      "assetPath": "official/south-east-water-au.ico",
+      "source": "https://southeastwater.com.au",
+      "assetSource": "https://southeastwater.com.au/favicon.ico"
+    },
+    {
+      "key": "greater-western-water-au",
+      "assetPath": "official/greater-western-water-au.ico",
+      "source": "https://www.gww.com.au",
+      "assetSource": "https://www.gww.com.au/sites/default/files/favicon_2.ico"
+    },
+    {
+      "key": "sydney-water-au",
+      "assetPath": "official/sydney-water-au.png",
+      "source": "https://www.sydneywater.com.au",
+      "assetSource": "https://www.sydneywater.com.au/etc.clientlibs/sydneywater-commons/clientlibs/clientlib-base/resources/apple-touch-icon-120x120.png"
+    },
+    {
+      "key": "unitywater-au",
+      "assetPath": "official/unitywater-au.ico",
+      "source": "https://www.unitywater.com",
+      "assetSource": "https://www.unitywater.com/favicon.ico"
+    },
+    {
+      "key": "origin-energy-au",
+      "assetPath": "official/origin-energy-au.png",
+      "source": "https://www.originenergy.com.au",
+      "assetSource": "https://www.originenergy.com.au/staticod/site/www.originenergy.com.au/wp-content/themes/origin-wordpress-theme/images/favicon/favicon-96x96.png"
+    },
+    {
+      "key": "energyaustralia-au",
+      "assetPath": "official/energyaustralia-au.ico",
+      "source": "https://www.energyaustralia.com.au",
+      "assetSource": "https://www.energyaustralia.com.au/favicon.ico"
+    },
+    {
+      "key": "alinta-energy-au",
+      "assetPath": "official/alinta-energy-au.ico",
+      "source": "https://www.alintaenergy.com.au",
+      "assetSource": "https://www.alintaenergy.com.au/favicon.ico"
+    },
+    {
+      "key": "powershop-au",
+      "assetPath": "official/powershop-au.ico",
+      "source": "https://www.powershop.com.au",
+      "assetSource": "https://www.powershop.com.au/favicon.ico?favicon.2_t15iolt5xwg.ico"
+    },
+    {
+      "key": "momentum-energy-au",
+      "assetPath": "official/momentum-energy-au.png",
+      "source": "https://www.momentumenergy.com.au",
+      "assetSource": "https://www.momentumenergy.com.au/images/default-source/default-album/momentum-favicon.png"
+    },
+    {
+      "key": "globird-energy-au",
+      "assetPath": "official/globird-energy-au.png",
+      "source": "https://www.globirdenergy.com.au",
+      "assetSource": "https://www.globirdenergy.com.au/wp-content/uploads/2025/01/favicon.png"
+    },
+    {
+      "key": "ovo-energy-australia-au",
+      "assetPath": "official/ovo-energy-australia-au.ico",
+      "source": "https://www.ovoenergy.com.au",
+      "assetSource": "https://www.ovoenergy.com.au/favicon.ico"
+    },
+    {
+      "key": "telstra-au",
+      "assetPath": "official/telstra-au.png",
+      "source": "https://www.telstra.com.au",
+      "assetSource": "https://www.telstra.com.au/etc/designs/telstra/images/t-logo-theme-brand-refresh-apple-touch.png"
+    },
+    {
+      "key": "optus-au",
+      "assetPath": "official/optus-au.ico",
+      "source": "https://www.optus.com.au",
+      "assetSource": "https://www.optus.com.au/favicon.ico"
+    },
+    {
+      "key": "tpg-au",
+      "assetPath": "official/tpg-au.ico",
+      "source": "https://www.tpg.com.au",
+      "assetSource": "https://www.tpg.com.au/libraries/images/favicon-tpg.ico"
+    },
+    {
+      "key": "iinet-au",
+      "assetPath": "official/iinet-au.ico",
+      "source": "https://www.iinet.net.au",
+      "assetSource": "https://www.iinet.net.au/themes/iinet/favicon.ico"
+    },
+    {
+      "key": "internode-au",
+      "assetPath": "official/internode-au.svg",
+      "source": "https://www.internode.on.net",
+      "assetSource": "https://www.internode.on.net/sites/internode/files/favicons/safari-pinned-tab.svg"
+    },
+    {
+      "key": "aussie-broadband-au",
+      "assetPath": "official/aussie-broadband-au.png",
+      "source": "https://www.aussiebroadband.com.au",
+      "assetSource": "https://www.aussiebroadband.com.au/img/site-icons/apple-touch-icon.png"
+    },
+    {
+      "key": "superloop-au",
+      "assetPath": "official/superloop-au.png",
+      "source": "https://www.superloop.com",
+      "assetSource": "https://www.superloop.com/apple-touch-icon.png"
+    },
+    {
+      "key": "exetel-au",
+      "assetPath": "official/exetel-au.ico",
+      "source": "https://www.exetel.com.au",
+      "assetSource": "https://www.exetel.com.au/exetel-favicon.ico"
+    },
+    {
+      "key": "tangerine-telecom-au",
+      "assetPath": "official/tangerine-telecom-au.png",
+      "source": "https://www.tangerinetelecom.com.au",
+      "assetSource": "https://www.tangerine.com.au/storage/Images/Tangerine_Icon_48x48.png"
+    },
+    {
+      "key": "dodo-au",
+      "assetPath": "official/dodo-au.png",
+      "source": "https://www.dodo.com",
+      "assetSource": "https://www.dodo.com/sites/dodo/themes/custom/dodo_bootstrap/assets/images/favicon.png"
+    },
+    {
+      "key": "mate-au",
+      "assetPath": "official/mate-au.png",
+      "source": "https://www.letsbemates.com.au",
+      "assetSource": "https://www.letsbemates.com.au/includes/assets/img/mate.png"
+    },
+    {
+      "key": "southern-phone-au",
+      "assetPath": "official/southern-phone-au.ico",
+      "source": "https://www.southernphone.com.au",
+      "assetSource": "https://www.southernphone.com.au/favicon.ico"
+    },
+    {
+      "key": "vodafone-australia-au",
+      "assetPath": "official/vodafone-australia-au.ico",
+      "source": "https://www.vodafone.com.au",
+      "assetSource": "https://www.vodafone.com.au/favicon.ico"
+    },
+    {
+      "key": "boost-mobile-au",
+      "assetPath": "official/boost-mobile-au.png",
+      "source": "https://boost.com.au",
+      "assetSource": "https://boost.com.au/etc/designs/boost/images/favicon-boost.png"
+    },
+    {
+      "key": "kogan-mobile-au",
+      "assetPath": "official/kogan-mobile-au.png",
+      "source": "https://www.koganmobile.com.au",
+      "assetSource": "https://s31685.pcdn.co/wp-content/uploads/2026/06/cropped-koganFavicon-2-180x180.png"
+    },
+    {
+      "key": "felix-mobile-au",
+      "assetPath": "official/felix-mobile-au.ico",
+      "source": "https://felixmobile.com.au",
+      "assetSource": "https://felixmobile.com.au/favicon.ico"
+    },
+    {
+      "key": "moose-mobile-au",
+      "assetPath": "official/moose-mobile-au.png",
+      "source": "https://moosemobile.com.au",
+      "assetSource": "https://moosemobile.com.au/wp-content/uploads/2024/08/cropped-favicon_big-180x180.png"
+    },
+    {
+      "key": "qantas-global",
+      "assetPath": "official/qantas-global.ico",
+      "source": "https://www.qantas.com",
+      "assetSource": "https://www.qantas.com/favicon.ico"
+    },
+    {
+      "key": "jetstar-global",
+      "assetPath": "official/jetstar-global.ico",
+      "source": "https://www.jetstar.com",
+      "assetSource": "https://www.jetstar.com/favicon.ico"
+    },
+    {
+      "key": "virgin-australia-global",
+      "assetPath": "official/virgin-australia-global.svg",
+      "source": "https://www.virginaustralia.com",
+      "assetSource": "https://www.virginaustralia.com/content/dam/vaa/icons/favicon.svg"
+    },
+    {
+      "key": "air-new-zealand-global",
+      "assetPath": "official/air-new-zealand-global.png",
+      "source": "https://www.airnewzealand.com.au",
+      "assetSource": "https://www.airnewzealand.com.au/koru-icon-iphone-retina.png"
+    },
+    {
+      "key": "commonwealth-bank-au",
+      "assetPath": "official/commonwealth-bank-au.ico",
+      "source": "https://www.commbank.com.au",
+      "assetSource": "https://www.commbank.com.au/etc/designs/commbank/favicon.ico"
+    },
+    {
+      "key": "nab-au",
+      "assetPath": "official/nab-au.ico",
+      "source": "https://www.nab.com.au",
+      "assetSource": "https://www.nab.com.au/etc.clientlibs/nab/clientlibs/clientlib-site/resources/images/favicon.ico"
+    },
+    {
+      "key": "anz-au",
+      "assetPath": "official/anz-au.ico",
+      "source": "https://www.anz.com.au",
+      "assetSource": "https://www.anz.com.au/apps/settings/wcm/designs/commons/images/appicons/favicon-16x16.ico"
+    },
+    {
+      "key": "westpac-au",
+      "assetPath": "official/westpac-au.ico",
+      "source": "https://www.westpac.com.au",
+      "assetSource": "https://www.westpac.com.au/favicon.ico"
+    },
+    {
+      "key": "bendigo-bank-au",
+      "assetPath": "official/bendigo-bank-au.png",
+      "source": "https://www.bendigobank.com.au",
+      "assetSource": "https://www.bendigobank.com.au/siteassets/siteassets/header/touch-icon-ipad-retina.png"
+    },
+    {
+      "key": "bank-of-melbourne-au",
+      "assetPath": "official/bank-of-melbourne-au.png",
+      "source": "https://www.bankofmelbourne.com.au",
+      "assetSource": "https://www.bankofmelbourne.com.au/etc/designs/sbgrp/bom/clientlibs/css/favicons/favicon-32x32.png"
+    },
+    {
+      "key": "st-george-bank-au",
+      "assetPath": "official/st-george-bank-au.png",
+      "source": "https://www.stgeorge.com.au",
+      "assetSource": "https://www.stgeorge.com.au/etc/designs/sbgrp/stg/clientlibs/css/favicons/favicon-32x32.png"
+    },
+    {
+      "key": "macquarie-bank-au",
+      "assetPath": "official/macquarie-bank-au.ico",
+      "source": "https://www.macquarie.com.au",
+      "assetSource": "https://www.macquarie.com.au/assets/bfs/icons/favicon.ico"
+    },
+    {
+      "key": "ing-australia-au",
+      "assetPath": "official/ing-australia-au.webp",
+      "source": "https://www.ing.com.au",
+      "assetSource": "https://www.ing.com.au/ico/144.webp"
+    },
+    {
+      "key": "boq-au",
+      "assetPath": "official/boq-au.ico",
+      "source": "https://www.boq.com.au",
+      "assetSource": "https://www.boq.com.au/favicon.ico"
+    },
+    {
+      "key": "ubank-au",
+      "assetPath": "official/ubank-au.png",
+      "source": "https://www.ubank.com.au",
+      "assetSource": "https://www.ubank.com.au/assets/icons/apple-touch-icon.png"
+    },
+    {
+      "key": "up-bank-au",
+      "assetPath": "official/up-bank-au.ico",
+      "source": "https://up.com.au",
+      "assetSource": "https://up.com.au/favicon.ico"
+    },
+    {
+      "key": "me-bank-au",
+      "assetPath": "official/me-bank-au.ico",
+      "source": "https://www.mebank.com.au",
+      "assetSource": "https://www.mebank.com.au/MEBank/Assets/Images/favicon.ico"
+    },
+    {
+      "key": "hsbc-australia-au",
+      "assetPath": "official/hsbc-australia-au.ico",
+      "source": "https://www.hsbc.com.au",
+      "assetSource": "https://www.hsbc.com.au/etc.clientlibs/dpws/clientlibs-public/clientlib-site/resources/favicons/favicon.ico"
+    },
+    {
+      "key": "medibank-au",
+      "assetPath": "official/medibank-au.ico",
+      "source": "https://www.medibank.com.au",
+      "assetSource": "https://www.medibank.com.au/apps/retail/clientlibs/clientlib-all/resources/favicon/favicon.ico"
+    },
+    {
+      "key": "bupa-australia-au",
+      "assetPath": "official/bupa-australia-au.ico",
+      "source": "https://www.bupa.com.au",
+      "assetSource": "https://www.bupa.com.au/favicon.ico"
+    },
+    {
+      "key": "hcf-au",
+      "assetPath": "official/hcf-au.ico",
+      "source": "https://www.hcf.com.au",
+      "assetSource": "https://www.hcf.com.au/etc.clientlibs/hcf-digital/clientlibs-assets/resources/img/icons/favicon.ico"
+    },
+    {
+      "key": "nib-health-au",
+      "assetPath": "official/nib-health-au.png",
+      "source": "https://www.nib.com.au",
+      "assetSource": "https://static.nib.com.au/images/nib/apple-touch-icon.png"
+    },
+    {
+      "key": "ahm-au",
+      "assetPath": "official/ahm-au.ico",
+      "source": "https://ahm.com.au",
+      "assetSource": "https://ahm.com.au/favicon.ico"
+    },
+    {
+      "key": "hbf-au",
+      "assetPath": "official/hbf-au.svg",
+      "source": "https://www.hbf.com.au",
+      "assetSource": "https://www.hbf.com.au/svg/safari-pinned-tab.svg"
+    },
+    {
+      "key": "gmhba-au",
+      "assetPath": "official/gmhba-au.png",
+      "source": "https://www.gmhba.com.au",
+      "assetSource": "https://www.gmhba.com.au/globalassets/icon-images/favicon.png?width=16"
+    },
+    {
+      "key": "australian-unity-au",
+      "assetPath": "official/australian-unity-au.svg",
+      "source": "https://www.australianunity.com.au",
+      "assetSource": "https://www.australianunity.com.au/assets/main/img/favicon/icon.svg"
+    },
+    {
+      "key": "defence-health-au",
+      "assetPath": "official/defence-health-au.ico",
+      "source": "https://www.defencehealth.com.au",
+      "assetSource": "https://www.defencehealth.com.au/assets/public/images/favicon.ico"
+    },
+    {
+      "key": "cbhs-health-au",
+      "assetPath": "official/cbhs-health-au.png",
+      "source": "https://www.cbhs.com.au",
+      "assetSource": "https://www.cbhs.com.au/ResourcePackages/Health/favicons/health-favicon-36x36.png"
+    },
+    {
+      "key": "david-jones-global",
+      "assetPath": "official/david-jones-global.ico",
+      "source": "https://www.davidjones.com",
+      "assetSource": "https://www.davidjones.com/favicon.ico?favicon.1crm8ojtx18zm.ico"
+    },
+    {
+      "key": "country-road-global",
+      "assetPath": "official/country-road-global.ico",
+      "source": "https://www.countryroad.com.au",
+      "assetSource": "https://www.countryroad.com.au/favicon.ico"
+    },
+    {
+      "key": "witchery-global",
+      "assetPath": "official/witchery-global.ico",
+      "source": "https://www.witchery.com.au",
+      "assetSource": "https://www.witchery.com.au/favicon.ico"
+    },
+    {
+      "key": "mimco-global",
+      "assetPath": "official/mimco-global.png",
+      "source": "https://www.mimco.com.au",
+      "assetSource": "https://mimco.com.au/cdn/shop/files/favicon.png?crop=center&height=32&v=1781504688&width=32"
+    },
+    {
+      "key": "seed-heritage-global",
+      "assetPath": "official/seed-heritage-global.png",
+      "source": "https://www.seedheritage.com",
+      "assetSource": "https://www.seedheritage.com/cdn/shop/t/721/assets/logo-favicon-red.png?v=75013963755759990361790213140"
+    },
+    {
+      "key": "cotton-on-global",
+      "assetPath": "official/cotton-on-global.ico",
+      "source": "https://cottonon.com",
+      "assetSource": "https://cottonon.com/on/demandware.static/Sites-cog-au-Site/-/en_AU/v1790487007360/images/favicon.ico?v=3"
+    },
+    {
+      "key": "hertz-global",
+      "assetPath": "official/hertz-global.ico",
+      "source": "https://www.hertz.com.au",
+      "assetSource": "https://www.hertz.com.au/rentacar/assets/images/favicon.ico?v=2"
+    },
+    {
+      "key": "avis-global",
+      "assetPath": "official/avis-global.png",
+      "source": "https://www.avis.com.au",
+      "assetSource": "https://www.avis.com.au/etc/designs/avis/reservationlib/clientlib/images/favicon.png"
+    },
+    {
+      "key": "budget-rent-a-car-global",
+      "assetPath": "official/budget-rent-a-car-global.png",
+      "source": "https://www.budget.com.au",
+      "assetSource": "https://www.budget.com.au/etc/designs/budget/reservationlib/clientlib/images/favicon.png"
+    },
+    {
+      "key": "europcar-global",
+      "assetPath": "official/europcar-global.png",
+      "source": "https://www.europcar.com.au",
+      "assetSource": "https://static.europcar.com/_nuxt/icons/icon_512x512.8e91c7.png"
+    },
+    {
+      "key": "enterprise-rent-a-car-global",
+      "assetPath": "official/enterprise-rent-a-car-global.ico",
+      "source": "https://www.enterprise.com",
+      "assetSource": "https://www.enterprise.com/etc.clientlibs/ecom/clientlibs/clientlib-ecom/resources/favicon.ico"
+    },
+    {
+      "key": "wilson-parking-global",
+      "assetPath": "official/wilson-parking-global.ico",
+      "source": "https://www.wilsonparking.com.au",
+      "assetSource": "https://www.wilsonparking.com.au/assets/favicon/favicon.ico"
+    },
+    {
+      "key": "secure-parking-global",
+      "assetPath": "official/secure-parking-global.ico",
+      "source": "https://www.secureparking.com.au",
+      "assetSource": "https://d1dxkf4q.media.zestyio.com/favicon.ico"
+    },
+    {
+      "key": "care-park-global",
+      "assetPath": "official/care-park-global.png",
+      "source": "https://www.carepark.com.au",
+      "assetSource": "https://www.carepark.com.au/wp-content/uploads/2018/11/cropped-logo@2x-180x180.png"
+    },
+    {
+      "key": "thames-water-global",
+      "assetPath": "official/thames-water-global.png",
+      "source": "https://www.thameswater.co.uk",
+      "assetSource": "https://www.thameswater.co.uk/head-assets/icons/180x180.png"
+    },
+    {
+      "key": "united-utilities-global",
+      "assetPath": "official/united-utilities-global.svg",
+      "source": "https://www.unitedutilities.com",
+      "assetSource": "https://www.unitedutilities.com/assets/img/favicon/safari-pinned-tab.svg"
+    },
+    {
+      "key": "yorkshire-water-global",
+      "assetPath": "official/yorkshire-water-global.png",
+      "source": "https://www.yorkshirewater.com",
+      "assetSource": "https://www.yorkshirewater.com/img/favicon/apple-touch-icon-1024x1024.png"
+    },
+    {
+      "key": "watercare-global",
+      "assetPath": "official/watercare-global.ico",
+      "source": "https://www.watercare.co.nz",
+      "assetSource": "https://www.watercare.co.nz/favicon.ico?favicon.1yjdgd3tch8bg.ico"
+    },
+    {
+      "key": "american-water-global",
+      "assetPath": "official/american-water-global.ico",
+      "source": "https://www.amwater.com",
+      "assetSource": "https://www.amwater.com/application/themes/base/images/favicon.ico"
+    },
+    {
+      "key": "veolia-water-global",
+      "assetPath": "official/veolia-water-global.ico",
+      "source": "https://www.veolia.com",
+      "assetSource": "https://www.veolia.com/favicon.ico"
+    },
+    {
+      "key": "british-gas-global",
+      "assetPath": "official/british-gas-global.svg",
+      "source": "https://www.britishgas.co.uk",
+      "assetSource": "https://www.britishgas.co.uk/aem6/etc/designs/britishgas/favicons/favicon_black-16x16.svg"
+    },
+    {
+      "key": "edf-energy-global",
+      "assetPath": "official/edf-energy-global.ico",
+      "source": "https://www.edfenergy.com",
+      "assetSource": "https://www.edfenergy.com/profiles/spire_profile/themes/custom/spire/favicon.ico"
+    },
+    {
+      "key": "octopus-energy-global",
+      "assetPath": "official/octopus-energy-global.png",
+      "source": "https://octopus.energy",
+      "assetSource": "https://static.octopuscdn.com/favicons/android-chrome-512x512.png"
+    },
+    {
+      "key": "scottishpower-global",
+      "assetPath": "official/scottishpower-global.ico",
+      "source": "https://www.scottishpower.co.uk",
+      "assetSource": "https://www.scottishpower.co.uk/favicon.ico"
+    },
+    {
+      "key": "southern-company-global",
+      "assetPath": "official/southern-company-global.png",
+      "source": "https://www.southerncompany.com",
+      "assetSource": "https://www.southerncompany.com/etc.clientlibs/global/clientlibs/clientlib-site/resources/apple-touch-icon-120x120.png"
+    },
+    {
+      "key": "con-edison-global",
+      "assetPath": "official/con-edison-global.png",
+      "source": "https://www.coned.com",
+      "assetSource": "https://edge-e-dcxprod-web-bechbkdqagefb9ge.a03.azurefd.net/-/media/images/coned/common/ce-apple-touch-icon.png?rev=cd163ba4d9cf4a9ab611a91f86dcfb3d"
+    },
+    {
+      "key": "dominion-energy-global",
+      "assetPath": "official/dominion-energy-global.ico",
+      "source": "https://www.dominionenergy.com",
+      "assetSource": "https://www.dominionenergy.com/dom-favicon.ico"
+    },
+    {
+      "key": "hydro-one-global",
+      "assetPath": "official/hydro-one-global.ico",
+      "source": "https://www.hydroone.com",
+      "assetSource": "https://www.hydroone.com/Style%20Library/H1/images/favicon.ico"
+    },
+    {
+      "key": "bc-hydro-global",
+      "assetPath": "official/bc-hydro-global.ico",
+      "source": "https://www.bchydro.com",
+      "assetSource": "https://www.bchydro.com/favicon.ico"
+    },
+    {
+      "key": "hydro-quebec-global",
+      "assetPath": "official/hydro-quebec-global.ico",
+      "source": "https://www.hydroquebec.com",
+      "assetSource": "https://www.hydroquebec.com/favicon.ico"
+    },
+    {
+      "key": "enbridge-global",
+      "assetPath": "official/enbridge-global.ico",
+      "source": "https://www.enbridge.com",
+      "assetSource": "https://www.enbridge.com/favicon.ico"
+    },
+    {
+      "key": "iberdrola-global",
+      "assetPath": "official/iberdrola-global.ico",
+      "source": "https://www.iberdrola.com",
+      "assetSource": "https://www.iberdrola.com/favicon.ico"
+    },
+    {
+      "key": "enel-global",
+      "assetPath": "official/enel-global.png",
+      "source": "https://www.enel.com",
+      "assetSource": "https://www.enel.com/content/enel-com/apple-touch-icon-120x120-precomposed.png"
+    },
+    {
+      "key": "engie-global",
+      "assetPath": "official/engie-global.png",
+      "source": "https://www.engie.com",
+      "assetSource": "https://www.engie.com/app/uploads/2026/03/favicon-engie.png"
+    },
+    {
+      "key": "rwe-global",
+      "assetPath": "official/rwe-global.ico",
+      "source": "https://www.rwe.com",
+      "assetSource": "https://www.rwe.com/Favicons/favicon.ico"
+    },
+    {
+      "key": "spark-new-zealand-global",
+      "assetPath": "official/spark-new-zealand-global.png",
+      "source": "https://www.spark.co.nz",
+      "assetSource": "https://www.spark.co.nz/favicon_128.png"
+    },
+    {
+      "key": "one-new-zealand-global",
+      "assetPath": "official/one-new-zealand-global.png",
+      "source": "https://one.nz",
+      "assetSource": "https://one.nz/favicon-16x16.png"
+    },
+    {
+      "key": "2degrees-global",
+      "assetPath": "official/2degrees-global.ico",
+      "source": "https://www.2degrees.nz",
+      "assetSource": "https://www.2degrees.nz/themes/custom/nz2degrees_theme/favicon.ico"
+    },
+    {
+      "key": "ee-global",
+      "assetPath": "official/ee-global.ico",
+      "source": "https://ee.co.uk",
+      "assetSource": "https://ee.co.uk/exp/fep-common-assets/favicons/favicon.ico"
+    },
+    {
+      "key": "o2-uk-global",
+      "assetPath": "official/o2-uk-global.ico",
+      "source": "https://www.o2.co.uk",
+      "assetSource": "https://www.o2.co.uk/favicon.ico"
+    },
+    {
+      "key": "three-uk-global",
+      "assetPath": "official/three-uk-global.ico",
+      "source": "https://www.three.co.uk",
+      "assetSource": "https://www.three.co.uk/favicon.ico"
+    },
+    {
+      "key": "virgin-media-global",
+      "assetPath": "official/virgin-media-global.png",
+      "source": "https://www.virginmedia.com",
+      "assetSource": "https://storyblok.cdn.vmo2digital.co.uk/f/253875/192x192/5d09d0d2df/virgin-media-fav.png/m/48x48"
+    },
+    {
+      "key": "sky-broadband-global",
+      "assetPath": "official/sky-broadband-global.png",
+      "source": "https://www.sky.com",
+      "assetSource": "https://static.skyassets.com/favicons/apple-touch-icon.png"
+    },
+    {
+      "key": "talktalk-global",
+      "assetPath": "official/talktalk-global.ico",
+      "source": "https://www.talktalk.co.uk",
+      "assetSource": "https://www.talktalk.co.uk/assets/images/reskin_favicon.ico"
+    },
+    {
+      "key": "plusnet-global",
+      "assetPath": "official/plusnet-global.ico",
+      "source": "https://www.plus.net",
+      "assetSource": "https://www.plus.net/content/dam/plusnet/icons/favicon.ico"
+    },
+    {
+      "key": "comcast-xfinity-global",
+      "assetPath": "official/comcast-xfinity-global.ico",
+      "source": "https://www.xfinity.com",
+      "assetSource": "https://www.xfinity.com/xfinity-learn-ui/images/favicon/favicon.ico"
+    },
+    {
+      "key": "verizon-global",
+      "assetPath": "official/verizon-global.ico",
+      "source": "https://www.verizon.com",
+      "assetSource": "https://www.verizon.com/favicon.ico"
+    },
+    {
+      "key": "at-t-global",
+      "assetPath": "official/at-t-global.ico",
+      "source": "https://www.att.com",
+      "assetSource": "https://www.att.com/favicon.ico"
+    },
+    {
+      "key": "spectrum-global",
+      "assetPath": "official/spectrum-global.ico",
+      "source": "https://www.spectrum.com",
+      "assetSource": "https://www.spectrum.com/favicon.ico"
+    },
+    {
+      "key": "bell-canada-global",
+      "assetPath": "official/bell-canada-global.ico",
+      "source": "https://www.bell.ca",
+      "assetSource": "https://www.bell.ca/styles/images/icons/favicon.ico"
+    },
+    {
+      "key": "rogers-global",
+      "assetPath": "official/rogers-global.ico",
+      "source": "https://www.rogers.com",
+      "assetSource": "https://www.rogers.com/app/prod/assets/i/favicon.ico"
+    },
+    {
+      "key": "telefonica-global",
+      "assetPath": "official/telefonica-global.png",
+      "source": "https://www.telefonica.com",
+      "assetSource": "https://cdn-assets-eu.frontify.com/s3/frontify-enterprise-files-eu/eyJwYXRoIjoidGVsZWZvbmljYVwvYWNjb3VudHNcLzJkXC80MDAwNDcwXC9mYXZpY29uc1wvYzRcLzFcLzQ5MTliZTlhNDQxYWE1N2VlZjRlY2M4MmM1M2ZhNjVmLTE2MTkxNzczMzUucG5nIn0:telefonica:f1WW8WEiNAXO7Ttc8TjZokUZ2LVwPdFEo3CSJEVgV-A?width=196&amp;rect=0,0,800,800&amp;reference_width=800&amp;format=png"
+    },
+    {
+      "key": "telia-global",
+      "assetPath": "official/telia-global.png",
+      "source": "https://www.teliacompany.com",
+      "assetSource": "https://www.teliacompany.com/logo180.png"
+    },
+    {
+      "key": "telenor-global",
+      "assetPath": "official/telenor-global.ico",
+      "source": "https://www.telenor.com",
+      "assetSource": "https://www.telenor.com/images/favicon/favicon.ico"
+    },
+    {
+      "key": "asb-bank-global",
+      "assetPath": "official/asb-bank-global.jpg",
+      "source": "https://www.asb.co.nz",
+      "assetSource": "https://www.asb.co.nz/etc/designs/asb/help/clientlibs/style/images/touch-icon-114.png"
+    },
+    {
+      "key": "bnz-global",
+      "assetPath": "official/bnz-global.ico",
+      "source": "https://www.bnz.co.nz",
+      "assetSource": "https://www.bnz.co.nz/favicon.ico"
+    },
+    {
+      "key": "kiwibank-global",
+      "assetPath": "official/kiwibank-global.png",
+      "source": "https://www.kiwibank.co.nz",
+      "assetSource": "https://media.kiwibank.co.nz/static/favicons/favicon-152x152.png"
+    },
+    {
+      "key": "chase-global",
+      "assetPath": "official/chase-global.png",
+      "source": "https://www.chase.com",
+      "assetSource": "https://www.chase.com/etc/designs/chase-ux/favicon-57.png"
+    },
+    {
+      "key": "bank-of-america-global",
+      "assetPath": "official/bank-of-america-global.ico",
+      "source": "https://www.bankofamerica.com",
+      "assetSource": "https://www.bankofamerica.com/homepage/spa-assets/images/assets-images-global-favicon-favicon-CSX8d65d6e4.ico"
+    },
+    {
+      "key": "wells-fargo-global",
+      "assetPath": "official/wells-fargo-global.jpg",
+      "source": "https://www.wellsfargo.com",
+      "assetSource": "https://www17.wellsfargomedia.com/assets/images/rwd/favicon_48x48.png"
+    },
+    {
+      "key": "citibank-global",
+      "assetPath": "official/citibank-global.ico",
+      "source": "https://www.citi.com",
+      "assetSource": "https://www.citi.com/cbol-hp-static-assets/assets/favicon.ico"
+    },
+    {
+      "key": "capital-one-global",
+      "assetPath": "official/capital-one-global.png",
+      "source": "https://www.capitalone.com",
+      "assetSource": "https://www.capitalone.com/assets/shell/apple-touch-icon.png"
+    },
+    {
+      "key": "us-bank-global",
+      "assetPath": "official/us-bank-global.ico",
+      "source": "https://www.usbank.com",
+      "assetSource": "https://www.usbank.com/favicon.ico"
+    },
+    {
+      "key": "pnc-bank-global",
+      "assetPath": "official/pnc-bank-global.svg",
+      "source": "https://www.pnc.com",
+      "assetSource": "https://www.pnc.com/etc.clientlibs/pnc-aem-base/clientlibs/clientlib-site/resources/safari-pinned-tab.svg"
+    },
+    {
+      "key": "truist-global",
+      "assetPath": "official/truist-global.ico",
+      "source": "https://www.truist.com",
+      "assetSource": "https://www.truist.com/favicon.ico"
+    },
+    {
+      "key": "td-bank-global",
+      "assetPath": "official/td-bank-global.ico",
+      "source": "https://www.td.com",
+      "assetSource": "https://www.td.com/etc.clientlibs/tdsite/clientlibs/clientlib-wealth/resources/images/favicon.ico"
+    },
+    {
+      "key": "royal-bank-of-canada-global",
+      "assetPath": "official/royal-bank-of-canada-global.ico",
+      "source": "https://www.rbc.com",
+      "assetSource": "https://www.rbc.com/favicon.ico"
+    },
+    {
+      "key": "scotiabank-global",
+      "assetPath": "official/scotiabank-global.ico",
+      "source": "https://www.scotiabank.com",
+      "assetSource": "https://www.scotiabank.com/content/dam/scotiabank/enterprise/images/logos/favicon.ico"
+    },
+    {
+      "key": "bmo-global",
+      "assetPath": "official/bmo-global.ico",
+      "source": "https://www.bmo.com",
+      "assetSource": "https://www.bmo.com/dist/favicon/favicon.ico"
+    },
+    {
+      "key": "cibc-global",
+      "assetPath": "official/cibc-global.png",
+      "source": "https://www.cibc.com",
+      "assetSource": "https://www.cibc.com/content/dam/global-assets/logos/partner-logos/apple/apple-touch-icon-152x152.png"
+    },
+    {
+      "key": "barclays-global",
+      "assetPath": "official/barclays-global.png",
+      "source": "https://www.barclays.co.uk",
+      "assetSource": "https://www.barclays.co.uk/content/dam/icons/favicons/barclays/apple-touch-icon-120x120.png"
+    },
+    {
+      "key": "lloyds-bank-global",
+      "assetPath": "official/lloyds-bank-global.ico",
+      "source": "https://www.lloydsbank.com",
+      "assetSource": "https://www.lloydsbank.com/etc/designs/lloyds-v2/favicon.ico"
+    },
+    {
+      "key": "natwest-global",
+      "assetPath": "official/natwest-global.png",
+      "source": "https://www.natwest.com",
+      "assetSource": "https://www.natwest.com/content/dam/championlogos/nw-champ-smartbanner.png"
+    },
+    {
+      "key": "santander-uk-global",
+      "assetPath": "official/santander-uk-global.ico",
+      "source": "https://www.santander.co.uk",
+      "assetSource": "https://www.santander.co.uk/themes/custom/santander_web18_2_0/favicon.ico"
+    },
+    {
+      "key": "monzo-global",
+      "assetPath": "official/monzo-global.svg",
+      "source": "https://monzo.com",
+      "assetSource": "https://static-assets.monzo.com/monzo-com/ce086a7bed45f1f6923be42010f322507b7a402f/_next/static/media/favicon.4c6ebc6f.svg"
+    },
+    {
+      "key": "starling-bank-global",
+      "assetPath": "official/starling-bank-global.ico",
+      "source": "https://www.starlingbank.com",
+      "assetSource": "https://www.starlingbank.com/favicon.ico"
+    },
+    {
+      "key": "deutsche-bank-global",
+      "assetPath": "official/deutsche-bank-global.svg",
+      "source": "https://www.db.com",
+      "assetSource": "https://prod2.master.dwebcms.db.com/application/themes/default/favicon/safari-pinned-tab.svg"
+    },
+    {
+      "key": "commerzbank-global",
+      "assetPath": "official/commerzbank-global.png",
+      "source": "https://www.commerzbank.com",
+      "assetSource": "https://www.commerzbank.de/konzern/tech/icons/favicon.png"
+    },
+    {
+      "key": "bnp-paribas-global",
+      "assetPath": "official/bnp-paribas-global.png",
+      "source": "https://group.bnpparibas",
+      "assetSource": "https://cdn-group.bnpparibas.com/build/images/apple-touch-icon.png"
+    },
+    {
+      "key": "ing-bank-global",
+      "assetPath": "official/ing-bank-global.ico",
+      "source": "https://www.ing.com",
+      "assetSource": "https://ing.com/webfiles/1788951119972/images/favicon.ico"
+    },
+    {
+      "key": "unicredit-global",
+      "assetPath": "official/unicredit-global.png",
+      "source": "https://www.unicreditgroup.eu",
+      "assetSource": "https://www.unicreditgroup.eu/etc/designs/unicreditgroupn/favicon/apple-touch-icon-152x152.png"
+    },
+    {
+      "key": "bbva-global",
+      "assetPath": "official/bbva-global.ico",
+      "source": "https://www.bbva.com",
+      "assetSource": "https://www.bbva.com/wp-content/themes/coronita-bbvacom/assets/images/comun/favicon.ico"
+    },
+    {
+      "key": "caixabank-global",
+      "assetPath": "official/caixabank-global.ico",
+      "source": "https://www.caixabank.com",
+      "assetSource": "https://www.caixabank.com/favicon.ico"
+    },
+    {
+      "key": "dbs-bank-global",
+      "assetPath": "official/dbs-bank-global.ico",
+      "source": "https://www.dbs.com",
+      "assetSource": "https://www.dbs.com/group/_next/public/favicon.ico"
+    },
+    {
+      "key": "mufg-bank-global",
+      "assetPath": "official/mufg-bank-global.png",
+      "source": "https://www.bk.mufg.jp",
+      "assetSource": "https://www.bk.mufg.jp/shared2019/cmn/touch-icon.png"
+    },
+    {
+      "key": "navy-federal-credit-union-global",
+      "assetPath": "official/navy-federal-credit-union-global.ico",
+      "source": "https://www.navyfederal.org",
+      "assetSource": "https://www.navyfederal.org/etc.clientlibs/nfculibs/clientlibs/uife/clientlib-uife-nfculibs-site/resources/images/favicon.ico"
+    },
+    {
+      "key": "nationwide-building-society-global",
+      "assetPath": "official/nationwide-building-society-global.png",
+      "source": "https://www.nationwide.co.uk",
+      "assetSource": "https://www.nationwide.co.uk/_next/static/images/favicon-128-b779fd819b0703c6936930dca7c36ed3.png"
+    },
+    {
+      "key": "aetna-global",
+      "assetPath": "official/aetna-global.png",
+      "source": "https://www.aetna.com",
+      "assetSource": "https://www.aetna.com/content/dam/aetna/asset-libraries/logos/favicon-violet-heart-32x32.png"
+    },
+    {
+      "key": "cigna-global",
+      "assetPath": "official/cigna-global.ico",
+      "source": "https://www.cigna.com",
+      "assetSource": "https://www.cigna.com/themes/custom/cigna/favicon.ico"
+    },
+    {
+      "key": "humana-global",
+      "assetPath": "official/humana-global.png",
+      "source": "https://www.humana.com",
+      "assetSource": "https://www.humana.com/assets/icons/apple-touch-icon-152x152.png"
+    },
+    {
+      "key": "kaiser-permanente-global",
+      "assetPath": "official/kaiser-permanente-global.png",
+      "source": "https://healthy.kaiserpermanente.org",
+      "assetSource": "https://healthy.kaiserpermanente.org/etc.clientlibs/settings/wcm/designs/kporg/kp-foundation/clientlib-modules/styleguide/resources/assets/images/favicon-16x16.png"
+    },
+    {
+      "key": "bupa-uk-global",
+      "assetPath": "official/bupa-uk-global.ico",
+      "source": "https://www.bupa.co.uk",
+      "assetSource": "https://www.bupa.co.uk/favicon.ico"
+    },
+    {
+      "key": "axa-health-global",
+      "assetPath": "official/axa-health-global.ico",
+      "source": "https://www.axahealth.co.uk",
+      "assetSource": "https://www.axahealth.co.uk/favicon.ico"
+    },
+    {
+      "key": "aviva-health-global",
+      "assetPath": "official/aviva-health-global.png",
+      "source": "https://www.aviva.co.uk",
+      "assetSource": "https://static.aviva.io/assets/favicon/apple-touch-icon.png"
+    },
+    {
+      "key": "southern-cross-health-society-global",
+      "assetPath": "official/southern-cross-health-society-global.ico",
+      "source": "https://www.southerncross.co.nz",
+      "assetSource": "https://www.southerncross.co.nz/-/media/project/shared/images/logo/favicon.ico?rev=fd6544117eba45d78ee3db779bc23da4"
+    },
+    {
+      "key": "sun-life-global",
+      "assetPath": "official/sun-life-global.ico",
+      "source": "https://www.sunlife.com",
+      "assetSource": "https://www.sunlife.com/favicon.ico"
+    },
+    {
+      "key": "manulife-global",
+      "assetPath": "official/manulife-global.svg",
+      "source": "https://www.manulife.com",
+      "assetSource": "https://www.manulife.com/etc.clientlibs/manulife/clientlibs/clientlib-site-css/resources/favicons/mask-icon.svg"
+    },
+    {
+      "key": "sixt-global-global",
+      "assetPath": "official/sixt-global-global.ico",
+      "source": "https://www.sixt.com",
+      "assetSource": "https://www.sixt.com/favicon.ico"
+    },
+    {
+      "key": "thrifty-car-rental-global",
+      "assetPath": "official/thrifty-car-rental-global.ico",
+      "source": "https://www.thrifty.com",
+      "assetSource": "https://www.thrifty.com/favicon.ico"
+    },
+    {
+      "key": "national-car-rental-global",
+      "assetPath": "official/national-car-rental-global.ico",
+      "source": "https://www.nationalcar.com",
+      "assetSource": "https://www.nationalcar.com/content/dam/National/functional/favicons/favicon.ico"
+    },
+    {
+      "key": "alamo-rent-a-car-global",
+      "assetPath": "official/alamo-rent-a-car-global.ico",
+      "source": "https://www.alamo.com",
+      "assetSource": "https://www.alamo.com/content/dam/alamo/functional/fav-icons/favicon-alamo.ico"
+    },
+    {
+      "key": "dollar-rent-a-car-global",
+      "assetPath": "official/dollar-rent-a-car-global.ico",
+      "source": "https://www.dollar.com",
+      "assetSource": "https://www.dollar.com/favicon.ico"
+    },
+    {
+      "key": "turo-global",
+      "assetPath": "official/turo-global.png",
+      "source": "https://turo.com",
+      "assetSource": "https://resources.turo.com/cloudflare/waf-block/images/apple-touch-icon-57x57-precomposed.png"
+    },
+    {
+      "key": "easypark-global",
+      "assetPath": "official/easypark-global.png",
+      "source": "https://www.easypark.com",
+      "assetSource": "https://www.easypark.com/static/easypark/favicon-16x16.png"
+    },
+    {
+      "key": "apcoa-parking-global",
+      "assetPath": "official/apcoa-parking-global.png",
+      "source": "https://www.apcoa.com",
+      "assetSource": "https://www.apcoa.com/wp-content/uploads/2023/11/favicon-2.png"
+    },
+    {
+      "key": "q-park-global",
+      "assetPath": "official/q-park-global.ico",
+      "source": "https://www.q-park.com",
+      "assetSource": "https://www.q-park.com/xmlpages/resources/TXP/Q-Park/base_document/img/favicon.ico"
+    },
+    {
+      "key": "parkwhiz-global",
+      "assetPath": "official/parkwhiz-global.png",
+      "source": "https://www.parkwhiz.com",
+      "assetSource": "https://d252t4yj3zy8o.cloudfront.net/298702f64f0e16b2c24213bd6fbb7b8b0f0d8970/images/parkwhiz-prod-icons/favicon-32x32.png"
+    },
+    {
+      "key": "spothero-global",
+      "assetPath": "official/spothero-global.ico",
+      "source": "https://spothero.com",
+      "assetSource": "https://spothero.com/static/favicon.ico"
+    },
+    {
+      "key": "parkmobile-global",
+      "assetPath": "official/parkmobile-global.ico",
+      "source": "https://parkmobile.io",
+      "assetSource": "https://parkmobile.io/favicon.ico"
+    },
+    {
+      "key": "justpark-global",
+      "assetPath": "official/justpark-global.ico",
+      "source": "https://www.justpark.com",
+      "assetSource": "https://www.justpark.com/favicon.ico"
+    },
+    {
+      "key": "h-m-global",
+      "assetPath": "official/h-m-global.ico",
+      "source": "https://www.hm.com",
+      "assetSource": "https://www2.hm.com/favicon.ico"
+    },
+    {
+      "key": "zara-global",
+      "assetPath": "official/zara-global.ico",
+      "source": "https://www.zara.com",
+      "assetSource": "https://www.zara.com/favicon.ico"
+    },
+    {
+      "key": "uniqlo-global",
+      "assetPath": "official/uniqlo-global.ico",
+      "source": "https://www.uniqlo.com",
+      "assetSource": "https://www.uniqlo.com/favicon.ico"
+    },
+    {
+      "key": "gap-global",
+      "assetPath": "official/gap-global.jpg",
+      "source": "https://www.gap.com",
+      "assetSource": "https://gapaustralia.com/cdn/shop/files/Gap_Australia.jpg?crop=center&height=32&v=1786474857&width=32"
+    },
+    {
+      "key": "old-navy-global",
+      "assetPath": "official/old-navy-global.ico",
+      "source": "https://oldnavy.gap.com",
+      "assetSource": "https://oldnavy.gap.com/static_content/onesitecategory/components/mfe/_next/static/media/icon2.3z8ai19j65btx.ico"
+    },
+    {
+      "key": "primark-global",
+      "assetPath": "official/primark-global.ico",
+      "source": "https://www.primark.com",
+      "assetSource": "https://www.primark.com/favicon.ico"
+    },
+    {
+      "key": "next-global",
+      "assetPath": "official/next-global.ico",
+      "source": "https://www.next.co.uk",
+      "assetSource": "https://www.next.co.uk/static-content/icons/favicon/next.ico"
+    },
+    {
+      "key": "marks-and-spencer-global",
+      "assetPath": "official/marks-and-spencer-global.ico",
+      "source": "https://www.marksandspencer.com",
+      "assetSource": "https://static.marksandspencer.com/images/favicon.ico"
+    },
+    {
+      "key": "john-lewis-global",
+      "assetPath": "official/john-lewis-global.png",
+      "source": "https://www.johnlewis.com",
+      "assetSource": "https://www.johnlewis.com/static/assets/favicon/android-chrome-512x512.png"
+    },
+    {
+      "key": "nordstrom-global",
+      "assetPath": "official/nordstrom-global.ico",
+      "source": "https://www.nordstrom.com",
+      "assetSource": "https://www.nordstrom.com/favicon.ico"
+    },
+    {
+      "key": "macy-s-global",
+      "assetPath": "official/macy-s-global.ico",
+      "source": "https://www.macys.com",
+      "assetSource": "https://www.macys.com/favicon.ico"
+    },
+    {
+      "key": "bloomingdale-s-global",
+      "assetPath": "official/bloomingdale-s-global.ico",
+      "source": "https://www.bloomingdales.com",
+      "assetSource": "https://www.bloomingdales.com/favicon.ico"
+    },
+    {
+      "key": "jcpenney-global",
+      "assetPath": "official/jcpenney-global.ico",
+      "source": "https://www.jcpenney.com",
+      "assetSource": "https://www.static-jcpenney.com/prod4/yoda-home/assets/static/favicon.ico"
+    },
+    {
+      "key": "nillumbik-shire-council-au",
+      "assetPath": "official/nillumbik-shire-council-au.ico",
+      "source": "https://www.nillumbik.vic.gov.au",
+      "assetSource": "https://www.nillumbik.vic.gov.au/files/ocfavicon/Public/favicon.ico?V=637702568142420226"
+    },
+    {
+      "key": "darebin-city-council-au",
+      "assetPath": "official/darebin-city-council-au.ico",
+      "source": "https://www.darebin.vic.gov.au",
+      "assetSource": "https://www.darebin.vic.gov.au/files/ocfavicon/Public/favicon.ico?V=638440383985659356"
+    },
+    {
+      "key": "whittlesea-city-council-au",
+      "assetPath": "official/whittlesea-city-council-au.ico",
+      "source": "https://www.whittlesea.vic.gov.au",
+      "assetSource": "https://www.whittlesea.vic.gov.au/files/ocfavicon/Public/favicon.ico?V=638531067237178461"
+    },
+    {
+      "key": "boroondara-city-council-au",
+      "assetPath": "official/boroondara-city-council-au.ico",
+      "source": "https://www.boroondara.vic.gov.au",
+      "assetSource": "https://www.boroondara.vic.gov.au/themes/custom/boroo_arts/favicon.ico"
+    },
+    {
+      "key": "merri-bek-city-council-au",
+      "assetPath": "official/merri-bek-city-council-au.ico",
+      "source": "https://www.merri-bek.vic.gov.au",
+      "assetSource": "https://www.merri-bek.vic.gov.au/favicon.ico"
+    },
+    {
+      "key": "maribyrnong-city-council-au",
+      "assetPath": "official/maribyrnong-city-council-au.ico",
+      "source": "https://www.maribyrnong.vic.gov.au",
+      "assetSource": "https://www.maribyrnong.vic.gov.au/favicon.ico"
+    },
+    {
+      "key": "moonee-valley-city-council-au",
+      "assetPath": "official/moonee-valley-city-council-au.ico",
+      "source": "https://mvcc.vic.gov.au",
+      "assetSource": "https://mvcc.vic.gov.au/favicon.ico"
+    },
+    {
+      "key": "monash-city-council-au",
+      "assetPath": "official/monash-city-council-au.ico",
+      "source": "https://www.monash.vic.gov.au",
+      "assetSource": "https://www.monash.vic.gov.au/files/ocfavicon/Public/favicon.ico?V=637593965570448692"
+    },
+    {
+      "key": "whitehorse-city-council-au",
+      "assetPath": "official/whitehorse-city-council-au.png",
+      "source": "https://www.whitehorse.vic.gov.au",
+      "assetSource": "https://www.whitehorse.vic.gov.au/themes/custom/whitehorse/apple-icon-180x180.png"
+    },
+    {
+      "key": "knox-city-council-au",
+      "assetPath": "official/knox-city-council-au.ico",
+      "source": "https://www.knox.vic.gov.au",
+      "assetSource": "https://www.knox.vic.gov.au/themes/custom/knox_theme/favicon.ico"
+    },
+    {
+      "key": "yarra-ranges-council-au",
+      "assetPath": "official/yarra-ranges-council-au.ico",
+      "source": "https://www.yarraranges.vic.gov.au",
+      "assetSource": "https://www.yarraranges.vic.gov.au/files/ocfavicon/Public/favicon.ico?V=636942627343696431"
+    },
+    {
+      "key": "casey-city-council-au",
+      "assetPath": "official/casey-city-council-au.ico",
+      "source": "https://www.casey.vic.gov.au",
+      "assetSource": "https://www.casey.vic.gov.au/sites/default/files/favicon_0.ico"
+    },
+    {
+      "key": "frankston-city-council-au",
+      "assetPath": "official/frankston-city-council-au.png",
+      "source": "https://www.frankston.vic.gov.au",
+      "assetSource": "https://www.frankston.vic.gov.au/files/ocfavicon/Public/apple-touch-icon.png"
+    },
+    {
+      "key": "kingston-city-council-au",
+      "assetPath": "official/kingston-city-council-au.png",
+      "source": "https://www.kingston.vic.gov.au",
+      "assetSource": "https://www.kingston.vic.gov.au/files/ocfavicon/Public/apple-touch-icon.png"
+    },
+    {
+      "key": "glen-eira-city-council-au",
+      "assetPath": "official/glen-eira-city-council-au.svg",
+      "source": "https://www.gleneira.vic.gov.au",
+      "assetSource": "https://www.gleneira.vic.gov.au/favicons/CityCouncil/safari-pinned-tab.svg"
+    },
+    {
+      "key": "port-phillip-city-council-au",
+      "assetPath": "official/port-phillip-city-council-au.png",
+      "source": "https://www.portphillip.vic.gov.au",
+      "assetSource": "https://www.portphillip.vic.gov.au/media/rbrna02t/copplogo.png"
+    },
+    {
+      "key": "stonnington-city-council-au",
+      "assetPath": "official/stonnington-city-council-au.ico",
+      "source": "https://www.stonnington.vic.gov.au",
+      "assetSource": "https://www.stonnington.vic.gov.au/files/ocfavicon/Public/favicon.ico?V=637426019771302964"
+    },
+    {
+      "key": "hobsons-bay-city-council-au",
+      "assetPath": "official/hobsons-bay-city-council-au.ico",
+      "source": "https://www.hobsonsbay.vic.gov.au",
+      "assetSource": "https://www.hobsonsbay.vic.gov.au/files/ocfavicon/Public/favicon.ico?V=636711384710450448"
+    },
+    {
+      "key": "wyndham-city-council-au",
+      "assetPath": "official/wyndham-city-council-au.ico",
+      "source": "https://www.wyndham.vic.gov.au",
+      "assetSource": "https://www.wyndham.vic.gov.au/themes/custom/wcc_theme/favicon.ico"
+    },
+    {
+      "key": "brimbank-city-council-au",
+      "assetPath": "official/brimbank-city-council-au.ico",
+      "source": "https://www.brimbank.vic.gov.au",
+      "assetSource": "https://www.brimbank.vic.gov.au/themes/custom/brimbank/favicon.ico"
+    },
+    {
+      "key": "hume-city-council-au",
+      "assetPath": "official/hume-city-council-au.ico",
+      "source": "https://www.hume.vic.gov.au",
+      "assetSource": "https://www.hume.vic.gov.au/files/ocfavicon/Public/favicon.ico?V=637286030599109400"
+    },
+    {
+      "key": "vattenfall-global",
+      "assetPath": "official/vattenfall-global.ico",
+      "source": "https://group.vattenfall.com",
+      "assetSource": "https://group.vattenfall.com/favicon.ico?v=2"
+    },
+    {
+      "key": "melton-city-council-au",
+      "assetPath": "official/melton-city-council-au.png",
+      "source": "https://www.melton.vic.gov.au",
+      "assetSource": "https://www.melton.vic.gov.au/files/ocfavicon/Public/apple-touch-icon.png"
+    },
+    {
+      "key": "mornington-peninsula-shire-council-au",
+      "assetPath": "official/mornington-peninsula-shire-council-au.png",
+      "source": "https://www.mornpen.vic.gov.au",
+      "assetSource": "https://www.mornpen.vic.gov.au/files/ocfavicon/Public2/apple-touch-icon.png"
+    },
+    {
+      "key": "greater-dandenong-city-council-au",
+      "assetPath": "official/greater-dandenong-city-council-au.png",
+      "source": "https://www.greaterdandenong.vic.gov.au",
+      "assetSource": "https://www.greaterdandenong.vic.gov.au/sites/default/files/news-logo_2.png"
+    },
+    {
+      "key": "bayside-city-council-au",
+      "assetPath": "official/bayside-city-council-au.ico",
+      "source": "https://www.bayside.vic.gov.au",
+      "assetSource": "https://www.bayside.vic.gov.au/themes/custom/bayside/favicon.ico"
+    },
+    {
+      "key": "maroondah-city-council-au",
+      "assetPath": "official/maroondah-city-council-au.ico",
+      "source": "https://www.maroondah.vic.gov.au",
+      "assetSource": "https://www.maroondah.vic.gov.au/files/ocfavicon/Public/favicon.ico?V=638234835449972304"
+    },
+    {
+      "key": "greater-geelong-city-council-au",
+      "assetPath": "official/greater-geelong-city-council-au.svg",
+      "source": "https://www.geelongaustralia.com.au",
+      "assetSource": "https://www.geelongcity.vic.gov.au/sites/default/files/geelong-city-favicon_2.svg"
+    },
+    {
+      "key": "ballarat-city-council-au",
+      "assetPath": "official/ballarat-city-council-au.ico",
+      "source": "https://www.ballarat.vic.gov.au",
+      "assetSource": "https://www.ballarat.vic.gov.au/themes/custom/cob/favicon.ico"
+    },
+    {
+      "key": "bendigo-city-council-au",
+      "assetPath": "official/bendigo-city-council-au.ico",
+      "source": "https://www.bendigo.vic.gov.au",
+      "assetSource": "https://www.bendigo.vic.gov.au/sites/default/files/favicon.ico"
+    },
+    {
+      "key": "latrobe-city-council-au",
+      "assetPath": "official/latrobe-city-council-au.png",
+      "source": "https://www.latrobe.vic.gov.au",
+      "assetSource": "https://www.latrobe.vic.gov.au/sites/default/files/Latrobe%20City%20Council_Brandmark_Favicon_512px_Colour_RGB.png"
+    },
+    {
+      "key": "greater-shepparton-city-council-au",
+      "assetPath": "official/greater-shepparton-city-council-au.ico",
+      "source": "https://greatershepparton.com.au",
+      "assetSource": "https://greatershepparton.com.au/favicon.ico"
+    },
+    {
+      "key": "wodonga-city-council-au",
+      "assetPath": "official/wodonga-city-council-au.ico",
+      "source": "https://www.wodonga.vic.gov.au",
+      "assetSource": "https://www.wodonga.vic.gov.au/Portals/0/favicon.ico?ver=BjjVtFFf7New0F-JufumEg%3d%3d"
+    },
+    {
+      "key": "sydney-city-council-au",
+      "assetPath": "official/sydney-city-council-au.png",
+      "source": "https://www.cityofsydney.nsw.gov.au",
+      "assetSource": "https://www.cityofsydney.nsw.gov.au/dist/cityofsydney/CoS_RGB_ANCHOR_FAVICON_DARK-BLUE-32x32.png"
+    },
+    {
+      "key": "parramatta-city-council-au",
+      "assetPath": "official/parramatta-city-council-au.png",
+      "source": "https://www.cityofparramatta.nsw.gov.au",
+      "assetSource": "https://www.cityofparramatta.nsw.gov.au/files/ocfavicon/Public/apple-touch-icon.png"
+    },
+    {
+      "key": "blacktown-city-council-au",
+      "assetPath": "official/blacktown-city-council-au.ico",
+      "source": "https://www.blacktown.nsw.gov.au",
+      "assetSource": "https://www.blacktown.nsw.gov.au/files/ocfavicon/Public/favicon.ico?V=636673285509961004"
+    },
+    {
+      "key": "penrith-city-council-au",
+      "assetPath": "official/penrith-city-council-au.ico",
+      "source": "https://www.penrithcity.nsw.gov.au",
+      "assetSource": "https://www.penrithcity.nsw.gov.au/templates/pcc4_homepage/favicon.ico"
+    },
+    {
+      "key": "newcastle-city-council-au",
+      "assetPath": "official/newcastle-city-council-au.ico",
+      "source": "https://newcastle.nsw.gov.au",
+      "assetSource": "https://newcastle.nsw.gov.au/favicon.ico"
+    },
+    {
+      "key": "brisbane-city-council-au",
+      "assetPath": "official/brisbane-city-council-au.ico",
+      "source": "https://www.brisbane.qld.gov.au",
+      "assetSource": "https://www.brisbane.qld.gov.au/favicon.ico"
+    },
+    {
+      "key": "gold-coast-city-council-au",
+      "assetPath": "official/gold-coast-city-council-au.ico",
+      "source": "https://www.goldcoast.qld.gov.au",
+      "assetSource": "https://www.goldcoast.qld.gov.au/files/ocfavicon/Public/favicon.ico?V=638555070363927162"
+    },
+    {
+      "key": "sunshine-coast-council-au",
+      "assetPath": "official/sunshine-coast-council-au.png",
+      "source": "https://www.sunshinecoast.qld.gov.au",
+      "assetSource": "https://www.sunshinecoast.qld.gov.au/favicon-16x16.png"
+    },
+    {
+      "key": "ipswich-city-council-au",
+      "assetPath": "official/ipswich-city-council-au.png",
+      "source": "https://www.ipswich.qld.gov.au",
+      "assetSource": "https://www.ipswich.qld.gov.au/files/ocfavicon/Public/apple-touch-icon.png"
+    },
+    {
+      "key": "logan-city-council-au",
+      "assetPath": "official/logan-city-council-au.png",
+      "source": "https://www.logan.qld.gov.au",
+      "assetSource": "https://www.logan.qld.gov.au/files/ocfavicon/Public/apple-touch-icon.png"
+    },
+    {
+      "key": "adelaide-city-council-au",
+      "assetPath": "official/adelaide-city-council-au.ico",
+      "source": "https://www.cityofadelaide.com.au",
+      "assetSource": "https://www.cityofadelaide.com.au/favicon.ico"
+    },
+    {
+      "key": "onkaparinga-city-council-au",
+      "assetPath": "official/onkaparinga-city-council-au.ico",
+      "source": "https://www.onkaparingacity.com",
+      "assetSource": "https://www.onkaparingacity.com/files/ocfavicon/Public/favicon.ico?V=637919216590144981"
+    },
+    {
+      "key": "stirling-city-council-au",
+      "assetPath": "official/stirling-city-council-au.png",
+      "source": "https://www.stirling.wa.gov.au",
+      "assetSource": "https://www.stirling.wa.gov.au/awcontent/Web/assets/images/favicon/apple-icon.png"
+    },
+    {
+      "key": "joondalup-city-council-au",
+      "assetPath": "official/joondalup-city-council-au.png",
+      "source": "https://www.joondalup.wa.gov.au",
+      "assetSource": "https://www.joondalup.wa.gov.au/awcontent/Web/assets/images/favicon/apple-icon.png"
+    },
+    {
+      "key": "fremantle-city-council-au",
+      "assetPath": "official/fremantle-city-council-au.png",
+      "source": "https://www.fremantle.wa.gov.au",
+      "assetSource": "https://www.fremantle.wa.gov.au/wp-content/uploads/2024/12/favicon-360x360.png"
+    },
+    {
+      "key": "swan-city-council-au",
+      "assetPath": "official/swan-city-council-au.ico",
+      "source": "https://www.swan.wa.gov.au",
+      "assetSource": "https://www.swan.wa.gov.au/awcontent/web/assets/images/favicon.ico"
+    },
+    {
+      "key": "hobart-city-council-au",
+      "assetPath": "official/hobart-city-council-au.png",
+      "source": "https://www.hobartcity.com.au",
+      "assetSource": "https://www.hobartcity.com.au/files/ocfavicon/Public2/apple-touch-icon.png"
+    },
+    {
+      "key": "launceston-city-council-au",
+      "assetPath": "official/launceston-city-council-au.png",
+      "source": "https://www.launceston.tas.gov.au",
+      "assetSource": "https://www.launceston.tas.gov.au/files/assets/public/v/3/templateimages/favicons/favicon-32x32.png"
+    },
+    {
+      "key": "darwin-city-council-au",
+      "assetPath": "official/darwin-city-council-au.svg",
+      "source": "https://www.darwin.nt.gov.au",
+      "assetSource": "https://www.darwin.nt.gov.au/themes/custom/cod/favicons/safari-pinned-tab.svg"
+    },
+    {
+      "key": "palmerston-city-council-au",
+      "assetPath": "official/palmerston-city-council-au.ico",
+      "source": "https://palmerston.nt.gov.au",
+      "assetSource": "https://palmerston.nt.gov.au/themes/custom/palmerston/favicons/favicon.ico"
+    },
+    {
+      "key": "christchurch-city-council-nz",
+      "assetPath": "official/christchurch-city-council-nz.ico",
+      "source": "https://ccc.govt.nz",
+      "assetSource": "https://ccc.govt.nz/assets/SiteConfig/home/icons/favicon-v2.ico"
+    },
+    {
+      "key": "hamilton-city-council-nz",
+      "assetPath": "official/hamilton-city-council-nz.png",
+      "source": "https://hamilton.govt.nz",
+      "assetSource": "https://hamilton.govt.nz/_resources/themes/hcc-theme/img/favicons/favicon-16x16.png?m=1789598477"
+    },
+    {
+      "key": "tauranga-city-council-nz",
+      "assetPath": "official/tauranga-city-council-nz.ico",
+      "source": "https://www.tauranga.govt.nz",
+      "assetSource": "https://www.tauranga.govt.nz/Portals/0/favicon.ico?ver=AOD98H63OImAMTKa-e6y5w%3d%3d"
+    },
+    {
+      "key": "city-of-new-york-us",
+      "assetPath": "official/city-of-new-york-us.svg",
+      "source": "https://www.nyc.gov",
+      "assetSource": "https://www.nyc.gov/etc.clientlibs/nycgov/clientlibs/clientlib-site/resources/favicon/apple-touch-icon-120x120.svg"
+    },
+    {
+      "key": "city-of-los-angeles-us",
+      "assetPath": "official/city-of-los-angeles-us.ico",
+      "source": "https://lacity.gov",
+      "assetSource": "https://lacity.gov/sites/g/files/wph2451/themes/site/favicon.ico"
+    },
+    {
+      "key": "city-of-chicago-us",
+      "assetPath": "official/city-of-chicago-us.svg",
+      "source": "https://www.chicago.gov",
+      "assetSource": "https://www.chicago.gov/content/dam/city/general/favicons/safari-pinned-tab.svg"
+    },
+    {
+      "key": "city-of-phoenix-us",
+      "assetPath": "official/city-of-phoenix-us.png",
+      "source": "https://www.phoenix.gov",
+      "assetSource": "https://www.phoenix.gov/etc.clientlibs/phx/clientlibs/clientlib-site/resources/css-assets/favicon/apple-touch-icon-120x120.png"
+    },
+    {
+      "key": "city-of-philadelphia-us",
+      "assetPath": "official/city-of-philadelphia-us.ico",
+      "source": "https://www.phila.gov",
+      "assetSource": "https://www.phila.gov/assets/images/favicon.ico"
+    },
+    {
+      "key": "city-of-san-diego-us",
+      "assetPath": "official/city-of-san-diego-us.png",
+      "source": "https://www.sandiego.gov",
+      "assetSource": "https://www.sandiego.gov/themes/custom/sand/images/apple-touch-icon.png"
+    },
+    {
+      "key": "city-of-dallas-us",
+      "assetPath": "official/city-of-dallas-us.png",
+      "source": "https://dallascityhall.com",
+      "assetSource": "https://dallascityhall.com/PublishingImages/favicon.png"
+    },
+    {
+      "key": "city-of-san-jose-us",
+      "assetPath": "official/city-of-san-jose-us.ico",
+      "source": "https://www.sanjoseca.gov",
+      "assetSource": "https://www.sanjoseca.gov/favicon.ico"
+    },
+    {
+      "key": "city-of-fort-worth-us",
+      "assetPath": "official/city-of-fort-worth-us.ico",
+      "source": "https://www.fortworthtexas.gov",
+      "assetSource": "https://www.fortworthtexas.gov/files/ocfavicon/Public/favicon.ico?V=637092758668860679"
+    },
+    {
+      "key": "city-of-columbus-us",
+      "assetPath": "official/city-of-columbus-us.ico",
+      "source": "https://www.columbus.gov",
+      "assetSource": "https://www.columbus.gov/files/ocfavicon/City/favicon.ico?V=638245850234448667"
+    },
+    {
+      "key": "city-of-charlotte-us",
+      "assetPath": "official/city-of-charlotte-us.ico",
+      "source": "https://www.charlottenc.gov",
+      "assetSource": "https://www.charlottenc.gov/files/ocfavicon/City/favicon.ico?V=638092061234685952"
+    },
+    {
+      "key": "city-of-indianapolis-us",
+      "assetPath": "official/city-of-indianapolis-us.ico",
+      "source": "https://www.indy.gov",
+      "assetSource": "https://www.indy.gov/favicon.ico"
+    },
+    {
+      "key": "city-of-seattle-us",
+      "assetPath": "official/city-of-seattle-us.png",
+      "source": "https://www.seattle.gov",
+      "assetSource": "https://www.seattle.gov/favicon-48.png"
+    },
+    {
+      "key": "city-and-county-of-denver-us",
+      "assetPath": "official/city-and-county-of-denver-us.ico",
+      "source": "https://www.denvergov.org",
+      "assetSource": "https://www.denvergov.org/files/ocfavicon/Public/favicon.ico?V=637380910420698470"
+    },
+    {
+      "key": "city-of-washington-dc-us",
+      "assetPath": "official/city-of-washington-dc-us.ico",
+      "source": "https://dc.gov",
+      "assetSource": "https://dc.gov/core/misc/favicon.ico"
+    },
+    {
+      "key": "city-of-nashville-us",
+      "assetPath": "official/city-of-nashville-us.ico",
+      "source": "https://www.nashville.gov",
+      "assetSource": "https://www.nashville.gov/themes/custom/nashville/favicon.ico"
+    },
+    {
+      "key": "city-of-portland-us",
+      "assetPath": "official/city-of-portland-us.ico",
+      "source": "https://www.portland.gov",
+      "assetSource": "https://www.portland.gov/themes/custom/cloudy/favicon.ico"
+    },
+    {
+      "key": "city-of-las-vegas-us",
+      "assetPath": "official/city-of-las-vegas-us.ico",
+      "source": "https://www.lasvegasnevada.gov",
+      "assetSource": "https://www.lasvegasnevada.gov/Portals/0/favicon.ico?ver=bqsYolxIQzXGxFavcVDN9Q%3d%3d"
+    },
+    {
+      "key": "city-of-miami-us",
+      "assetPath": "official/city-of-miami-us.ico",
+      "source": "https://www.miami.gov",
+      "assetSource": "https://www.miami.gov/files/ocfavicon/Public/favicon.ico?V=636602047551872329"
+    },
+    {
+      "key": "birmingham-city-council-gb",
+      "assetPath": "official/birmingham-city-council-gb.ico",
+      "source": "https://www.birmingham.gov.uk",
+      "assetSource": "https://www.birmingham.gov.uk/site/favicon/favicon.ico?v=kPP6reKB8a"
+    },
+    {
+      "key": "leeds-city-council-gb",
+      "assetPath": "official/leeds-city-council-gb.ico",
+      "source": "https://www.leeds.gov.uk",
+      "assetSource": "https://www.leeds.gov.uk/themes/custom/leedscitycouncil_theme/assets/images/favicons/favicon.ico"
+    },
+    {
+      "key": "liverpool-city-council-gb",
+      "assetPath": "official/liverpool-city-council-gb.ico",
+      "source": "https://liverpool.gov.uk",
+      "assetSource": "https://liverpool.gov.uk/favicon.ico"
+    },
+    {
+      "key": "sheffield-city-council-gb",
+      "assetPath": "official/sheffield-city-council-gb.ico",
+      "source": "https://www.sheffield.gov.uk",
+      "assetSource": "https://www.sheffield.gov.uk/themes/custom/localgov_sheffield/assets/images/favicons/favicon.ico"
+    },
+    {
+      "key": "bristol-city-council-gb",
+      "assetPath": "official/bristol-city-council-gb.ico",
+      "source": "https://www.bristol.gov.uk",
+      "assetSource": "https://www.bristol.gov.uk/templates/bcc/assets/favicons/favicon.ico"
+    },
+    {
+      "key": "city-of-edinburgh-council-gb",
+      "assetPath": "official/city-of-edinburgh-council-gb.ico",
+      "source": "https://www.edinburgh.gov.uk",
+      "assetSource": "https://www.edinburgh.gov.uk/site/images/favicons/favicon.ico?2.40.0"
+    },
+    {
+      "key": "belfast-city-council-gb",
+      "assetPath": "official/belfast-city-council-gb.ico",
+      "source": "https://www.belfastcity.gov.uk",
+      "assetSource": "https://www.belfastcity.gov.uk/favicon.ico"
+    },
+    {
+      "key": "westminster-city-council-gb",
+      "assetPath": "official/westminster-city-council-gb.ico",
+      "source": "https://www.westminster.gov.uk",
+      "assetSource": "https://www.westminster.gov.uk/themes/custom/wcc/favicon.ico"
+    },
+    {
+      "key": "cornwall-council-gb",
+      "assetPath": "official/cornwall-council-gb.ico",
+      "source": "https://www.cornwall.gov.uk",
+      "assetSource": "https://www.cornwall.gov.uk/favicon.ico"
+    },
+    {
+      "key": "essex-county-council-gb",
+      "assetPath": "official/essex-county-council-gb.svg",
+      "source": "https://www.essex.gov.uk",
+      "assetSource": "https://www.essex.gov.uk/themes/custom/ecc_theme_gov/assets/images/favicons/safari-pinned-tab.svg"
+    },
+    {
+      "key": "lancashire-county-council-gb",
+      "assetPath": "official/lancashire-county-council-gb.ico",
+      "source": "https://www.lancashire.gov.uk",
+      "assetSource": "https://www.lancashire.gov.uk/favicon.ico"
+    },
+    {
+      "key": "nottingham-city-council-gb",
+      "assetPath": "official/nottingham-city-council-gb.png",
+      "source": "https://www.nottinghamcity.gov.uk",
+      "assetSource": "https://www.nottinghamcity.gov.uk/media/e2onogbh/nccicon.png"
+    },
+    {
+      "key": "oxford-city-council-gb",
+      "assetPath": "official/oxford-city-council-gb.ico",
+      "source": "https://www.oxford.gov.uk",
+      "assetSource": "https://www.oxford.gov.uk/site/dist/images/favicons/favicon.ico?2.11.2"
+    },
+    {
+      "key": "cambridge-city-council-gb",
+      "assetPath": "official/cambridge-city-council-gb.ico",
+      "source": "https://www.cambridge.gov.uk",
+      "assetSource": "https://www.cambridge.gov.uk/fav/favicon.ico"
+    },
+    {
+      "key": "city-of-toronto-ca",
+      "assetPath": "official/city-of-toronto-ca.svg",
+      "source": "https://www.toronto.ca",
+      "assetSource": "https://www.toronto.ca/wp-content/themes/cot/img/safari-pinned-tab.svg"
+    },
+    {
+      "key": "city-of-montreal-ca",
+      "assetPath": "official/city-of-montreal-ca.svg",
+      "source": "https://montreal.ca",
+      "assetSource": "https://montreal.ca/shell/safari-pinned-tab.svg"
+    },
+    {
+      "key": "city-of-calgary-ca",
+      "assetPath": "official/city-of-calgary-ca.ico",
+      "source": "https://www.calgary.ca",
+      "assetSource": "https://www.calgary.ca/etc/clientlibs/www/main/images/favicon.ico"
+    },
+    {
+      "key": "city-of-edmonton-ca",
+      "assetPath": "official/city-of-edmonton-ca.ico",
+      "source": "https://www.edmonton.ca",
+      "assetSource": "https://www.edmonton.ca/themes/coe_edmontonca/favicon.ico"
+    },
+    {
+      "key": "city-of-winnipeg-ca",
+      "assetPath": "official/city-of-winnipeg-ca.png",
+      "source": "https://www.winnipeg.ca",
+      "assetSource": "https://www.winnipeg.ca/themes/custom/confluence/img/favicon/favicon-16x16.png"
+    },
+    {
+      "key": "city-of-quebec-ca",
+      "assetPath": "official/city-of-quebec-ca.png",
+      "source": "https://www.ville.quebec.qc.ca",
+      "assetSource": "https://www.ville.quebec.qc.ca/img/icon_vdq_iphone.png"
+    },
+    {
+      "key": "city-of-hamilton-ca",
+      "assetPath": "official/city-of-hamilton-ca.svg",
+      "source": "https://www.hamilton.ca",
+      "assetSource": "https://www.hamilton.ca/themes/custom/hami_glider/hami-favicon.svg"
+    },
+    {
+      "key": "city-of-halifax-ca",
+      "assetPath": "official/city-of-halifax-ca.png",
+      "source": "https://www.halifax.ca",
+      "assetSource": "https://www.halifax.ca/themes/custom/halifax/favicons/favicon-16x16.png"
+    },
+    {
+      "key": "city-of-victoria-ca",
+      "assetPath": "official/city-of-victoria-ca.jpg",
+      "source": "https://www.victoria.ca",
+      "assetSource": "https://www.victoria.ca/themes/custom/victoria/images/apple-touch.jpg"
+    },
+    {
+      "key": "city-of-saskatoon-ca",
+      "assetPath": "official/city-of-saskatoon-ca.ico",
+      "source": "https://www.saskatoon.ca",
+      "assetSource": "https://www.saskatoon.ca/themes/saskatoon_ca/libraries/wet/assets/favicon.ico"
+    },
+    {
+      "key": "city-of-regina-ca",
+      "assetPath": "official/city-of-regina-ca.svg",
+      "source": "https://www.regina.ca",
+      "assetSource": "https://www.regina.ca/export/system/modules/com.zu.core/resources/images/site_icons/safari-pinned-tab.svg"
+    },
+    {
+      "key": "cork-city-council-ie",
+      "assetPath": "official/cork-city-council-ie.svg",
+      "source": "https://www.corkcity.ie",
+      "assetSource": "https://www.corkcity.ie/media/4i2bse2g/cork-city-council-favicon.svg"
+    },
+    {
+      "key": "galway-city-council-ie",
+      "assetPath": "official/galway-city-council-ie.svg",
+      "source": "https://www.galwaycity.ie",
+      "assetSource": "https://www.galwaycity.ie/themes/custom/lgd/assets/images/favicons/favicon.svg"
+    },
+    {
+      "key": "limerick-city-and-county-council-ie",
+      "assetPath": "official/limerick-city-and-county-council-ie.ico",
+      "source": "https://www.limerick.ie",
+      "assetSource": "https://www.limerick.ie/themes/custom/weather/favicon.ico"
+    },
+    {
+      "key": "waterford-city-and-county-council-ie",
+      "assetPath": "official/waterford-city-and-county-council-ie.png",
+      "source": "https://waterfordcouncil.ie",
+      "assetSource": "https://waterfordcouncil.ie/app/uploads/2023/04/ico.png"
+    },
+    {
+      "key": "south-dublin-county-council-ie",
+      "assetPath": "official/south-dublin-county-council-ie.png",
+      "source": "https://www.sdcc.ie",
+      "assetSource": "https://www.sdcc.ie/favicon/apple-touch-icon.png"
+    },
+    {
+      "key": "kildare-county-council-ie",
+      "assetPath": "official/kildare-county-council-ie.png",
+      "source": "https://kildarecoco.ie",
+      "assetSource": "https://kildarecoco.ie/images/favicon/favicon-16x16.png"
+    },
+    {
+      "key": "standard-chartered-global",
+      "assetPath": "official/standard-chartered-global.ico",
+      "source": "https://www.sc.com",
+      "assetSource": "https://www.sc.com/favicon.ico"
+    },
+    {
+      "key": "city-of-brisbane-au",
+      "assetPath": "official/city-of-brisbane-au.ico",
+      "source": "https://www.brisbane.qld.gov.au",
+      "assetSource": "https://www.brisbane.qld.gov.au/favicon.ico"
+    },
+    {
+      "key": "geelong-city-council-au",
+      "assetPath": "official/geelong-city-council-au.svg",
+      "source": "https://www.geelongaustralia.com.au",
+      "assetSource": "https://www.geelongcity.vic.gov.au/sites/default/files/geelong-city-favicon_2.svg"
+    },
+    {
+      "key": "canberra-city-services-au",
+      "assetPath": "official/canberra-city-services-au.ico",
+      "source": "https://www.cityservices.act.gov.au",
+      "assetSource": "https://www.cityservices.act.gov.au/__data/assets/file/0009/1174446/favicon.ico"
+    },
+    {
+      "key": "northern-beaches-council-au",
+      "assetPath": "official/northern-beaches-council-au.ico",
+      "source": "https://www.northernbeaches.nsw.gov.au",
+      "assetSource": "https://www.northernbeaches.nsw.gov.au/themes/custom/nbc/favicon.ico"
+    },
+    {
+      "key": "moreton-bay-city-council-au",
+      "assetPath": "official/moreton-bay-city-council-au.ico",
+      "source": "https://www.moretonbay.qld.gov.au",
+      "assetSource": "https://www.moretonbay.qld.gov.au/files/ocfavicon/Public/favicon.ico?V=638355474196458479"
+    },
+    {
+      "key": "toowoomba-regional-council-au",
+      "assetPath": "official/toowoomba-regional-council-au.png",
+      "source": "https://www.tr.qld.gov.au",
+      "assetSource": "https://www.tr.qld.gov.au/files/ocfavicon/Public/apple-touch-icon.png"
+    },
+    {
+      "key": "palmerston-north-city-council-nz",
+      "assetPath": "official/palmerston-north-city-council-nz.ico",
+      "source": "https://www.pncc.govt.nz",
+      "assetSource": "https://www.pncc.govt.nz/files/ocfavicon/Public/favicon.ico?V=637770845850924758"
+    },
+    {
+      "key": "napier-city-council-nz",
+      "assetPath": "official/napier-city-council-nz.png",
+      "source": "https://www.napier.govt.nz",
+      "assetSource": "https://www.napier.govt.nz/themes/mmenu2017/images/fav_144.png"
+    },
+    {
+      "key": "nelson-city-council-nz",
+      "assetPath": "official/nelson-city-council-nz.ico",
+      "source": "https://www.nelson.govt.nz",
+      "assetSource": "https://www.nelson.govt.nz/favicon.ico"
+    },
+    {
+      "key": "rotorua-lakes-council-nz",
+      "assetPath": "official/rotorua-lakes-council-nz.ico",
+      "source": "https://www.rotorualakescouncil.nz",
+      "assetSource": "https://www.rotorualakescouncil.nz/favicon.ico"
+    },
+    {
+      "key": "queenstown-lakes-district-council-nz",
+      "assetPath": "official/queenstown-lakes-district-council-nz.ico",
+      "source": "https://www.qldc.govt.nz",
+      "assetSource": "https://www.qldc.govt.nz/favicon.ico"
+    },
+    {
+      "key": "waikato-district-council-nz",
+      "assetPath": "official/waikato-district-council-nz.ico",
+      "source": "https://www.waikatodistrict.govt.nz",
+      "assetSource": "https://www.waikatodistrict.govt.nz/ResourcePackages/WaikatoDistrictCouncil/assets/dist/favicon/favicon.ico"
+    },
+    {
+      "key": "new-plymouth-district-council-nz",
+      "assetPath": "official/new-plymouth-district-council-nz.ico",
+      "source": "https://www.npdc.govt.nz",
+      "assetSource": "https://www.npdc.govt.nz/favicon.ico"
+    },
+    {
+      "key": "whangarei-district-council-nz",
+      "assetPath": "official/whangarei-district-council-nz.png",
+      "source": "https://www.wdc.govt.nz",
+      "assetSource": "https://www.wdc.govt.nz/files/ocfavicon/Public/apple-touch-icon.png"
+    },
+    {
+      "key": "porirua-city-council-nz",
+      "assetPath": "official/porirua-city-council-nz.png",
+      "source": "https://poriruacity.govt.nz",
+      "assetSource": "https://storage.googleapis.com/pcc-static-v6/shared/site-2/favicon-16x16.png"
+    },
+    {
+      "key": "los-angeles-county-us",
+      "assetPath": "official/los-angeles-county-us.png",
+      "source": "https://lacounty.gov",
+      "assetSource": "https://lacounty.gov/wp-content/uploads/2019/04/cropped-seal.2016-180x180.png"
+    },
+    {
+      "key": "cook-county-us",
+      "assetPath": "official/cook-county-us.ico",
+      "source": "https://www.cookcountyil.gov",
+      "assetSource": "https://www.cookcountyil.gov/themes/custom/cook_county/favicon.ico"
+    },
+    {
+      "key": "harris-county-us",
+      "assetPath": "official/harris-county-us.ico",
+      "source": "https://www.harriscountytx.gov",
+      "assetSource": "https://www.harriscountytx.gov/favicon.ico"
+    },
+    {
+      "key": "maricopa-county-us",
+      "assetPath": "official/maricopa-county-us.ico",
+      "source": "https://www.maricopa.gov",
+      "assetSource": "https://www.maricopa.gov/images/favicon.ico"
+    },
+    {
+      "key": "san-diego-county-us",
+      "assetPath": "official/san-diego-county-us.png",
+      "source": "https://www.sandiegocounty.gov",
+      "assetSource": "https://www.sandiegocounty.gov/uploads/2024/07/CoSD-Logo-cropped.png"
+    },
+    {
+      "key": "orange-county-california-us",
+      "assetPath": "official/orange-county-california-us.ico",
+      "source": "https://www.ocgov.com",
+      "assetSource": "https://www.ocgov.com/themes/custom/countyoc/favicon.ico"
+    },
+    {
+      "key": "region-of-peel-ca",
+      "assetPath": "official/region-of-peel-ca.ico",
+      "source": "https://peelregion.ca",
+      "assetSource": "https://peelregion.ca/themes/custom/peel/touch-icons/favicon.ico"
+    },
+    {
+      "key": "york-region-ca",
+      "assetPath": "official/york-region-ca.svg",
+      "source": "https://www.york.ca",
+      "assetSource": "https://www.york.ca/themes/custom/york_base_theme/src/img/favicons/safari-pinned-tab.svg"
+    },
+    {
+      "key": "durham-region-ca",
+      "assetPath": "official/durham-region-ca.svg",
+      "source": "https://www.durham.ca",
+      "assetSource": "https://durham-ca.govstack.com/media/skqdp2te/2026-durham-d.svg?width=192&amp;height=192"
+    },
+    {
+      "key": "waterloo-region-ca",
+      "assetPath": "official/waterloo-region-ca.png",
+      "source": "https://www.regionofwaterloo.ca",
+      "assetSource": "https://regionofwaterloo-018-ca.govstack.com/media/k5bd454l/region-of-waterloo-favicon.png?width=192&amp;height=192"
+    },
+    {
+      "key": "dun-laoghaire-rathdown-county-council-ie",
+      "assetPath": "official/dun-laoghaire-rathdown-county-council-ie.ico",
+      "source": "https://www.dlrcoco.ie",
+      "assetSource": "https://www.dlrcoco.ie/themes/custom/dlrd9/favicon.ico"
+    }
+  ]
+}

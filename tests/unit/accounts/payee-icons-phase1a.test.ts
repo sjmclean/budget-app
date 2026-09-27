@@ -54,9 +54,9 @@ describe("payee icon reference and resolver", () => {
     });
     assert.equal(resolvePayeeIcon({ payee: payee("aldi-uk", "Aldi UK") }).kind, "sprite");
     assert.equal(resolvePayeeIcon({ payee: payee("aldi-us", "Aldi US") }).kind, "sprite");
-    assert.deepEqual(resolvePayeeIcon({ payee: payee("aldi", "ALDI"), merchantRegion: "GB" }), {
-      kind: "sprite", href: "/merchant-icons/major-expansion-02.svg#aldi-uk",
-    });
+    const regionalAldi = resolvePayeeIcon({ payee: payee("aldi", "ALDI"), merchantRegion: "GB" });
+    assert.equal(regionalAldi.kind, "sprite");
+    assert.ok(regionalAldi.kind === "sprite" && regionalAldi.href.endsWith("#aldi-uk"));
     assert.equal(
       resolvePayeeIcon({ payee: payee("aldi", "ALDI"), merchantRegion: null }).kind,
       "initials",

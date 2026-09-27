@@ -1,11 +1,20 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import * as simpleIcons from "simple-icons";
+import { icons as logoIcons } from "@iconify-json/logos";
+import { icons as coreBrandIcons } from "@iconify-json/cib";
+import { icons as selfHostedIcons } from "@iconify-json/selfhst";
+import { icons as communityBrandIcons } from "@iconify-json/thesvg";
+import { icons as communityColourIcons } from "@iconify-json/thesvg-color";
+import { icons as communityBroadcastIcons } from "@iconify-json/cbi";
 
 const root = process.cwd();
 const manifests = [
   "expansion-2-local-government-streaming.json",
   "expansion-2-user-history-priority.json",
 ];
+const officialArtworkManifest = JSON.parse(await readFile(resolve(root, "tools/merchant-icons/manifests/reviewed-official-assets.json"), "utf8"));
+const officialArtworkByKey = new Map(officialArtworkManifest.entries.map((entry) => [entry.key, entry]));
 
 const groups = [
   ["local-government", "AU", `City of Sydney;City of Melbourne;City of Brisbane;City of Perth;City of Adelaide;City of Hobart;City of Darwin;City of Gold Coast;Sunshine Coast Council;Newcastle City Council;Wollongong City Council;Geelong City Council;Ballarat City Council;Bendigo City Council;Canberra City Services;Parramatta City Council;Northern Beaches Council;Blacktown City Council;Penrith City Council;Liverpool City Council;Fremantle City Council;Joondalup City Council;Stirling City Council;Moreton Bay City Council;Logan City Council;Ipswich City Council;Cairns Regional Council;Townsville City Council;Toowoomba Regional Council;Launceston City Council`],
@@ -50,6 +59,8 @@ const aliasOverrides = new Map(Object.entries({
 
 const slug = (value) => value.normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/gu, "").toLocaleLowerCase("en-US").normalize("NFKD").replace(/[^a-z0-9-]/gu, "");
 const initial = (name) => name.match(/[\p{L}\p{N}]/u)?.[0]?.toLocaleUpperCase() ?? "•";
+const identity = (value) => value.normalize("NFKC").toLocaleLowerCase().replace(/[’']/gu, "").replace(/&/gu, " and ").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+const iconSlug = (value) => value.normalize("NFKD").toLocaleLowerCase().replace(/[^a-z0-9]+/gu, "-").replace(/^-|-$/gu, "");
 const palettes = { "local-government": ["#334155", "#e2e8f0"], water: ["#0369a1", "#e0f2fe"], electricity: ["#ca8a04", "#fef9c3"], utilities: ["#0f766e", "#ccfbf1"], internet: ["#4f46e5", "#e0e7ff"], mobile: ["#7c3aed", "#ede9fe"], telecom: ["#6d28d9", "#ede9fe"], airline: ["#1d4ed8", "#dbeafe"], bank: ["#166534", "#dcfce7"], "credit-union": ["#047857", "#d1fae5"], "health-insurance": ["#be123c", "#ffe4e6"], "car-rental": ["#c2410c", "#ffedd5"], parking: ["#1e40af", "#dbeafe"], clothing: ["#9d174d", "#fce7f3"], shopping: ["#b45309", "#fef3c7"], "streaming-video": ["#b91c1c", "#fee2e2"], "streaming-sport": ["#15803d", "#dcfce7"], "streaming-music": ["#7e22ce", "#f3e8ff"], "gaming-subscription": ["#4338ca", "#e0e7ff"], digital: ["#475569", "#f1f5f9"], government: ["#334155", "#e2e8f0"], finance: ["#166534", "#dcfce7"], groceries: ["#15803d", "#dcfce7"], health: ["#be123c", "#ffe4e6"], marketplace: ["#b45309", "#fef3c7"], fuel: ["#a16207", "#fef9c3"], entertainment: ["#7e22ce", "#f3e8ff"], transport: ["#0369a1", "#e0f2fe"], insurance: ["#047857", "#d1fae5"], services: ["#475569", "#f1f5f9"] };
 
 const existingSource = await readFile(resolve(root, "apps/web/src/features/icons/merchantIconImportedBatch.ts"), "utf8");
@@ -88,8 +99,66 @@ for (const entry of candidates) {
 const shardSize = 100;
 const publicDir = resolve(root, "apps/web/public/merchant-icons");
 await mkdir(publicDir, { recursive: true });
-for (let offset = 0; offset < entries.length; offset += shardSize) {
-  const shard = entries.slice(offset, offset + shardSize);
+for (const file of await readdir(publicDir)) {
+  if (/^(?:major-expansion|reviewed-brands)-\d+\.svg$/u.test(file)) await unlink(resolve(publicDir, file));
+}
+
+const simpleIconIndex = new Map(Object.values(simpleIcons)
+  .filter((icon) => icon && typeof icon === "object" && "title" in icon && "path" in icon)
+  .map((icon) => [identity(icon.title), icon]));
+const iconifyCandidates = [
+  { icons: logoIcons, source: "https://github.com/gilbarbara/logos" },
+  { icons: coreBrandIcons, source: "https://github.com/coreui/coreui-icons" },
+  { icons: selfHostedIcons, source: "https://github.com/selfhst/icons" },
+  { icons: communityBrandIcons, source: "https://github.com/glincker/thesvg" },
+  { icons: communityColourIcons, source: "https://github.com/glincker/thesvg" },
+  { icons: communityBroadcastIcons, source: "https://github.com/elax46/custom-brand-icons" },
+];
+
+function findReviewedArtwork(entry) {
+  const identities = [entry.name, ...entry.aliases];
+  for (const value of identities) {
+    const icon = simpleIconIndex.get(identity(value));
+    if (icon) return { body: `<path fill="#${icon.hex}" d="${icon.path}"/>`, width: 24, height: 24, source: `https://github.com/simple-icons/simple-icons; upstream: ${icon.source}` };
+  }
+  const slugs = [...new Set([...identities.map(iconSlug), entry.key.replace(/-(?:au|global|us|gb|ca|nz|ie)$/u, "")])];
+  for (const collection of iconifyCandidates) {
+    for (const candidate of slugs) {
+      const name = [candidate, `${candidate}-icon`, `${candidate}-logo`].find((key) => collection.icons.icons[key]);
+      if (!name) continue;
+      const icon = collection.icons.icons[name];
+      return { body: icon.body, width: icon.width ?? collection.icons.width ?? 24, height: icon.height ?? collection.icons.height ?? 24, source: `${collection.source}#${name}` };
+    }
+  }
+}
+
+const reviewedEntries = [];
+const fallbackEntries = [];
+for (const entry of entries) {
+  const official = officialArtworkByKey.get(entry.key);
+  if (official) {
+    entry.asset = { kind: "image", assetPath: official.assetPath };
+    entry.provenance = { kind: "official", source: official.source, reviewed: true };
+    continue;
+  }
+  const artwork = findReviewedArtwork(entry);
+  if (artwork) reviewedEntries.push({ entry, artwork });
+  else fallbackEntries.push(entry);
+}
+
+for (let offset = 0; offset < reviewedEntries.length; offset += shardSize) {
+  const shard = reviewedEntries.slice(offset, offset + shardSize);
+  const shardNumber = String(offset / shardSize + 1).padStart(2, "0");
+  const symbols = shard.map(({ entry, artwork }) => `<symbol id="${entry.key}" viewBox="0 0 ${artwork.width} ${artwork.height}">${artwork.body}</symbol>`).join("");
+  await writeFile(resolve(publicDir, `reviewed-brands-${shardNumber}.svg`), `<svg xmlns="http://www.w3.org/2000/svg">${symbols}</svg>\n`);
+  shard.forEach(({ entry, artwork }) => {
+    entry.asset = { kind: "sprite", spritePath: `reviewed-brands-${shardNumber}.svg`, symbolId: entry.key };
+    entry.provenance = { kind: "community", source: artwork.source, reviewed: true };
+  });
+}
+
+for (let offset = 0; offset < fallbackEntries.length; offset += shardSize) {
+  const shard = fallbackEntries.slice(offset, offset + shardSize);
   const shardNumber = String(offset / shardSize + 1).padStart(2, "0");
   const symbols = shard.map((entry) => {
     const [background, foreground] = palettes[entry.category] ?? ["#475569", "#f8fafc"];
@@ -99,7 +168,8 @@ for (let offset = 0; offset < entries.length; offset += shardSize) {
   shard.forEach((entry) => { entry.asset = { kind: "sprite", spritePath: `major-expansion-${shardNumber}.svg`, symbolId: entry.key }; });
 }
 
-const compactData = entries.map((entry) => [entry.key, entry.name, entry.regions, entry.aliases, entry.category, entry.asset.spritePath]);
-await writeFile(resolve(root, "apps/web/src/features/icons/merchantIconMajorExpansion.ts"), `// Generated by tools/merchant-icons/generate-major-expansion.mjs.\n// These are unreviewed category/initial fallback marks, not official merchant logos.\nimport type { MerchantIconCatalogueEntry, MerchantIconCategory } from "./merchantIconCatalogue.js";\n\nconst data = ${JSON.stringify(compactData)} as const;\n\nexport const MAJOR_MERCHANT_ICON_EXPANSION: readonly MerchantIconCatalogueEntry[] = data.map(([key, name, regions, aliases, category, spritePath]) => ({\n  key, name, regions, aliases, category: category as MerchantIconCategory,\n  provenance: { kind: "generated", source: "Codex curated generic identity fallback", reviewed: false },\n  asset: { kind: "sprite", spritePath, symbolId: key },\n}));\n`);
+const sources = [...new Set(entries.map((entry) => entry.provenance.source))];
+const compactData = entries.map((entry) => [entry.key, entry.name, entry.regions, entry.aliases, entry.category, entry.asset.kind, entry.asset.kind === "image" ? entry.asset.assetPath : entry.asset.spritePath, entry.asset.kind === "sprite" ? entry.asset.symbolId : "", entry.provenance.kind, sources.indexOf(entry.provenance.source), entry.provenance.reviewed]);
+await writeFile(resolve(root, "apps/web/src/features/icons/merchantIconMajorExpansion.ts"), `// Generated by tools/merchant-icons/generate-major-expansion.mjs.\n// Entries use reviewed official/community artwork where available and explicit generated fallbacks otherwise.\nimport type { MerchantIconCatalogueEntry, MerchantIconCategory, MerchantIconProvenanceKind } from "./merchantIconCatalogue.js";\n\nconst sources = ${JSON.stringify(sources)} as const;\nconst data = ${JSON.stringify(compactData)} as const;\n\nexport const MAJOR_MERCHANT_ICON_EXPANSION: readonly MerchantIconCatalogueEntry[] = data.map(([key, name, regions, aliases, category, assetKind, assetPath, symbolId, provenanceKind, sourceIndex, reviewed]) => ({\n  key, name, regions, aliases, category: category as MerchantIconCategory,\n  provenance: { kind: provenanceKind as MerchantIconProvenanceKind, source: sources[sourceIndex], reviewed },\n  asset: assetKind === "image" ? { kind: "image", assetPath } : { kind: "sprite", spritePath: assetPath, symbolId },\n}));\n`);
 await writeFile(resolve(root, "tools/merchant-icons/manifests/major-expansion-live.json"), `${JSON.stringify({ version: 1, generatedBy: "tools/merchant-icons/generate-major-expansion.mjs", entries }, null, 2)}\n`);
-console.log(`Generated ${entries.length} live expansion entries across ${Math.ceil(entries.length / shardSize)} sprite shards.`);
+console.log(`Generated ${entries.length} live expansion entries: ${entries.length - fallbackEntries.length} reviewed artworks, ${fallbackEntries.length} fallbacks.`);
