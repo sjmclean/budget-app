@@ -69,7 +69,7 @@ for (const entry of included) {
   const aliases = JSON.stringify(entry.aliases ?? []);
   const regions = JSON.stringify(entry.regions);
   generatedEntries.push(
-    `  { key: ${JSON.stringify(entry.key)}, name: ${JSON.stringify(entry.name)}, regions: ${regions}, aliases: ${aliases}, assetPath: ${JSON.stringify(`${manifest.batch}/${outputName}`)} },`,
+    `  { key: ${JSON.stringify(entry.key)}, name: ${JSON.stringify(entry.name)}, regions: ${regions}, aliases: ${aliases}, asset: { kind: "image", assetPath: ${JSON.stringify(`${manifest.batch}/${outputName}`)} } },`,
   );
 }
 
