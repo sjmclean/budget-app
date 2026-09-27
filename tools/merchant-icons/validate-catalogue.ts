@@ -10,6 +10,7 @@ const errors: string[] = [];
 const keys = new Map<string, string>();
 const spriteSymbols = new Map<string, string>();
 const identities = new Map<string, string>();
+const identityEntries = new Map<string, typeof MERCHANT_ICON_CATALOGUE[number][]>();
 const spriteCache = new Map<string, string>();
 
 async function readSprite(path: string): Promise<string | undefined> {
@@ -35,6 +36,10 @@ for (const entry of MERCHANT_ICON_CATALOGUE) {
 
   if (!entry.name.trim()) errors.push(`Merchant "${entry.key}" has an empty display name.`);
   if (entry.regions.length === 0) errors.push(`Merchant "${entry.key}" has no region.`);
+  if (!entry.category) errors.push(`Merchant "${entry.key}" has no category.`);
+  if (!entry.provenance?.kind || typeof entry.provenance.reviewed !== "boolean") {
+    errors.push(`Merchant "${entry.key}" has invalid provenance.`);
+  }
 
   for (const identity of [entry.name, ...entry.aliases]) {
     const normalised = normaliseMerchantIconIdentity(identity);
@@ -42,12 +47,10 @@ for (const entry of MERCHANT_ICON_CATALOGUE) {
       errors.push(`Merchant "${entry.key}" contains an empty canonical identity.`);
       continue;
     }
-    const owner = identities.get(normalised);
-    if (owner && owner !== entry.key) {
-      errors.push(`Canonical identity "${normalised}" is ambiguous between "${owner}" and "${entry.key}".`);
-    } else {
-      identities.set(normalised, entry.key);
-    }
+    const matches = identityEntries.get(normalised) ?? [];
+    if (!matches.some(({ key }) => key === entry.key)) matches.push(entry);
+    identityEntries.set(normalised, matches);
+    identities.set(normalised, entry.key);
   }
 
   if (entry.asset.kind === "image") {
@@ -77,6 +80,16 @@ for (const entry of MERCHANT_ICON_CATALOGUE) {
   }
 }
 
+for (const [identity, matches] of identityEntries) {
+  if (matches.length < 2) continue;
+  for (let index = 0; index < matches.length; index += 1) {
+    for (const other of matches.slice(index + 1)) {
+      const overlap = matches[index].regions.some((region) => other.regions.includes(region) || region === "GLOBAL" || other.regions.includes("GLOBAL"));
+      if (overlap) errors.push(`Canonical identity "${identity}" collides in the same region between "${matches[index].key}" and "${other.key}".`);
+    }
+  }
+}
+
 if (errors.length) {
   console.error("Merchant icon catalogue validation failed:");
   for (const error of errors) console.error(`- ${error}`);
@@ -84,5 +97,5 @@ if (errors.length) {
 }
 
 console.log(
-  `Merchant icon catalogue valid: ${MERCHANT_ICON_CATALOGUE.length} entries, ${identities.size} canonical identities, ${spriteCache.size} sprite shards.`,
+  `Merchant icon catalogue valid: ${MERCHANT_ICON_CATALOGUE.length} entries, ${identities.size} canonical identities, ${spriteCache.size} sprite shards, ${new Set(MERCHANT_ICON_CATALOGUE.flatMap(({ regions }) => regions)).size} regions.`,
 );

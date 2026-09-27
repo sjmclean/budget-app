@@ -1,4 +1,5 @@
 import { IMPORTED_MERCHANT_ICON_BATCH } from "./merchantIconImportedBatch.js";
+import { MAJOR_MERCHANT_ICON_EXPANSION } from "./merchantIconMajorExpansion.js";
 
 export type MerchantIconAsset =
   | { readonly kind: "image"; readonly assetPath: string }
@@ -49,18 +50,28 @@ const SEED_MERCHANT_ICONS: readonly MerchantIconCatalogueEntry[] = [
 ] as const;
 
 export const MERCHANT_ICON_CATALOGUE: readonly MerchantIconCatalogueEntry[] = [
-  ...SEED_MERCHANT_ICONS,
-  ...IMPORTED_MERCHANT_ICON_BATCH,
+  ...[...SEED_MERCHANT_ICONS, ...IMPORTED_MERCHANT_ICON_BATCH].map((entry) => ({
+    ...entry,
+    category: entry.category ?? "other" as const,
+    provenance: entry.provenance ?? {
+      kind: "user-supplied" as const,
+      source: "Initial user-supplied merchant artwork",
+      reviewed: true,
+    },
+  })),
+  ...MAJOR_MERCHANT_ICON_EXPANSION,
 ];
 
 const entriesByKey = new Map(MERCHANT_ICON_CATALOGUE.map((entry) => [entry.key, entry] as const));
-const entriesByIdentity = new Map<string, MerchantIconCatalogueEntry>();
+const entriesByIdentity = new Map<string, MerchantIconCatalogueEntry[]>();
 
 for (const entry of MERCHANT_ICON_CATALOGUE) {
   for (const identity of [entry.name, ...entry.aliases]) {
     const normalised = normaliseMerchantIconIdentity(identity);
-    if (!normalised || entriesByIdentity.has(normalised)) continue;
-    entriesByIdentity.set(normalised, entry);
+    if (!normalised) continue;
+    const matches = entriesByIdentity.get(normalised) ?? [];
+    if (!matches.some(({ key }) => key === entry.key)) matches.push(entry);
+    entriesByIdentity.set(normalised, matches);
   }
 }
 
@@ -70,7 +81,7 @@ export function normaliseMerchantIconIdentity(value: string): string {
     .toLocaleLowerCase()
     .replace(/[’']/gu, "")
     .replace(/&/gu, " and ")
-    .replace(/[^a-z0-9]+/gu, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
     .replace(/\s+/gu, " ")
     .trim();
 }
@@ -83,9 +94,14 @@ export function getMerchantIconEntry(key: string): MerchantIconCatalogueEntry | 
   return entriesByKey.get(key);
 }
 
-export function findMerchantIconByPayeeName(name: string): MerchantIconCatalogueEntry | undefined {
+export function findMerchantIconByPayeeName(name: string, region?: string): MerchantIconCatalogueEntry | undefined {
   const normalised = normaliseMerchantIconIdentity(name);
-  return normalised ? entriesByIdentity.get(normalised) : undefined;
+  if (!normalised) return undefined;
+  const matches = entriesByIdentity.get(normalised) ?? [];
+  if (matches.length === 1) return matches[0];
+  if (!region) return undefined;
+  const regional = matches.filter(({ regions }) => regions.includes(region) || regions.includes("GLOBAL"));
+  return regional.length === 1 ? regional[0] : undefined;
 }
 
 export type ResolvedMerchantIconAsset =

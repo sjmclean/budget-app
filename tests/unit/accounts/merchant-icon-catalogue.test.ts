@@ -13,7 +13,7 @@ describe("merchant icon catalogue", () => {
   it("keeps stable unique keys across the seed and imported batch", () => {
     const keys = MERCHANT_ICON_CATALOGUE.map(({ key }) => key);
     assert.equal(new Set(keys).size, keys.length);
-    assert.equal(MERCHANT_ICON_CATALOGUE.length, 110);
+    assert.ok(MERCHANT_ICON_CATALOGUE.length >= 600 && MERCHANT_ICON_CATALOGUE.length <= 800);
   });
 
   it("matches only exact canonical merchant identities automatically", () => {
@@ -31,6 +31,23 @@ describe("merchant icon catalogue", () => {
   it("normalises punctuation without broad fuzzy matching", () => {
     assert.equal(normaliseMerchantIconIdentity("McDonald's"), "mcdonalds");
     assert.equal(findMerchantIconByPayeeName("McDonalds")?.key, "mcdonalds-global");
+  });
+
+  it("preserves Unicode identities and resolves regional ambiguity only with a hint", () => {
+    assert.equal(normaliseMerchantIconIdentity("Crédit Agricole"), "crédit agricole");
+    assert.equal(normaliseMerchantIconIdentity("L'Oréal & Co."), "loréal and co");
+    assert.equal(normaliseMerchantIconIdentity("東京電力（TEPCO）"), "東京電力 tepcO".toLocaleLowerCase());
+    assert.equal(findMerchantIconByPayeeName("ALDI"), undefined);
+    assert.equal(findMerchantIconByPayeeName("ALDI", "AU")?.key, "aldi-au");
+    assert.equal(findMerchantIconByPayeeName("ALDI", "GB")?.key, "aldi-uk");
+  });
+
+  it("turns planning identities into live entries rather than counting manifests", () => {
+    assert.equal(getMerchantIconEntry("banyule-city-council-au")?.category, "local-government");
+    assert.equal(getMerchantIconEntry("stan-au")?.category, "streaming-video");
+    assert.equal(getMerchantIconEntry("kayo-sports-au")?.category, "streaming-sport");
+    assert.equal(getMerchantIconEntry("medibank-au")?.category, "health-insurance");
+    assert.equal(getMerchantIconEntry("qantas-global")?.category, "airline");
   });
 
   it("provides lazy sprite references and bounded search", () => {
