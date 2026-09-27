@@ -1,0 +1,1766 @@
+{
+  "version": 1,
+  "purpose": "Approved PR #109 expansion scope additions for local councils and streaming/subscription merchants.",
+  "entries": [
+    {
+      "key": "banyule-city-council-au",
+      "name": "Banyule City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Banyule Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "yarra-city-council-au",
+      "name": "Yarra City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Yarra"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "nillumbik-shire-council-au",
+      "name": "Nillumbik Shire Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Nillumbik Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "manningham-city-council-au",
+      "name": "Manningham City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Manningham Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "darebin-city-council-au",
+      "name": "Darebin City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Darebin Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "whittlesea-city-council-au",
+      "name": "City of Whittlesea",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Whittlesea City Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "boroondara-city-council-au",
+      "name": "City of Boroondara",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Boroondara City Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "melbourne-city-council-au",
+      "name": "City of Melbourne",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Melbourne City Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "merri-bek-city-council-au",
+      "name": "Merri-bek City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Moreland City Council",
+        "City of Merri-bek"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "maribyrnong-city-council-au",
+      "name": "Maribyrnong City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Maribyrnong"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "moonee-valley-city-council-au",
+      "name": "Moonee Valley City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Moonee Valley"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "monash-city-council-au",
+      "name": "Monash City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Monash"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "whitehorse-city-council-au",
+      "name": "Whitehorse City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Whitehorse"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "knox-city-council-au",
+      "name": "Knox City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Knox"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "yarra-ranges-council-au",
+      "name": "Yarra Ranges Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Yarra Ranges Shire Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "casey-city-council-au",
+      "name": "Casey City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Casey"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "cardinia-shire-council-au",
+      "name": "Cardinia Shire Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Cardinia Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "frankston-city-council-au",
+      "name": "Frankston City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Frankston"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "kingston-city-council-au",
+      "name": "Kingston City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Kingston"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "glen-eira-city-council-au",
+      "name": "Glen Eira City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Glen Eira"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "port-phillip-city-council-au",
+      "name": "Port Phillip City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Port Phillip"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "stonnington-city-council-au",
+      "name": "Stonnington City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Stonnington"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "hobsons-bay-city-council-au",
+      "name": "Hobsons Bay City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Hobsons Bay"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "wyndham-city-council-au",
+      "name": "Wyndham City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Wyndham City"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "brimbank-city-council-au",
+      "name": "Brimbank City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Brimbank"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "hume-city-council-au",
+      "name": "Hume City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Hume"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "melton-city-council-au",
+      "name": "Melton City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Melton"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "mornington-peninsula-shire-council-au",
+      "name": "Mornington Peninsula Shire Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Mornington Peninsula Shire"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "greater-dandenong-city-council-au",
+      "name": "Greater Dandenong City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Greater Dandenong"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "bayside-city-council-au",
+      "name": "Bayside City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Bayside"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "maroondah-city-council-au",
+      "name": "Maroondah City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Maroondah"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "greater-geelong-city-council-au",
+      "name": "City of Greater Geelong",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Greater Geelong City Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "ballarat-city-council-au",
+      "name": "City of Ballarat",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Ballarat City Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "greater-bendigo-city-council-au",
+      "name": "City of Greater Bendigo",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Greater Bendigo City Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "latrobe-city-council-au",
+      "name": "Latrobe City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Latrobe City"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "greater-shepparton-city-council-au",
+      "name": "Greater Shepparton City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Greater Shepparton"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "wodonga-city-council-au",
+      "name": "Wodonga Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Wodonga"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "sydney-city-council-au",
+      "name": "City of Sydney",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Sydney City Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "parramatta-city-council-au",
+      "name": "City of Parramatta",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Parramatta City Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "blacktown-city-council-au",
+      "name": "Blacktown City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Blacktown"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "liverpool-city-council-au",
+      "name": "Liverpool City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Liverpool"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "penrith-city-council-au",
+      "name": "Penrith City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Penrith"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "newcastle-city-council-au",
+      "name": "City of Newcastle",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Newcastle City Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "wollongong-city-council-au",
+      "name": "Wollongong City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Wollongong"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "brisbane-city-council-au",
+      "name": "Brisbane City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "gold-coast-city-council-au",
+      "name": "City of Gold Coast",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Gold Coast City Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "sunshine-coast-council-au",
+      "name": "Sunshine Coast Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "ipswich-city-council-au",
+      "name": "Ipswich City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Ipswich"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "logan-city-council-au",
+      "name": "Logan City Council",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "City of Logan"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "adelaide-city-council-au",
+      "name": "City of Adelaide",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Adelaide City Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "port-adelaide-enfield-au",
+      "name": "City of Port Adelaide Enfield",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Port Adelaide Enfield Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "charles-sturt-city-council-au",
+      "name": "City of Charles Sturt",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Charles Sturt Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "onkaparinga-city-council-au",
+      "name": "City of Onkaparinga",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Onkaparinga Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "perth-city-council-au",
+      "name": "City of Perth",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Perth City Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "stirling-city-council-au",
+      "name": "City of Stirling",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Stirling Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "joondalup-city-council-au",
+      "name": "City of Joondalup",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Joondalup Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "fremantle-city-council-au",
+      "name": "City of Fremantle",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Fremantle Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "swan-city-council-au",
+      "name": "City of Swan",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Swan Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "hobart-city-council-au",
+      "name": "City of Hobart",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Hobart City Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "launceston-city-council-au",
+      "name": "City of Launceston",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Launceston City Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "darwin-city-council-au",
+      "name": "City of Darwin",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Darwin City Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "palmerston-city-council-au",
+      "name": "City of Palmerston",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Palmerston City Council"
+      ],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "auckland-council-nz",
+      "name": "Auckland Council",
+      "regions": [
+        "NZ"
+      ],
+      "aliases": [],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "wellington-city-council-nz",
+      "name": "Wellington City Council",
+      "regions": [
+        "NZ"
+      ],
+      "aliases": [],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "christchurch-city-council-nz",
+      "name": "Christchurch City Council",
+      "regions": [
+        "NZ"
+      ],
+      "aliases": [],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "hamilton-city-council-nz",
+      "name": "Hamilton City Council",
+      "regions": [
+        "NZ"
+      ],
+      "aliases": [],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "dunedin-city-council-nz",
+      "name": "Dunedin City Council",
+      "regions": [
+        "NZ"
+      ],
+      "aliases": [],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "tauranga-city-council-nz",
+      "name": "Tauranga City Council",
+      "regions": [
+        "NZ"
+      ],
+      "aliases": [],
+      "category": "local-government",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "stan-au",
+      "name": "Stan",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "binge-au",
+      "name": "Binge",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "kayo-sports-au",
+      "name": "Kayo Sports",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Kayo"
+      ],
+      "category": "streaming-sport",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "foxtel-au",
+      "name": "Foxtel",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "foxtel-now-au",
+      "name": "Foxtel Now",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "optus-sport-au",
+      "name": "Optus Sport",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [],
+      "category": "streaming-sport",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "abc-iview-au",
+      "name": "ABC iview",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "ABC iView"
+      ],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "sbs-on-demand-au",
+      "name": "SBS On Demand",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "7plus-au",
+      "name": "7plus",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "7 Plus"
+      ],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "9now-au",
+      "name": "9Now",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "9 Now"
+      ],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "10-play-au",
+      "name": "10 Play",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "10Play"
+      ],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "disney-plus-global",
+      "name": "Disney+",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [
+        "Disney Plus"
+      ],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "prime-video-global",
+      "name": "Prime Video",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [
+        "Amazon Prime Video"
+      ],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "apple-tv-plus-global",
+      "name": "Apple TV+",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [
+        "Apple TV Plus"
+      ],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "paramount-plus-global",
+      "name": "Paramount+",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [
+        "Paramount Plus"
+      ],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "max-global",
+      "name": "Max",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [
+        "HBO Max"
+      ],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "hulu-us",
+      "name": "Hulu",
+      "regions": [
+        "US"
+      ],
+      "aliases": [],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "peacock-us",
+      "name": "Peacock",
+      "regions": [
+        "US"
+      ],
+      "aliases": [],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "britbox-global",
+      "name": "BritBox",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "hayu-global",
+      "name": "Hayu",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "amc-plus-global",
+      "name": "AMC+",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [
+        "AMC Plus"
+      ],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "discovery-plus-global",
+      "name": "Discovery+",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [
+        "Discovery Plus"
+      ],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "crunchyroll-global",
+      "name": "Crunchyroll",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "shudder-global",
+      "name": "Shudder",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "mubi-global",
+      "name": "MUBI",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "acorn-tv-global",
+      "name": "Acorn TV",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "nebula-global",
+      "name": "Nebula",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "plex-global",
+      "name": "Plex",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "dazn-global",
+      "name": "DAZN",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-sport",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "nba-league-pass-global",
+      "name": "NBA League Pass",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-sport",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "nfl-game-pass-global",
+      "name": "NFL Game Pass",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-sport",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "mlb-tv-global",
+      "name": "MLB.TV",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [
+        "MLB TV"
+      ],
+      "category": "streaming-sport",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "f1-tv-global",
+      "name": "F1 TV",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-sport",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "ufc-fight-pass-global",
+      "name": "UFC Fight Pass",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-sport",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "watchafl-global",
+      "name": "WatchAFL",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [
+        "Watch AFL"
+      ],
+      "category": "streaming-sport",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "apple-music-global",
+      "name": "Apple Music",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-music",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "youtube-music-global",
+      "name": "YouTube Music",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-music",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "amazon-music-global",
+      "name": "Amazon Music",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-music",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "tidal-global",
+      "name": "TIDAL",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [
+        "Tidal"
+      ],
+      "category": "streaming-music",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "deezer-global",
+      "name": "Deezer",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-music",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "soundcloud-global",
+      "name": "SoundCloud",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [
+        "Sound Cloud"
+      ],
+      "category": "streaming-music",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "qobuz-global",
+      "name": "Qobuz",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-music",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "iheartradio-global",
+      "name": "iHeartRadio",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [
+        "iHeart Radio"
+      ],
+      "category": "streaming-music",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "youtube-premium-global",
+      "name": "YouTube Premium",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "twitch-global",
+      "name": "Twitch",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "vimeo-global",
+      "name": "Vimeo",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "streaming-video",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "audible-global",
+      "name": "Audible",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "digital",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "xbox-game-pass-global",
+      "name": "Xbox Game Pass",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "gaming-subscription",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "playstation-plus-global",
+      "name": "PlayStation Plus",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [
+        "PS Plus"
+      ],
+      "category": "gaming-subscription",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "nintendo-switch-online-global",
+      "name": "Nintendo Switch Online",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "gaming-subscription",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "geforce-now-global",
+      "name": "GeForce NOW",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [
+        "NVIDIA GeForce NOW"
+      ],
+      "category": "gaming-subscription",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "ea-play-global",
+      "name": "EA Play",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "gaming-subscription",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "ubisoft-plus-global",
+      "name": "Ubisoft+",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [
+        "Ubisoft Plus"
+      ],
+      "category": "gaming-subscription",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "apple-arcade-global",
+      "name": "Apple Arcade",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "gaming-subscription",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "google-play-pass-global",
+      "name": "Google Play Pass",
+      "regions": [
+        "GLOBAL"
+      ],
+      "aliases": [],
+      "category": "gaming-subscription",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    }
+  ]
+}
