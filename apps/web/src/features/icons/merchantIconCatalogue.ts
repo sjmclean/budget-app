@@ -8,7 +8,8 @@ export type MerchantIconCategory =
   | "groceries" | "food" | "fuel" | "shopping" | "home" | "electronics"
   | "health" | "finance" | "insurance" | "utilities" | "telecom" | "government"
   | "transport" | "travel" | "entertainment" | "sport" | "delivery"
-  | "digital" | "marketplace" | "automotive" | "services" | "other";
+  | "streaming-video" | "streaming-music" | "streaming-sport" | "gaming-subscription"
+  | "digital" | "marketplace" | "automotive" | "services" | "local-government" | "other";
 
 export type MerchantIconProvenanceKind = "official" | "user-supplied" | "generated";
 
