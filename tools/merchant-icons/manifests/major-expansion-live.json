@@ -7639,7 +7639,9 @@
       "regions": [
         "GLOBAL"
       ],
-      "aliases": [],
+      "aliases": [
+        "Rex"
+      ],
       "category": "airline",
       "provenance": {
         "kind": "generated",
@@ -7772,7 +7774,9 @@
       "regions": [
         "GLOBAL"
       ],
-      "aliases": [],
+      "aliases": [
+        "ANA"
+      ],
       "category": "airline",
       "provenance": {
         "kind": "generated",
@@ -7905,7 +7909,9 @@
       "regions": [
         "GLOBAL"
       ],
-      "aliases": [],
+      "aliases": [
+        "United"
+      ],
       "category": "airline",
       "provenance": {
         "kind": "generated",
@@ -7924,7 +7930,9 @@
       "regions": [
         "GLOBAL"
       ],
-      "aliases": [],
+      "aliases": [
+        "Delta"
+      ],
       "category": "airline",
       "provenance": {
         "kind": "generated",
@@ -7962,7 +7970,9 @@
       "regions": [
         "GLOBAL"
       ],
-      "aliases": [],
+      "aliases": [
+        "Southwest"
+      ],
       "category": "airline",
       "provenance": {
         "kind": "generated",
@@ -8836,7 +8846,9 @@
       "regions": [
         "AU"
       ],
-      "aliases": [],
+      "aliases": [
+        "St.George"
+      ],
       "category": "bank",
       "provenance": {
         "kind": "generated",
@@ -8874,7 +8886,9 @@
       "regions": [
         "AU"
       ],
-      "aliases": [],
+      "aliases": [
+        "Macquarie"
+      ],
       "category": "bank",
       "provenance": {
         "kind": "generated",
@@ -8969,7 +8983,9 @@
       "regions": [
         "AU"
       ],
-      "aliases": [],
+      "aliases": [
+        "Up"
+      ],
       "category": "bank",
       "provenance": {
         "kind": "generated",
@@ -10527,7 +10543,9 @@
       "regions": [
         "AU"
       ],
-      "aliases": [],
+      "aliases": [
+        "Bupa"
+      ],
       "category": "health-insurance",
       "provenance": {
         "kind": "generated",
@@ -10565,7 +10583,9 @@
       "regions": [
         "AU"
       ],
-      "aliases": [],
+      "aliases": [
+        "nib"
+      ],
       "category": "health-insurance",
       "provenance": {
         "kind": "generated",
@@ -10679,7 +10699,9 @@
       "regions": [
         "AU"
       ],
-      "aliases": [],
+      "aliases": [
+        "CBHS"
+      ],
       "category": "health-insurance",
       "provenance": {
         "kind": "generated",
@@ -11230,7 +11252,9 @@
       "regions": [
         "GLOBAL"
       ],
-      "aliases": [],
+      "aliases": [
+        "Budget"
+      ],
       "category": "car-rental",
       "provenance": {
         "kind": "generated",
@@ -11287,7 +11311,9 @@
       "regions": [
         "GLOBAL"
       ],
-      "aliases": [],
+      "aliases": [
+        "Thrifty"
+      ],
       "category": "car-rental",
       "provenance": {
         "kind": "generated",
@@ -11306,7 +11332,9 @@
       "regions": [
         "GLOBAL"
       ],
-      "aliases": [],
+      "aliases": [
+        "Enterprise"
+      ],
       "category": "car-rental",
       "provenance": {
         "kind": "generated",
@@ -11325,7 +11353,9 @@
       "regions": [
         "GLOBAL"
       ],
-      "aliases": [],
+      "aliases": [
+        "National"
+      ],
       "category": "car-rental",
       "provenance": {
         "kind": "generated",
@@ -11344,7 +11374,9 @@
       "regions": [
         "GLOBAL"
       ],
-      "aliases": [],
+      "aliases": [
+        "Alamo"
+      ],
       "category": "car-rental",
       "provenance": {
         "kind": "generated",

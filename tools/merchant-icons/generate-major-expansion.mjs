@@ -38,6 +38,16 @@ const groups = [
   ["gaming-subscription", "GLOBAL", `Amazon Luna;GameFly;Humble Choice;Antstream Arcade;Blacknut;Ubisoft Connect;Nintendo eShop;PlayStation Store;Xbox Live;Google Stadia`],
 ];
 
+const aliasOverrides = new Map(Object.entries({
+  "Rex Airlines": ["Rex"], "All Nippon Airways": ["ANA"], "United Airlines": ["United"],
+  "Delta Air Lines": ["Delta"], "Southwest Airlines": ["Southwest"],
+  "Bupa Australia": ["Bupa"], "NIB Health": ["nib"], "CBHS Health": ["CBHS"],
+  "Budget Rent a Car": ["Budget"], "Thrifty Car Rental": ["Thrifty"],
+  "Enterprise Rent-A-Car": ["Enterprise"], "National Car Rental": ["National"],
+  "Alamo Rent A Car": ["Alamo"], "St.George Bank": ["St.George"],
+  "Macquarie Bank": ["Macquarie"], "Up Bank": ["Up"],
+}));
+
 const slug = (value) => value.normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/gu, "").toLocaleLowerCase("en-US").normalize("NFKD").replace(/[^a-z0-9-]/gu, "");
 const initial = (name) => name.match(/[\p{L}\p{N}]/u)?.[0]?.toLocaleUpperCase() ?? "•";
 const palettes = { "local-government": ["#334155", "#e2e8f0"], water: ["#0369a1", "#e0f2fe"], electricity: ["#ca8a04", "#fef9c3"], utilities: ["#0f766e", "#ccfbf1"], internet: ["#4f46e5", "#e0e7ff"], mobile: ["#7c3aed", "#ede9fe"], telecom: ["#6d28d9", "#ede9fe"], airline: ["#1d4ed8", "#dbeafe"], bank: ["#166534", "#dcfce7"], "credit-union": ["#047857", "#d1fae5"], "health-insurance": ["#be123c", "#ffe4e6"], "car-rental": ["#c2410c", "#ffedd5"], parking: ["#1e40af", "#dbeafe"], clothing: ["#9d174d", "#fce7f3"], shopping: ["#b45309", "#fef3c7"], "streaming-video": ["#b91c1c", "#fee2e2"], "streaming-sport": ["#15803d", "#dcfce7"], "streaming-music": ["#7e22ce", "#f3e8ff"], "gaming-subscription": ["#4338ca", "#e0e7ff"], digital: ["#475569", "#f1f5f9"], government: ["#334155", "#e2e8f0"], finance: ["#166534", "#dcfce7"], groceries: ["#15803d", "#dcfce7"], health: ["#be123c", "#ffe4e6"], marketplace: ["#b45309", "#fef3c7"], fuel: ["#a16207", "#fef9c3"], entertainment: ["#7e22ce", "#f3e8ff"], transport: ["#0369a1", "#e0f2fe"], insurance: ["#047857", "#d1fae5"], services: ["#475569", "#f1f5f9"] };
@@ -58,7 +68,7 @@ candidates.push(
 );
 for (const [category, region, names] of groups) {
   for (const name of names.split(";")) {
-    candidates.push({ key: `${slug(name)}-${region.toLocaleLowerCase()}`, name, regions: [region], aliases: [], category, provenance: { kind: "generated", source: "Codex curated generic identity mark", reviewed: false } });
+    candidates.push({ key: `${slug(name)}-${region.toLocaleLowerCase()}`, name, regions: [region], aliases: aliasOverrides.get(name) ?? [], category, provenance: { kind: "generated", source: "Codex curated generic identity mark", reviewed: false } });
   }
 }
 
