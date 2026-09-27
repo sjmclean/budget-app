@@ -6,8 +6,10 @@ export type MerchantIconAsset =
 
 export type MerchantIconCategory =
   | "groceries" | "food" | "fuel" | "shopping" | "home" | "electronics"
-  | "health" | "finance" | "insurance" | "utilities" | "telecom" | "government"
-  | "transport" | "travel" | "entertainment" | "sport" | "delivery"
+  | "health" | "health-insurance" | "finance" | "bank" | "credit-union" | "insurance"
+  | "utilities" | "water" | "gas" | "electricity" | "internet" | "mobile"
+  | "telecom" | "government" | "parking" | "car-rental" | "airline"
+  | "clothing" | "transport" | "travel" | "entertainment" | "sport" | "delivery"
   | "streaming-video" | "streaming-music" | "streaming-sport" | "gaming-subscription"
   | "digital" | "marketplace" | "automotive" | "services" | "local-government" | "other";
 
