@@ -42,6 +42,20 @@ export function PayeeIcon({
       </span>
     );
   }
+  if (resolved.kind === "sprite") {
+    return (
+      <span {...common} {...accessibility}>
+        <svg
+          aria-hidden="true"
+          className="payee-icon-image"
+          viewBox="0 0 40 40"
+          style={{ width: "100%", height: "100%", borderRadius: "20%" }}
+        >
+          <use href={resolved.href} />
+        </svg>
+      </span>
+    );
+  }
   if (resolved.kind === "transfer") return <span {...common} {...accessibility}><ArrowRightLeft aria-hidden="true" /></span>;
   if (resolved.kind === "none") return <span {...common} {...accessibility}><UserRound aria-hidden="true" /></span>;
   return <span {...common} {...accessibility} data-avatar-token={resolved.token}>{resolved.initials}</span>;
