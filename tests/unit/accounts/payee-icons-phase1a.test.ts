@@ -45,6 +45,24 @@ describe("payee icon reference and resolver", () => {
     assert.deepEqual(resolvePayeeIcon({ state: "none" }), { kind: "none" });
   });
 
+  it("preserves Australian automatic matches while respecting regional identities", () => {
+    assert.deepEqual(resolvePayeeIcon({ payee: payee("aldi", "ALDI") }), {
+      kind: "sprite", href: "/merchant-icons/user-seed-01.svg#aldi-au",
+    });
+    assert.deepEqual(resolvePayeeIcon({ payee: payee("target", "Target") }), {
+      kind: "sprite", href: "/merchant-icons/user-seed-07.svg#target-au",
+    });
+    assert.equal(resolvePayeeIcon({ payee: payee("aldi-uk", "Aldi UK") }).kind, "sprite");
+    assert.equal(resolvePayeeIcon({ payee: payee("aldi-us", "Aldi US") }).kind, "sprite");
+    assert.deepEqual(resolvePayeeIcon({ payee: payee("aldi", "ALDI"), merchantRegion: "GB" }), {
+      kind: "sprite", href: "/merchant-icons/major-expansion-02.svg#aldi-uk",
+    });
+    assert.equal(
+      resolvePayeeIcon({ payee: payee("aldi", "ALDI"), merchantRegion: null }).kind,
+      "initials",
+    );
+  });
+
   it("applies the approved deterministic merge precedence", () => {
     assert.equal(mergePayeeIconReferences("builtin:v1:shopping", ["builtin:v1:dining"]), "builtin:v1:shopping", "A: explicit target wins");
     assert.equal(mergePayeeIconReferences("", ["builtin:v1:dining"]), "builtin:v1:dining", "B: automatic target inherits one explicit source");

@@ -50,6 +50,15 @@ describe("merchant icon catalogue", () => {
     assert.equal(getMerchantIconEntry("qantas-global")?.category, "airline");
   });
 
+  it("keeps reviewed legacy artwork distinct from generated fallback marks", () => {
+    const reviewed = MERCHANT_ICON_CATALOGUE.filter(({ provenance }) => provenance?.reviewed);
+    const generatedFallbacks = MERCHANT_ICON_CATALOGUE.filter(({ provenance }) =>
+      provenance?.kind === "generated" && provenance.reviewed === false
+    );
+    assert.equal(reviewed.length, 110);
+    assert.equal(generatedFallbacks.length, 650);
+  });
+
   it("provides lazy sprite references and bounded search", () => {
     assert.equal(getMerchantIconEntry("coles-au")?.name, "Coles");
     assert.deepEqual(resolveMerchantIconAsset("coles-au"), {
