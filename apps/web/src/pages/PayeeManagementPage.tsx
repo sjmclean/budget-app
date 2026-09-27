@@ -36,6 +36,7 @@ import {
   PAYEE_BUILTIN_ICONS,
   serialisePayeeIconReference,
 } from "../features/icons/payeeIconReference";
+import { searchMerchantIcons } from "../features/icons/merchantIconCatalogue";
 
 const COMPACT_PAYEE_LIMIT = 10;
 type PayeeDetailTab = "overview" | "aliases" | "rules" | "transactions" | "scheduled" | "history";
@@ -249,6 +250,7 @@ export function PayeeManagementPage() {
   const [actionRuleType, setActionRuleType] = useState<PayeeRuleMatchType>("contains");
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
   const [iconPickerDraft, setIconPickerDraft] = useState("");
+  const [iconSearch, setIconSearch] = useState("");
   const [mergeDialogStep, setMergeDialogStep] = useState<"closed" | "confirm" | "select" | "options" | "preview" | "complete">("closed");
   const [isMergeSubmitting, setIsMergeSubmitting] = useState(false);
   const [mergeError, setMergeError] = useState("");
@@ -453,8 +455,14 @@ export function PayeeManagementPage() {
     selectedPayee?.aliases,
   ]);
 
+  const merchantIconMatches = useMemo(
+    () => searchMerchantIcons(iconSearch, 48),
+    [iconSearch],
+  );
+
   function openIconPicker() {
     setIconPickerDraft(selectedPayee?.iconRef ?? "");
+    setIconSearch("");
     setIsIconPickerOpen(true);
   }
 
@@ -1622,11 +1630,27 @@ export function PayeeManagementPage() {
               <button className="button button-ghost" type="button" onClick={() => setIsIconPickerOpen(false)} aria-label="Close">×</button>
             </div>
             <PayeeCustomImagePicker payee={selectedPayee} value={iconPickerDraft} onChange={setIconPickerDraft} />
+            <label>
+              <span className="field-label">Merchant library</span>
+              <input
+                className="payee-management-search"
+                value={iconSearch}
+                onChange={(event) => setIconSearch(event.target.value)}
+                placeholder="Search merchant icons…"
+              />
+            </label>
             <div className="payee-icon-picker-grid" role="radiogroup" aria-label="Payee icon">
               <button type="button" role="radio" aria-checked={iconPickerDraft === ""}
                 className={iconPickerDraft === "" ? "is-selected" : ""} onClick={() => setIconPickerDraft("")}>
                 <PayeeIcon payee={{ ...selectedPayee, iconRef: "" }} size={40} decorative /><span>Automatic</span>
               </button>
+              {merchantIconMatches.map((merchant) => {
+                const iconRef = serialisePayeeIconReference({ kind: "merchant", key: merchant.key });
+                return <button key={merchant.key} type="button" role="radio" aria-checked={iconPickerDraft === iconRef}
+                  className={iconPickerDraft === iconRef ? "is-selected" : ""} onClick={() => setIconPickerDraft(iconRef)}>
+                  <PayeeIcon payee={{ ...selectedPayee, iconRef }} size={40} decorative /><span>{merchant.name}</span>
+                </button>;
+              })}
               {PAYEE_BUILTIN_ICONS.map(({ key, label }) => {
                 const iconRef = serialisePayeeIconReference({ kind: "builtin", key });
                 return <button key={key} type="button" role="radio" aria-checked={iconPickerDraft === iconRef}

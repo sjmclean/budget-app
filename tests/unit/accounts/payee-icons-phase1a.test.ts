@@ -16,22 +16,30 @@ function storage() {
 }
 
 describe("payee icon reference and resolver", () => {
-  it("parses automatic, built-in and reserved content references safely", () => {
+  it("parses automatic, built-in, merchant and reserved content references safely", () => {
     assert.deepEqual(parsePayeeIconReference(""), { kind: "automatic" });
     assert.deepEqual(parsePayeeIconReference("builtin:v1:shopping"), { kind: "builtin", key: "shopping" });
+    assert.deepEqual(parsePayeeIconReference("merchant:v1:coles-au"), { kind: "merchant", key: "coles-au" });
     const hash = "a".repeat(64);
     assert.deepEqual(parsePayeeIconReference(`content:v1:${hash}`), { kind: "content", contentHash: hash });
     assert.equal(parsePayeeIconReference("builtin:v1:not-real").kind, "unknown");
+    assert.equal(parsePayeeIconReference("merchant:v1:not-real").kind, "unknown");
     assert.equal(parsePayeeIconReference("content:v1:ABC").kind, "unknown");
     assert.throws(() => validatePayeeIconReferenceForWrite("bad:v1:value"));
     assert.equal(serialisePayeeIconReference({ kind: "automatic" }), "");
   });
 
-  it("uses only canonical identity for a deterministic fallback", () => {
+  it("uses canonical identity for automatic merchant icons while explicit choices win", () => {
     const first = resolvePayeeIcon({ payee: payee("p-1", "Woolworths") });
     const second = resolvePayeeIcon({ payee: { ...payee("p-1", "Woolworths"), rawPayee: "ignored" } as never });
     assert.deepEqual(first, second);
+    assert.deepEqual(first, { kind: "sprite", href: "/merchant-icons/user-seed-08.svg#woolworths-au" });
     assert.equal(resolvePayeeIcon({ payee: payee("p-1", "Woolworths", "builtin:v1:groceries") }).kind, "builtin");
+    assert.deepEqual(
+      resolvePayeeIcon({ payee: payee("p-1", "Woolworths", "merchant:v1:coles-au") }),
+      { kind: "sprite", href: "/merchant-icons/user-seed-03.svg#coles-au" },
+    );
+    assert.equal(resolvePayeeIcon({ payee: payee("p-1", "Unknown merchant") }).kind, "initials");
     assert.equal(resolvePayeeIcon({ payee: payee("p-1", "Woolworths", `content:v1:${"b".repeat(64)}`) }).kind, "initials");
     assert.deepEqual(resolvePayeeIcon({ state: "transfer" }), { kind: "transfer" });
     assert.deepEqual(resolvePayeeIcon({ state: "none" }), { kind: "none" });
@@ -43,6 +51,7 @@ describe("payee icon reference and resolver", () => {
     assert.equal(mergePayeeIconReferences("", ["builtin:v1:dining", "builtin:v1:dining"]), "builtin:v1:dining", "C: duplicate explicit source refs count once");
     assert.equal(mergePayeeIconReferences("", ["builtin:v1:dining", "builtin:v1:fuel"]), "", "D: conflicting explicit sources keep an automatic target automatic");
     assert.equal(mergePayeeIconReferences("builtin:v1:shopping", ["builtin:v1:dining", "builtin:v1:fuel"]), "builtin:v1:shopping", "E: source conflicts never displace an explicit target");
+    assert.equal(mergePayeeIconReferences("", ["merchant:v1:coles-au"]), "merchant:v1:coles-au");
     assert.equal(mergePayeeIconReferences("", [""]), "");
   });
 });

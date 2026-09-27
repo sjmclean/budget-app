@@ -1,0 +1,20 @@
+{
+  "batch": "user-seed",
+  "entries": [
+    {
+      "sourceFile": "merchant-logo.png",
+      "key": "merchant-name-au",
+      "name": "Merchant Name",
+      "regions": ["AU"],
+      "aliases": ["Merchant Name Online"]
+    },
+    {
+      "sourceFile": "needs-review.png",
+      "key": "needs-review-au",
+      "name": "Needs Review",
+      "regions": ["AU"],
+      "aliases": [],
+      "include": false
+    }
+  ]
+}
