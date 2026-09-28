@@ -20,6 +20,11 @@ test("government source registry starts with authoritative AU, NZ, UK and US nat
   for (const jurisdiction of ["nsw", "vic", "qld", "wa", "sa", "tas", "act", "nt"]) {
     assert.ok(GOVERNMENT_SOURCE_REGISTRY.some(({ id }) => id === `au-${jurisdiction}-government-directory`));
   }
+  assert.ok(GOVERNMENT_SOURCE_REGISTRY.some(({ id, authority, url }) =>
+    id === "au-sa-government-directory"
+      && /Shared Services SA/u.test(authority)
+      && /sharedservices\.sa\.gov\.au/u.test(url),
+  ));
   assert.ok(GOVERNMENT_SOURCE_REGISTRY.some(({ id }) => id === "au-local-government-areas"));
   assert.ok(GOVERNMENT_SOURCE_REGISTRY.some(({ id }) => id === "gb-local-authorities"));
   assert.ok(GOVERNMENT_SOURCE_REGISTRY.some(({ id }) => id === "us-government-units-2026"));
@@ -41,6 +46,7 @@ test("government candidate builder deduplicates by country and does not invent r
   assert.match(builder, /Source inventory only/u);
   assert.match(builder, /country.*candidate\.jurisdiction.*canonical\(candidate\.name\)/su);
   assert.match(builder, /parseAuStateDirectory/u);
+  assert.match(builder, /<t\[dh\]\\b/u);
   assert.match(builder, /parseAuLocal/u);
   assert.match(builder, /<button\\b/u);
   assert.match(builder, /<h\[23\]\\b/u);

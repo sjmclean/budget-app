@@ -193,7 +193,9 @@ function parseAuStateDirectory(source: GovernmentSourceDefinition, text: string)
     .map((match) => decodeHtml(match[1] ?? ""));
   const linkNames = [...text.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/giu)]
     .map((match) => decodeHtml(match[1] ?? ""));
-  const names = [...headingNames, ...linkNames];
+  const tableNames = [...text.matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/giu)]
+    .map((match) => decodeHtml(match[1] ?? ""));
+  const names = [...headingNames, ...linkNames, ...tableNames];
   const noise = new Set([
     "about us", "accessibility", "contact", "contact us", "copyright", "departments and agencies",
     "find an agency", "government", "home", "menu", "ministers", "privacy", "search",

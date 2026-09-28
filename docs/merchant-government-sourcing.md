@@ -9,7 +9,7 @@ Government directories can contain thousands of valid organisations, boards, age
 ## Initial authoritative source families
 
 - Australia: Australian Government Organisations Register (Department of Finance / data.gov.au)
-- Australia states and territories: official NSW, Victoria, Queensland, Western Australia, South Australia, Tasmania, ACT and Northern Territory agency/directory pages
+- Australia states and territories: official NSW, Victoria, Queensland, Western Australia, Tasmania, ACT and Northern Territory agency/directory pages; South Australia uses the official Shared Services SA agency directory, which also exposes many agency acronyms
 - New Zealand: New Zealand Government A-Z
 - United Kingdom: GOV.UK Organisations API
 - United States: the complete alphabetic USAGov federal agency index (A-Z)
