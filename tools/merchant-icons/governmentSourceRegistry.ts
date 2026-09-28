@@ -93,7 +93,7 @@ export const GOVERNMENT_SOURCE_REGISTRY: readonly GovernmentSourceDefinition[] =
     country: "AU",
     level: "state-local",
     kind: "html",
-    url: "https://www.sa.gov.au/topics/about-sa/government/contact-government",
+    url: "https://www.sa.gov.au/topics/about-sa/government/contact-government/departments",
     snapshotFile: "au-sa-government-directory.html",
     authority: "South Australian Government",
     jurisdiction: "SA",

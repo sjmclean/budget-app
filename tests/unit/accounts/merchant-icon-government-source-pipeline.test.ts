@@ -30,7 +30,9 @@ test("government refresh is an explicit snapshot workflow rather than a build-ti
   assert.match(refresh, /next_page_url/u);
   assert.match(refresh, /arrayBuffer/u);
   assert.match(refresh, /alphabetic pages/u);
-  assert.match(refresh, /abcdefghijklmnopqrstuvwxyz/u);
+  assert.match(refresh, /bcdefghijklmnoprstuvw/u);
+  assert.match(refresh, /suffix \? \`\$\{source\.url\}\/\$\{suffix\}\` : source\.url/u);
+  assert.doesNotMatch(refresh, /agency-index\/a/u);
   assert.match(refresh, /tools\/merchant-icons\/sources\/government/u);
   assert.doesNotMatch(catalogue, /government-candidates|governmentSourceRegistry|merchantIconGovernment/u);
 });

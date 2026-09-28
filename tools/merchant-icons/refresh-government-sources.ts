@@ -22,16 +22,13 @@ await mkdir(snapshotDirectory, { recursive: true });
 for (const source of GOVERNMENT_SOURCE_REGISTRY) {
   const path = resolve(snapshotDirectory, source.snapshotFile);
   if (source.kind === "alphabetic-html") {
-    const letters = "abcdefghijklmnopqrstuvwxyz".split("");
+    // USAGov uses the root agency-index page for A, then letter-specific pages
+    // for the remaining populated letters. Q, X, Y and Z do not have pages.
+    const suffixes = ["", ..."bcdefghijklmnoprstuvw".split("")];
     const pages: string[] = [];
-    for (const letter of letters) {
-      const url = `${source.url}/${letter}`;
-      try {
-        pages.push(await getText(url));
-      } catch (error) {
-        if (letter === "q" || letter === "x" || letter === "y" || letter === "z") continue;
-        throw error;
-      }
+    for (const suffix of suffixes) {
+      const url = suffix ? `${source.url}/${suffix}` : source.url;
+      pages.push(await getText(url));
     }
     const body = pages.join("\n<!-- budget-app source page boundary -->\n");
     await writeFile(path, body);
