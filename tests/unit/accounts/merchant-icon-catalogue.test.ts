@@ -55,9 +55,9 @@ describe("merchant icon catalogue", () => {
     const generatedFallbacks = MERCHANT_ICON_CATALOGUE.filter(({ provenance }) =>
       provenance?.kind === "generated" && provenance.reviewed === false
     );
-    assert.equal(MERCHANT_ICON_CATALOGUE.length, 772);
+    assert.equal(MERCHANT_ICON_CATALOGUE.length, 1522);
     assert.ok(reviewed.length > MERCHANT_ICON_CATALOGUE.length / 2);
-    assert.equal(reviewed.length, 514);
+    assert.equal(reviewed.length, 1264);
     assert.equal(generatedFallbacks.length, 258);
     assert.ok(MERCHANT_ICON_CATALOGUE.every(({ provenance }) => !provenance || !("source" in provenance)));
   });
@@ -127,6 +127,8 @@ describe("merchant icon catalogue", () => {
     assert.equal(findMerchantIconByPayeeName("JD Sports Australia")?.key, "jd-sports-global");
     assert.equal(findMerchantIconByPayeeName("SHEIN")?.key, "shein-global");
     assert.equal(findMerchantIconByPayeeName("Chat GPT")?.key, "chatgpt-global");
+    assert.equal(findMerchantIconByPayeeName("Afterpay")?.key, "si-afterpay-global");
+    assert.equal(findMerchantIconByPayeeName("Booking.com")?.key, "si-bookingdotcom-global");
 
     for (const key of ["jd-sports-global", "shein-global", "chatgpt-global"]) {
       const entry = getMerchantIconEntry(key);
@@ -135,6 +137,19 @@ describe("merchant icon catalogue", () => {
       assert.equal(entry.provenance?.reviewed, true);
       assert.equal(entry.asset.kind, "image");
     }
+  });
+
+  it("keeps the generated brand expansion reviewed, lazy and exact-match-only", () => {
+    const afterpay = getMerchantIconEntry("si-afterpay-global");
+    assert.equal(afterpay?.name, "Afterpay");
+    assert.equal(afterpay?.provenance?.kind, "community");
+    assert.equal(afterpay?.provenance?.reviewed, true);
+    assert.deepEqual(afterpay?.asset, {
+      kind: "sprite",
+      spritePath: "community-simple-icons-02.svg",
+      symbolId: "si-afterpay",
+    });
+    assert.equal(findMerchantIconByPayeeName("Afterpay 1234"), undefined);
   });
 
   it("provides lazy sprite references and bounded search", () => {
