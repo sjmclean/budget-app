@@ -41,6 +41,9 @@ test("government candidate builder deduplicates by country and does not invent r
   assert.match(builder, /xl\/sharedStrings\.xml/u);
   assert.match(builder, /parseWorksheetRows/u);
   assert.match(builder, /government name/u);
+  assert.match(builder, /government unit_name/u);
+  assert.match(builder, /unit_name/u);
+  assert.match(builder, /fips_state/u);
   assert.match(builder, /gov-\$\{keySlug\}-\$\{source\.country/u);
   assert.doesNotMatch(builder, /provenance|assetPath|spritePath/u);
 });

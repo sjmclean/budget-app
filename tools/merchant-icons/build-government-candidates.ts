@@ -287,7 +287,8 @@ function parseUsGovernmentUnits(source: GovernmentSourceDefinition, archivePath:
 
     const headerCandidates = [
       "government name", "government unit name", "govt name", "gov name",
-      "government_name", "govt_name", "name",
+      "government_name", "government unit_name", "government_unit_name",
+      "govt_name", "unit name", "unit_name", "name",
     ];
     let headerRowIndex = -1;
     let nameIndex = -1;
@@ -299,7 +300,7 @@ function parseUsGovernmentUnits(source: GovernmentSourceDefinition, archivePath:
       headerRowIndex = rowIndex;
       nameIndex = candidateNameIndex;
       stateIndex = headers.findIndex((value) =>
-        ["state", "state code", "state fips", "state fips code", "state_code", "state_fips"].includes(value),
+        ["state", "state code", "state fips", "state fips code", "state_code", "state_fips", "fips state", "fips_state"].includes(value),
       );
       break;
     }
