@@ -1,5 +1,5 @@
-import { access, readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { readFile } from "node:fs/promises";
+import { extname, resolve } from "node:path";
 import {
   MERCHANT_ICON_CATALOGUE,
   normaliseMerchantIconIdentity,
@@ -35,6 +35,24 @@ async function readSprite(path: string): Promise<string | undefined> {
     return text;
   } catch {
     return undefined;
+  }
+}
+
+async function validateImageAsset(key: string, assetPath: string): Promise<void> {
+  try {
+    const bytes = await readFile(resolve(root, "apps/web/public/merchant-icons", assetPath));
+    const extension = extname(assetPath).toLocaleLowerCase();
+    const png = bytes.length >= 24 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) && bytes.readUInt32BE(16) > 1 && bytes.readUInt32BE(20) > 1;
+    const jpeg = bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes.at(-2) === 0xff && bytes.at(-1) === 0xd9;
+    const readable = extension === ".png" ? png
+      : extension === ".jpg" || extension === ".jpeg" ? jpeg
+      : extension === ".webp" ? bytes.length >= 16 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP"
+      : extension === ".ico" ? bytes.length >= 22 && ((bytes.readUInt16LE(0) === 0 && bytes.readUInt16LE(2) === 1 && bytes.readUInt16LE(4) > 0) || png || jpeg || bytes.toString("ascii", 0, 6) === "GIF89a" || bytes.toString("ascii", 0, 2) === "BM")
+      : extension === ".svg" ? /<svg(?:\s|>)/u.test(bytes.toString("utf8"))
+      : false;
+    if (!readable) errors.push(`Merchant "${key}" references unreadable image asset "${assetPath}".`);
+  } catch {
+    errors.push(`Merchant "${key}" references missing asset "${assetPath}".`);
   }
 }
 
@@ -110,11 +128,7 @@ for (const entry of MERCHANT_ICON_CATALOGUE) {
   }
 
   if (entry.asset.kind === "image") {
-    try {
-      await access(resolve(root, "apps/web/public/merchant-icons", entry.asset.assetPath));
-    } catch {
-      errors.push(`Merchant "${entry.key}" references missing asset "${entry.asset.assetPath}".`);
-    }
+    await validateImageAsset(entry.key, entry.asset.assetPath);
     continue;
   }
 
@@ -134,6 +148,11 @@ for (const entry of MERCHANT_ICON_CATALOGUE) {
   if (!new RegExp(`<symbol\\s+id=["']${escaped}["'](?:\\s|>)`, "u").test(sprite)) {
     errors.push(`Merchant "${entry.key}" references missing symbol "${entry.asset.symbolId}" in "${entry.asset.spritePath}".`);
   }
+}
+
+const anaconda = MERCHANT_ICON_CATALOGUE.find(({ key }) => key === "anaconda-au");
+if (anaconda?.asset.kind !== "image" || !anaconda.provenance?.reviewed) {
+  errors.push("Anaconda regression: anaconda-au must use a reviewed standalone image, not the broken user-seed sprite symbol.");
 }
 
 for (const entry of officialManifest.entries) {
