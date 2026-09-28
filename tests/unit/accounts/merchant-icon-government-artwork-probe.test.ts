@@ -21,7 +21,7 @@ test("government artwork probe separates agency-specific, shared and rejected ar
   assert.match(probe, /candidate-shared-government/u);
   assert.match(probe, /rejected-third-party/u);
   assert.match(probe, /web_maps_icon_/u);
-  assert.match(probe, /sharedArtworkCount < 3/u);
+  assert.match(probe, /sharedArtworkCount < 2/u);
   assert.match(probe, /Repeated shared artwork/u);
   assert.match(probe, /Artwork discovery only/u);
   assert.doesNotMatch(probe, /reviewed:\s*true/u);
