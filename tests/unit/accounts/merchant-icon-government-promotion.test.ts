@@ -20,7 +20,7 @@ test("government promotion is explicit, source-locked and agency-specific only",
   assert.ok(approval.entries.every(({ assetPath }) => assetPath.startsWith("official/government/")));
   assert.match(promotion, /candidate-agency-specific/u);
   assert.match(promotion, /candidate\.assetSource !== approval\.assetSource/u);
-  assert.match(promotion, /Artwork source changed/u);
+  assert.match(promotion, /artwork source changed; review required/u);
   assert.match(promotion, /2_000_000/u);
   assert.match(promotion, /validateBytes/u);
   assert.match(promotion, /reviewed-official-assets\.json/u);
