@@ -32,6 +32,9 @@ test("government source registry starts with authoritative AU, NZ, UK and US nat
 
 test("government refresh is an explicit snapshot workflow rather than a build-time network dependency", () => {
   assert.match(refresh, /fetch\(url/u);
+  assert.match(refresh, /Mozilla\/5\.0/u);
+  assert.match(refresh, /accept-language/u);
+  assert.match(refresh, /Skipped optional government source/u);
   assert.match(refresh, /next_page_url/u);
   assert.match(refresh, /arrayBuffer/u);
   assert.match(refresh, /alphabetic pages/u);
@@ -44,6 +47,7 @@ test("government refresh is an explicit snapshot workflow rather than a build-ti
 
 test("government candidate builder deduplicates by country and does not invent runtime artwork", () => {
   assert.match(builder, /Source inventory only/u);
+  assert.match(builder, /source\.optional && !existsSync\(snapshotPath\)/u);
   assert.match(builder, /country.*candidate\.jurisdiction.*canonical\(candidate\.name\)/su);
   assert.match(builder, /parseAuStateDirectory/u);
   assert.match(builder, /<t\[dh\]\\b/u);

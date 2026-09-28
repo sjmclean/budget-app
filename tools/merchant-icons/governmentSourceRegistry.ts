@@ -9,6 +9,7 @@ export interface GovernmentSourceDefinition {
   readonly snapshotFile: string;
   readonly authority: string;
   readonly jurisdiction?: string;
+  readonly optional?: boolean;
 }
 
 export const GOVERNMENT_SOURCE_REGISTRY: readonly GovernmentSourceDefinition[] = [
@@ -57,6 +58,7 @@ export const GOVERNMENT_SOURCE_REGISTRY: readonly GovernmentSourceDefinition[] =
     snapshotFile: "au-nsw-government-directory.html",
     authority: "NSW Government",
     jurisdiction: "NSW",
+    optional: true,
   },
   {
     id: "au-vic-government-directory",
@@ -67,6 +69,7 @@ export const GOVERNMENT_SOURCE_REGISTRY: readonly GovernmentSourceDefinition[] =
     snapshotFile: "au-vic-government-directory.html",
     authority: "Victorian Government",
     jurisdiction: "VIC",
+    optional: true,
   },
   {
     id: "au-qld-government-directory",
@@ -77,6 +80,7 @@ export const GOVERNMENT_SOURCE_REGISTRY: readonly GovernmentSourceDefinition[] =
     snapshotFile: "au-qld-government-directory.html",
     authority: "Queensland Government",
     jurisdiction: "QLD",
+    optional: true,
   },
   {
     id: "au-wa-government-directory",
@@ -87,6 +91,7 @@ export const GOVERNMENT_SOURCE_REGISTRY: readonly GovernmentSourceDefinition[] =
     snapshotFile: "au-wa-government-directory.html",
     authority: "Western Australian Government",
     jurisdiction: "WA",
+    optional: true,
   },
   {
     id: "au-sa-government-directory",
@@ -97,6 +102,7 @@ export const GOVERNMENT_SOURCE_REGISTRY: readonly GovernmentSourceDefinition[] =
     snapshotFile: "au-sa-government-directory.html",
     authority: "Shared Services SA / South Australian Government",
     jurisdiction: "SA",
+    optional: true,
   },
   {
     id: "au-tas-government-directory",
@@ -107,6 +113,7 @@ export const GOVERNMENT_SOURCE_REGISTRY: readonly GovernmentSourceDefinition[] =
     snapshotFile: "au-tas-government-directory.html",
     authority: "Tasmanian Government Department of Premier and Cabinet",
     jurisdiction: "TAS",
+    optional: true,
   },
   {
     id: "au-act-government-directory",
@@ -117,6 +124,7 @@ export const GOVERNMENT_SOURCE_REGISTRY: readonly GovernmentSourceDefinition[] =
     snapshotFile: "au-act-government-directory.html",
     authority: "ACT Government",
     jurisdiction: "ACT",
+    optional: true,
   },
   {
     id: "au-nt-government-directory",
@@ -127,6 +135,7 @@ export const GOVERNMENT_SOURCE_REGISTRY: readonly GovernmentSourceDefinition[] =
     snapshotFile: "au-nt-government-directory.html",
     authority: "Northern Territory Government",
     jurisdiction: "NT",
+    optional: true,
   },
   {
     id: "au-local-government-areas",

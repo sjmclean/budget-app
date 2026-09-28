@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -377,6 +377,10 @@ const parserById: Readonly<Record<string, (source: GovernmentSourceDefinition, t
 const all: Candidate[] = [];
 for (const source of GOVERNMENT_SOURCE_REGISTRY) {
   const snapshotPath = resolve(snapshotDirectory, source.snapshotFile);
+  if (source.optional && !existsSync(snapshotPath)) {
+    console.warn(`Skipped optional government source ${source.id}: snapshot is unavailable.`);
+    continue;
+  }
   const parser = parserById[source.id];
   if (source.kind !== "zip-csv" && !parser) {
     throw new TypeError(`No government candidate parser registered for ${source.id}.`);

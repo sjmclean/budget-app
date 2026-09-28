@@ -5,12 +5,15 @@ import { GOVERNMENT_SOURCE_REGISTRY } from "./governmentSourceRegistry.js";
 const root = process.cwd();
 const snapshotDirectory = resolve(root, "tools/merchant-icons/sources/government");
 
+const REQUEST_HEADERS = {
+  "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/153.0.0.0 Safari/537.36",
+  "accept": "text/html,application/xhtml+xml,application/json,text/csv;q=0.9,*/*;q=0.8",
+  "accept-language": "en-AU,en;q=0.9",
+} as const;
+
 async function getText(url: string): Promise<string> {
   const response = await fetch(url, {
-    headers: {
-      "user-agent": "budget-app merchant catalogue source snapshotter",
-      "accept": "text/html,application/json,text/csv;q=0.9,*/*;q=0.8",
-    },
+    headers: REQUEST_HEADERS,
     redirect: "follow",
   });
   if (!response.ok) throw new Error(`Government source request failed (${response.status}) for ${url}`);
@@ -20,6 +23,7 @@ async function getText(url: string): Promise<string> {
 await mkdir(snapshotDirectory, { recursive: true });
 
 for (const source of GOVERNMENT_SOURCE_REGISTRY) {
+  try {
   const path = resolve(snapshotDirectory, source.snapshotFile);
   if (source.kind === "alphabetic-html") {
     // USAGov uses the root agency-index page for A, then letter-specific pages
@@ -37,7 +41,7 @@ for (const source of GOVERNMENT_SOURCE_REGISTRY) {
   }
   if (source.kind === "zip-csv") {
     const response = await fetch(source.url, {
-      headers: { "user-agent": "budget-app merchant catalogue source snapshotter" },
+      headers: REQUEST_HEADERS,
       redirect: "follow",
     });
     if (!response.ok) throw new Error(`Government source request failed (${response.status}) for ${source.url}`);
@@ -70,4 +74,9 @@ for (const source of GOVERNMENT_SOURCE_REGISTRY) {
   const body = JSON.stringify({ source: source.url, capturedAt: new Date().toISOString(), results }, null, 2) + "\n";
   await writeFile(path, body);
   console.log(`Snapshotted ${source.id}: ${results.length.toLocaleString()} organisations across ${pages} pages.`);
+  } catch (error) {
+    if (!source.optional) throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`Skipped optional government source ${source.id}: ${message}`);
+  }
 }
