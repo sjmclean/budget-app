@@ -164,12 +164,14 @@ function parseNz(source: GovernmentSourceDefinition, text: string): Candidate[] 
 function parseUs(source: GovernmentSourceDefinition, text: string): Candidate[] {
   const buttons = [...text.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/giu)]
     .map((match) => decodeHtml(match[1] ?? ""));
+  const headings = [...text.matchAll(/<h[23]\b[^>]*>([\s\S]*?)<\/h[23]>/giu)]
+    .map((match) => decodeHtml(match[1] ?? ""));
   const noise = new Set([
     "about us", "close", "contact us", "help", "menu", "search", "search agencies",
     "a-z index", "for federal agencies", "for the public", "government benefits",
   ]);
   const unique = new Map<string, string>();
-  for (const name of buttons) {
+  for (const name of [...buttons, ...headings]) {
     const identity = canonical(name);
     if (!identity || noise.has(identity) || /^[a-z]$/u.test(identity) || name.length > 180) continue;
     if (!unique.has(identity)) unique.set(identity, name);
@@ -197,7 +199,7 @@ function parseAuStateDirectory(source: GovernmentSourceDefinition, text: string)
     "find an agency", "government", "home", "menu", "ministers", "privacy", "search",
     "skip to content", "skip to main content", "website",
   ]);
-  const likelyOrganisation = /\b(?:access|agency|appeals|assembly|authority|board|bureau|cabinet|commission|commissioner|council|court|department|directorate|education|electoral|environment|fair trading|fire|health|housing|infrastructure|justice|land|licensing|office|ombudsman|planning|police|public sector|registry|revenue|service|transport|treasury|tribunal|worksafe)\b/iu;
+  const likelyOrganisation = /\b(?:access|agency|appeals|assembly|authority|board|bureau|cabinet|commission|commissioner|council|court|department|directorate|education|electoral|environment|fair trading|fire|health|housing|infrastructure|justice|land|licensing|office|ombudsman|planning|police|public sector|births|deaths|marriages|registry|revenue|service|transport|treasury|tribunal|worksafe)\b/iu;
 
   const unique = new Map<string, string>();
   for (const name of names) {
@@ -384,9 +386,26 @@ for (const source of GOVERNMENT_SOURCE_REGISTRY) {
   all.push(...candidates);
 }
 
+const KNOWN_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  "AU:Australian Taxation Office": ["ATO"],
+  "AU:Australian Electoral Commission": ["AEC"],
+  "NZ:Inland Revenue": ["IRD"],
+  "US:Internal Revenue Service": ["IRS"],
+  "US:Social Security Administration": ["SSA"],
+  "GB:HM Revenue & Customs": ["HMRC"],
+  "GB:Driver and Vehicle Licensing Agency": ["DVLA"],
+};
+
+function enrichKnownAliases(candidate: Candidate): Candidate {
+  const aliases = KNOWN_ALIASES[`${candidate.country}:${candidate.name}`];
+  if (!aliases?.length) return candidate;
+  return { ...candidate, aliases: [...new Set([...candidate.aliases, ...aliases])] };
+}
+
 const byIdentity = new Map<string, Candidate>();
 const collisions: string[] = [];
-for (const candidate of all) {
+for (const rawCandidate of all) {
+  const candidate = enrichKnownAliases(rawCandidate);
   const identity = `${candidate.country}:${candidate.jurisdiction ?? ""}:${canonical(candidate.name)}`;
   const previous = byIdentity.get(identity);
   if (!previous) {
