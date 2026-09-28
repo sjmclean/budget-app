@@ -44,6 +44,7 @@ test("government candidate builder deduplicates by country and does not invent r
   assert.match(builder, /government unit_name/u);
   assert.match(builder, /unit_name/u);
   assert.match(builder, /fips_state/u);
-  assert.match(builder, /gov-\$\{keySlug\}-\$\{source\.country/u);
+  assert.match(builder, /gov-\$\{keySlug\}\$\{cleanJurisdiction/u);
+  assert.match(builder, /source\.country\.toLocaleLowerCase/u);
   assert.doesNotMatch(builder, /provenance|assetPath|spritePath/u);
 });
