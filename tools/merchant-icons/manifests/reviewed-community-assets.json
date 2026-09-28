@@ -720,6 +720,70 @@
         "symbolId": "nordea-global"
       },
       "source": "https://github.com/glincker/thesvg#nordea"
+    },
+    {
+      "key": "bp-au",
+      "asset": {
+        "kind": "image",
+        "assetPath": "fuel/bp.svg"
+      },
+      "source": "https://github.com/bienstudio-byron/servo-saver/tree/main/public/logos"
+    },
+    {
+      "key": "ampol-au",
+      "asset": {
+        "kind": "image",
+        "assetPath": "fuel/ampol.png"
+      },
+      "source": "https://github.com/bienstudio-byron/servo-saver/tree/main/public/logos"
+    },
+    {
+      "key": "shell-au",
+      "asset": {
+        "kind": "image",
+        "assetPath": "fuel/shell.png"
+      },
+      "source": "https://github.com/bienstudio-byron/servo-saver/tree/main/public/logos"
+    },
+    {
+      "key": "mobil-au",
+      "asset": {
+        "kind": "image",
+        "assetPath": "fuel/mobil.png"
+      },
+      "source": "https://github.com/bienstudio-byron/servo-saver/tree/main/public/logos"
+    },
+    {
+      "key": "metro-petroleum-au",
+      "asset": {
+        "kind": "image",
+        "assetPath": "fuel/metro-petroleum.png"
+      },
+      "source": "https://github.com/bienstudio-byron/servo-saver/tree/main/public/logos"
+    },
+    {
+      "key": "otr-au",
+      "asset": {
+        "kind": "image",
+        "assetPath": "fuel/otr.png"
+      },
+      "source": "https://github.com/bienstudio-byron/servo-saver/tree/main/public/logos"
+    },
+    {
+      "key": "reddy-express-au",
+      "asset": {
+        "kind": "image",
+        "assetPath": "fuel/reddy-express.png"
+      },
+      "source": "https://github.com/bienstudio-byron/servo-saver/tree/main/public/logos"
+    },
+    {
+      "key": "pearl-energy-au",
+      "asset": {
+        "kind": "image",
+        "assetPath": "fuel/pearl-energy.png"
+      },
+      "source": "https://github.com/bienstudio-byron/servo-saver/tree/main/public/logos"
     }
   ]
 }

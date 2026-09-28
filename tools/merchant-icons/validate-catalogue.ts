@@ -19,7 +19,7 @@ const officialManifest = JSON.parse(await readFile(resolve(manifestDirectory, "r
   entries: { key: string; assetPath: string; source: string; assetSource: string }[];
 };
 const communityManifest = JSON.parse(await readFile(resolve(manifestDirectory, "reviewed-community-assets.json"), "utf8")) as {
-  entries: { key: string; asset: { kind: "sprite"; spritePath: string; symbolId: string }; source: string }[];
+  entries: { key: string; asset: { kind: "sprite"; spritePath: string; symbolId: string } | { kind: "image"; assetPath: string }; source: string }[];
 };
 const officialByKey = new Map(officialManifest.entries.map((entry) => [entry.key, entry]));
 const communityByKey = new Map(communityManifest.entries.map((entry) => [entry.key, entry]));
@@ -81,7 +81,14 @@ for (const entry of MERCHANT_ICON_CATALOGUE) {
     if (!manifestEntry) {
       errors.push(`Community merchant "${entry.key}" has no community provenance manifest entry.`);
     } else {
-      if (entry.asset.kind !== "sprite" || entry.asset.spritePath !== manifestEntry.asset.spritePath || entry.asset.symbolId !== manifestEntry.asset.symbolId) {
+      const assetMatches = entry.asset.kind === manifestEntry.asset.kind && (
+        entry.asset.kind === "image"
+          ? entry.asset.assetPath === (manifestEntry.asset.kind === "image" ? manifestEntry.asset.assetPath : "")
+          : manifestEntry.asset.kind === "sprite" &&
+            entry.asset.spritePath === manifestEntry.asset.spritePath &&
+            entry.asset.symbolId === manifestEntry.asset.symbolId
+      );
+      if (!assetMatches) {
         errors.push(`Community merchant "${entry.key}" does not match its manifest asset.`);
       }
       if (!manifestEntry.source.startsWith("https://")) {

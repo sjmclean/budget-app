@@ -1,5 +1,6 @@
 import { IMPORTED_MERCHANT_ICON_BATCH } from "./merchantIconImportedBatch.js";
 import { MAJOR_MERCHANT_ICON_EXPANSION } from "./merchantIconMajorExpansion.js";
+import { FUEL_MERCHANT_ICON_EXPANSION, MERCHANT_ICON_ENTRY_OVERRIDES } from "./merchantIconFuelExpansion.js";
 
 export type MerchantIconAsset =
   | { readonly kind: "image"; readonly assetPath: string }
@@ -48,8 +49,13 @@ const SEED_MERCHANT_ICONS: readonly MerchantIconCatalogueEntry[] = [
   { key: "mcdonalds-global", name: "McDonald's", regions: ["GLOBAL"], aliases: ["McDonalds", "McDonald's Australia"], asset: USER_SEED_SPRITE("user-seed-05.svg", "mcdonalds-global") },
 ] as const;
 
+function applyMerchantIconOverride(entry: MerchantIconCatalogueEntry): MerchantIconCatalogueEntry {
+  const override = MERCHANT_ICON_ENTRY_OVERRIDES[entry.key];
+  return override ? { ...entry, ...override } : entry;
+}
+
 export const MERCHANT_ICON_CATALOGUE: readonly MerchantIconCatalogueEntry[] = [
-  ...[...SEED_MERCHANT_ICONS, ...IMPORTED_MERCHANT_ICON_BATCH].map((entry) => ({
+  ...[...SEED_MERCHANT_ICONS, ...IMPORTED_MERCHANT_ICON_BATCH].map((entry) => applyMerchantIconOverride({
     ...entry,
     category: entry.category ?? "other" as const,
     provenance: entry.provenance ?? {
@@ -57,7 +63,8 @@ export const MERCHANT_ICON_CATALOGUE: readonly MerchantIconCatalogueEntry[] = [
       reviewed: true,
     },
   })),
-  ...MAJOR_MERCHANT_ICON_EXPANSION,
+  ...MAJOR_MERCHANT_ICON_EXPANSION.map(applyMerchantIconOverride),
+  ...FUEL_MERCHANT_ICON_EXPANSION,
 ];
 
 const entriesByKey = new Map(MERCHANT_ICON_CATALOGUE.map((entry) => [entry.key, entry] as const));

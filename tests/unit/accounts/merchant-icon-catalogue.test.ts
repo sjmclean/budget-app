@@ -55,10 +55,10 @@ describe("merchant icon catalogue", () => {
     const generatedFallbacks = MERCHANT_ICON_CATALOGUE.filter(({ provenance }) =>
       provenance?.kind === "generated" && provenance.reviewed === false
     );
-    assert.equal(MERCHANT_ICON_CATALOGUE.length, 760);
+    assert.equal(MERCHANT_ICON_CATALOGUE.length, 769);
     assert.ok(reviewed.length > MERCHANT_ICON_CATALOGUE.length / 2);
-    assert.equal(reviewed.length, 503);
-    assert.equal(generatedFallbacks.length, 257);
+    assert.equal(reviewed.length, 511);
+    assert.equal(generatedFallbacks.length, 258);
     assert.ok(MERCHANT_ICON_CATALOGUE.every(({ provenance }) => !provenance || !("source" in provenance)));
   });
 
@@ -85,6 +85,36 @@ describe("merchant icon catalogue", () => {
       if (entry.asset.kind === "sprite") {
         assert.ok(!entry.asset.spritePath.startsWith("major-expansion-"), `${key} points at a fallback sprite`);
       }
+    }
+  });
+
+
+  it("repairs Anaconda artwork and provides broad Australian fuel coverage", () => {
+    const anaconda = getMerchantIconEntry("anaconda-au");
+    assert.deepEqual(anaconda?.asset, { kind: "image", assetPath: "user-supplied/anaconda-au.png" });
+    assert.equal(anaconda?.provenance?.kind, "user-supplied");
+    assert.equal(anaconda?.provenance?.reviewed, true);
+
+    const fuelKeys = [
+      "7-eleven-au", "apco-service-stations-au", "caltex-au", "coles-express-au",
+      "united-petroleum-au", "bp-au", "ampol-au", "shell-au", "mobil-au",
+      "metro-petroleum-au", "otr-au", "reddy-express-au", "pearl-energy-au",
+      "x-convenience-au", "eg-ampol-au",
+    ];
+    for (const key of fuelKeys) {
+      const entry = getMerchantIconEntry(key);
+      assert.ok(entry, `Missing fuel merchant ${key}`);
+      assert.equal(entry.category, "fuel", `${key} should be categorised as fuel`);
+    }
+
+    for (const key of [
+      "bp-au", "ampol-au", "shell-au", "mobil-au", "metro-petroleum-au",
+      "otr-au", "reddy-express-au", "pearl-energy-au",
+    ]) {
+      const entry = getMerchantIconEntry(key)!;
+      assert.equal(entry.provenance?.kind, "community");
+      assert.equal(entry.provenance?.reviewed, true);
+      assert.equal(entry.asset.kind, "image");
     }
   });
 
