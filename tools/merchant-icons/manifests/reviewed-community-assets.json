@@ -784,6 +784,30 @@
         "assetPath": "fuel/pearl-energy.png"
       },
       "source": "https://github.com/bienstudio-byron/servo-saver/tree/main/public/logos"
+    },
+    {
+      "key": "jd-sports-global",
+      "asset": {
+        "kind": "image",
+        "assetPath": "community/jd-sports-global.svg"
+      },
+      "source": "https://github.com/chobbledotcom/fun-pro-uk/blob/main/src/images/partners/jd-sports.svg"
+    },
+    {
+      "key": "shein-global",
+      "asset": {
+        "kind": "image",
+        "assetPath": "community/shein-global.svg"
+      },
+      "source": "https://github.com/lucasm/findto/blob/main/public/images/logos/shein.svg"
+    },
+    {
+      "key": "chatgpt-global",
+      "asset": {
+        "kind": "image",
+        "assetPath": "community/chatgpt-global.svg"
+      },
+      "source": "https://github.com/iconify/icon-sets/blob/master/json/bxl.json#openai"
     }
   ]
 }

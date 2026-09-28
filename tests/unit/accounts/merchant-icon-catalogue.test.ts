@@ -13,7 +13,7 @@ describe("merchant icon catalogue", () => {
   it("keeps stable unique keys across the seed and imported batch", () => {
     const keys = MERCHANT_ICON_CATALOGUE.map(({ key }) => key);
     assert.equal(new Set(keys).size, keys.length);
-    assert.ok(MERCHANT_ICON_CATALOGUE.length >= 600 && MERCHANT_ICON_CATALOGUE.length <= 800);
+    assert.ok(MERCHANT_ICON_CATALOGUE.length >= 700 && MERCHANT_ICON_CATALOGUE.length <= 1600);
   });
 
   it("matches only exact canonical merchant identities automatically", () => {
@@ -55,9 +55,9 @@ describe("merchant icon catalogue", () => {
     const generatedFallbacks = MERCHANT_ICON_CATALOGUE.filter(({ provenance }) =>
       provenance?.kind === "generated" && provenance.reviewed === false
     );
-    assert.equal(MERCHANT_ICON_CATALOGUE.length, 769);
+    assert.equal(MERCHANT_ICON_CATALOGUE.length, 772);
     assert.ok(reviewed.length > MERCHANT_ICON_CATALOGUE.length / 2);
-    assert.equal(reviewed.length, 511);
+    assert.equal(reviewed.length, 514);
     assert.equal(generatedFallbacks.length, 258);
     assert.ok(MERCHANT_ICON_CATALOGUE.every(({ provenance }) => !provenance || !("source" in provenance)));
   });
@@ -75,6 +75,9 @@ describe("merchant icon catalogue", () => {
       "hertz-global",
       "wilson-parking-global",
       "banyule-city-council-au",
+      "jd-sports-global",
+      "shein-global",
+      "chatgpt-global",
     ];
 
     for (const key of keys) {
@@ -112,6 +115,22 @@ describe("merchant icon catalogue", () => {
       "otr-au", "reddy-express-au", "pearl-energy-au",
     ]) {
       const entry = getMerchantIconEntry(key)!;
+      assert.equal(entry.provenance?.kind, "community");
+      assert.equal(entry.provenance?.reviewed, true);
+      assert.equal(entry.asset.kind, "image");
+    }
+  });
+
+
+  it("adds the user-identified priority brands with reviewed artwork and conservative aliases", () => {
+    assert.equal(findMerchantIconByPayeeName("JD Sports")?.key, "jd-sports-global");
+    assert.equal(findMerchantIconByPayeeName("JD Sports Australia")?.key, "jd-sports-global");
+    assert.equal(findMerchantIconByPayeeName("SHEIN")?.key, "shein-global");
+    assert.equal(findMerchantIconByPayeeName("Chat GPT")?.key, "chatgpt-global");
+
+    for (const key of ["jd-sports-global", "shein-global", "chatgpt-global"]) {
+      const entry = getMerchantIconEntry(key);
+      assert.ok(entry, `Missing priority merchant ${key}`);
       assert.equal(entry.provenance?.kind, "community");
       assert.equal(entry.provenance?.reviewed, true);
       assert.equal(entry.asset.kind, "image");
