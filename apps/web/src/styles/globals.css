@@ -3000,8 +3000,22 @@ strong {
 .payee-detail-icon-button { border: 0; border-radius: 50%; padding: 0; background: transparent; cursor: pointer; }
 .payee-detail-icon-button:focus-visible, .payee-icon-picker-grid button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .payee-change-icon-button { border: 0; background: transparent; color: var(--accent-strong); padding: 0.2rem 0; cursor: pointer; font-weight: 650; }
-.payee-icon-picker { width: min(34rem, calc(100vw - 2rem)); }
-.payee-icon-picker-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; }
+.payee-icon-picker {
+  width: min(34rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 3rem);
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+.payee-icon-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.2rem;
+}
 .payee-icon-picker-grid button { display: grid; justify-items: center; gap: 0.35rem; min-height: 6rem; padding: 0.7rem 0.4rem; border: 1px solid var(--border-soft); border-radius: 0.7rem; background: var(--surface); color: var(--text); cursor: pointer; }
 .payee-icon-picker-grid button.is-selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--surface)); box-shadow: inset 0 0 0 1px var(--accent); }
 .payee-icon-picker-grid span { font-size: 0.78rem; }
