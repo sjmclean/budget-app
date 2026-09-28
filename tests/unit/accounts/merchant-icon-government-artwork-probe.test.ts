@@ -12,12 +12,17 @@ test("government candidates retain source websites for artwork discovery", () =>
   assert.match(builder, /new URL\(match\[1\]/u);
 });
 
-test("government artwork probe only produces review candidates", () => {
+test("government artwork probe separates agency-specific, shared and rejected artwork", () => {
   assert.match(probe, /government-promotion-queue\.json/u);
   assert.match(probe, /government-artwork-candidates\.json/u);
   assert.match(probe, /apple-touch-icon/u);
   assert.match(probe, /mask-icon/u);
-  assert.match(probe, /no-declared-icon/u);
+  assert.match(probe, /candidate-agency-specific/u);
+  assert.match(probe, /candidate-shared-government/u);
+  assert.match(probe, /rejected-third-party/u);
+  assert.match(probe, /web_maps_icon_/u);
+  assert.match(probe, /sharedArtworkCount < 3/u);
+  assert.match(probe, /Repeated shared artwork/u);
   assert.match(probe, /Artwork discovery only/u);
   assert.doesNotMatch(probe, /reviewed:\s*true/u);
 });
