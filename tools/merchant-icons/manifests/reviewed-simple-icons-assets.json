@@ -1,0 +1,6757 @@
+{
+  "version": 1,
+  "collection": "Simple Icons",
+  "collectionSource": "https://github.com/simple-icons/simple-icons",
+  "entries": [
+    {
+      "key": "si-1dot1dot1dot1-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-1dot1dot1dot1"
+      },
+      "source": "https://one.one.one.one"
+    },
+    {
+      "key": "si-1and1-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-1and1"
+      },
+      "source": "https://www.united-internet.de/en/newsroom/media-center/logos.html"
+    },
+    {
+      "key": "si-1001tracklists-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-1001tracklists"
+      },
+      "source": "https://www.1001tracklists.com"
+    },
+    {
+      "key": "si-1panel-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-1panel"
+      },
+      "source": "https://1panel.cn"
+    },
+    {
+      "key": "si-1password-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-1password"
+      },
+      "source": "https://1password.com/press"
+    },
+    {
+      "key": "si-2fas-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-2fas"
+      },
+      "source": "https://2fas.com/press-kit"
+    },
+    {
+      "key": "si-2k-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-2k"
+      },
+      "source": "https://support.2k.com/hc/en-us/articles/203972113-Digital-Copies-of-2K-Manuals"
+    },
+    {
+      "key": "si-365datascience-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-365datascience"
+      },
+      "source": "https://365datascience.com"
+    },
+    {
+      "key": "si-3m-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-3m"
+      },
+      "source": "https://www.3m.com"
+    },
+    {
+      "key": "si-42-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-42"
+      },
+      "source": "https://www.42network.org"
+    },
+    {
+      "key": "si-4chan-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-4chan"
+      },
+      "source": "https://www.4chan.org"
+    },
+    {
+      "key": "si-4d-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-4d"
+      },
+      "source": "https://www.4d.com"
+    },
+    {
+      "key": "si-500px-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-500px"
+      },
+      "source": "https://500px.com"
+    },
+    {
+      "key": "si-99designs-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-99designs"
+      },
+      "source": "https://99designs.com/branding"
+    },
+    {
+      "key": "si-aframe-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-aframe"
+      },
+      "source": "https://aframe.io/docs"
+    },
+    {
+      "key": "si-abdownloadmanager-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-abdownloadmanager"
+      },
+      "source": "https://abdownloadmanager.com"
+    },
+    {
+      "key": "si-abb-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-abb"
+      },
+      "source": "https://global.abb"
+    },
+    {
+      "key": "si-abbvie-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-abbvie"
+      },
+      "source": "https://www.abbvie.com"
+    },
+    {
+      "key": "si-aboutdotme-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-aboutdotme"
+      },
+      "source": "https://about.me/assets"
+    },
+    {
+      "key": "si-abstract-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-abstract"
+      },
+      "source": "https://www.abstract.com/about"
+    },
+    {
+      "key": "si-abusedotch-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-abusedotch"
+      },
+      "source": "https://abuse.ch"
+    },
+    {
+      "key": "si-academia-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-academia"
+      },
+      "source": "https://www.academia.edu"
+    },
+    {
+      "key": "si-accenture-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-accenture"
+      },
+      "source": "https://www.accenture.com"
+    },
+    {
+      "key": "si-accusoft-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-accusoft"
+      },
+      "source": "https://www.accusoft.com"
+    },
+    {
+      "key": "si-accuweather-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-accuweather"
+      },
+      "source": "https://accuweather.com"
+    },
+    {
+      "key": "si-acer-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-acer"
+      },
+      "source": "https://www.acer.com"
+    },
+    {
+      "key": "si-acm-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-acm"
+      },
+      "source": "https://identitystandards.acm.org"
+    },
+    {
+      "key": "si-actigraph-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-actigraph"
+      },
+      "source": "https://theactigraph.com"
+    },
+    {
+      "key": "si-activision-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-activision"
+      },
+      "source": "https://www.activision.com"
+    },
+    {
+      "key": "si-activitypub-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-activitypub"
+      },
+      "source": "https://activitypub.rocks"
+    },
+    {
+      "key": "si-acura-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-acura"
+      },
+      "source": "https://www.acura.com"
+    },
+    {
+      "key": "si-ada-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-ada"
+      },
+      "source": "https://ada-lang-io.github.io/ada-logo-editor/"
+    },
+    {
+      "key": "si-adafruit-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-adafruit"
+      },
+      "source": "https://www.adafruit.com"
+    },
+    {
+      "key": "si-adblock-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-adblock"
+      },
+      "source": "https://getadblock.com"
+    },
+    {
+      "key": "si-adblockplus-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-adblockplus"
+      },
+      "source": "https://adblockplus.org"
+    },
+    {
+      "key": "si-addydotio-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-addydotio"
+      },
+      "source": "https://addy.io"
+    },
+    {
+      "key": "si-adguard-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-adguard"
+      },
+      "source": "https://adguard.com/en/media-materials.html"
+    },
+    {
+      "key": "si-adidas-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-adidas"
+      },
+      "source": "https://www.adidas.com"
+    },
+    {
+      "key": "si-adminer-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-adminer"
+      },
+      "source": "https://www.adminer.org"
+    },
+    {
+      "key": "si-adonisjs-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-01.svg",
+        "symbolId": "si-adonisjs"
+      },
+      "source": "https://adonisjs.com"
+    },
+    {
+      "key": "si-adp-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-adp"
+      },
+      "source": "https://www.adp.com"
+    },
+    {
+      "key": "si-adroll-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-adroll"
+      },
+      "source": "https://www.adroll.com"
+    },
+    {
+      "key": "si-adventofcode-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-adventofcode"
+      },
+      "source": "https://adventofcode.com"
+    },
+    {
+      "key": "si-adyen-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-adyen"
+      },
+      "source": "https://www.adyen.com/press-and-media/presskit"
+    },
+    {
+      "key": "si-aegisauthenticator-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-aegisauthenticator"
+      },
+      "source": "https://getaegis.app/aegis.svg"
+    },
+    {
+      "key": "si-aeroflot-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-aeroflot"
+      },
+      "source": "https://www.aeroflot.ru/ru-en/information/onboard/press"
+    },
+    {
+      "key": "si-aeromexico-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-aeromexico"
+      },
+      "source": "https://www.aeromexico.com"
+    },
+    {
+      "key": "si-afdian-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-afdian"
+      },
+      "source": "https://afdian.com/album/248b4bb2c9b111e9a9bb52540025c377/c3d32ae4b5f311eab4a952540025c377"
+    },
+    {
+      "key": "si-affine-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-affine"
+      },
+      "source": "https://affine.pro"
+    },
+    {
+      "key": "si-afterpay-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-afterpay"
+      },
+      "source": "https://www.afterpay.com/en-AU/business/resources/marketing/logos"
+    },
+    {
+      "key": "si-aftership-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-aftership"
+      },
+      "source": "https://www.aftership.com"
+    },
+    {
+      "key": "si-aib-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-aib"
+      },
+      "source": "https://aib.ie"
+    },
+    {
+      "key": "si-airchina-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-airchina"
+      },
+      "source": "https://www.airchina.com.cn/en/investor_relations"
+    },
+    {
+      "key": "si-airserbia-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-airserbia"
+      },
+      "source": "https://www.airserbia.com"
+    },
+    {
+      "key": "si-airtransat-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-airtransat"
+      },
+      "source": "https://www.airtransat.com"
+    },
+    {
+      "key": "si-airbnb-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-airbnb"
+      },
+      "source": "https://www.airbnb.com"
+    },
+    {
+      "key": "si-airbus-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-airbus"
+      },
+      "source": "https://brand.airbus.com/en/asset-library/airbus-logo"
+    },
+    {
+      "key": "si-airbyte-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-airbyte"
+      },
+      "source": "https://airbyte.com"
+    },
+    {
+      "key": "si-aircall-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-aircall"
+      },
+      "source": "https://aircall.io"
+    },
+    {
+      "key": "si-airplayaudio-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-airplayaudio"
+      },
+      "source": "https://developer.apple.com/design/human-interface-guidelines/airplay/overview/icons"
+    },
+    {
+      "key": "si-airplayvideo-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-airplayvideo"
+      },
+      "source": "https://developer.apple.com/design/human-interface-guidelines/airplay/overview/icons/"
+    },
+    {
+      "key": "si-airtable-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-airtable"
+      },
+      "source": "https://airtable.com/newsroom"
+    },
+    {
+      "key": "si-airtel-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-airtel"
+      },
+      "source": "https://www.airtel.in/logo-tune"
+    },
+    {
+      "key": "si-akamai-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-akamai"
+      },
+      "source": "https://www.akamai.com"
+    },
+    {
+      "key": "si-akasaair-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-akasaair"
+      },
+      "source": "https://www.akasaair.com"
+    },
+    {
+      "key": "si-akaunting-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-akaunting"
+      },
+      "source": "https://akaunting.com/logo"
+    },
+    {
+      "key": "si-akiflow-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-akiflow"
+      },
+      "source": "https://www.akiflow.com"
+    },
+    {
+      "key": "si-alamy-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-alamy"
+      },
+      "source": "https://www.alamy.com"
+    },
+    {
+      "key": "si-albertheijn-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-albertheijn"
+      },
+      "source": "https://www.ah.nl"
+    },
+    {
+      "key": "si-albumoftheyear-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-albumoftheyear"
+      },
+      "source": "https://albumoftheyear.org"
+    },
+    {
+      "key": "si-alchemy-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-alchemy"
+      },
+      "source": "https://www.alchemy.com"
+    },
+    {
+      "key": "si-aldisud-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-aldisud"
+      },
+      "source": "https://www.aldi-sued.de"
+    },
+    {
+      "key": "si-alfred-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-alfred"
+      },
+      "source": "https://www.alfredapp.com"
+    },
+    {
+      "key": "si-algolia-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-algolia"
+      },
+      "source": "https://algolia.frontify.com/d/1AZwVNcFZiu7/style-guide#/basics/algolia-logo"
+    },
+    {
+      "key": "si-algorand-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-algorand"
+      },
+      "source": "https://www.algorand.com/about/media-kit"
+    },
+    {
+      "key": "si-alibabacloud-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-alibabacloud"
+      },
+      "source": "https://www.alibabagroup.com/en/ir/reports"
+    },
+    {
+      "key": "si-alibabadotcom-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-alibabadotcom"
+      },
+      "source": "https://www.alibabagroup.com/en/ir/reports"
+    },
+    {
+      "key": "si-alienware-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-alienware"
+      },
+      "source": "https://www.dell.com/en-us/gaming/alienware"
+    },
+    {
+      "key": "si-alipay-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-alipay"
+      },
+      "source": "https://global.alipay.com/docs/ac/website_hk/design"
+    },
+    {
+      "key": "si-alist-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-02.svg",
+        "symbolId": "si-alist"
+      },
+      "source": "https://alistgo.com"
+    },
+    {
+      "key": "si-allegro-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-allegro"
+      },
+      "source": "https://allegro.pl"
+    },
+    {
+      "key": "si-alliedmodders-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-alliedmodders"
+      },
+      "source": "https://forums.alliedmods.net"
+    },
+    {
+      "key": "si-alltrails-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-alltrails"
+      },
+      "source": "https://www.alltrails.com/press?section=press-page-kit"
+    },
+    {
+      "key": "si-almalinux-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-almalinux"
+      },
+      "source": "https://almalinux.org"
+    },
+    {
+      "key": "si-alphaxiv-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-alphaxiv"
+      },
+      "source": "https://alphaxiv.org"
+    },
+    {
+      "key": "si-alpinelinux-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-alpinelinux"
+      },
+      "source": "https://alpinelinux.org"
+    },
+    {
+      "key": "si-alpinedotjs-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-alpinedotjs"
+      },
+      "source": "https://alpinejs.dev"
+    },
+    {
+      "key": "si-alternativeto-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-alternativeto"
+      },
+      "source": "https://alternativeto.net"
+    },
+    {
+      "key": "si-alwaysdata-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-alwaysdata"
+      },
+      "source": "https://www.alwaysdata.com"
+    },
+    {
+      "key": "si-amd-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-amd"
+      },
+      "source": "https://www.amd.com"
+    },
+    {
+      "key": "si-ameba-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-ameba"
+      },
+      "source": "https://ameblo.jp"
+    },
+    {
+      "key": "si-amg-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-amg"
+      },
+      "source": "https://www.mercedes-amg.com"
+    },
+    {
+      "key": "si-amp-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-amp"
+      },
+      "source": "https://amp.dev"
+    },
+    {
+      "key": "si-amul-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-amul"
+      },
+      "source": "https://amul.com/classic/products/horeca.php"
+    },
+    {
+      "key": "si-analogue-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-analogue"
+      },
+      "source": "https://www.analogue.co"
+    },
+    {
+      "key": "si-andela-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-andela"
+      },
+      "source": "https://andela.com"
+    },
+    {
+      "key": "si-android-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-android"
+      },
+      "source": "https://partnermarketinghub.withgoogle.com/brands/android/visual-identity/visual-identity/logo-lock-ups"
+    },
+    {
+      "key": "si-androidauto-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-androidauto"
+      },
+      "source": "https://thepartnermarketinghub.withgoogle.com/brands/android-auto"
+    },
+    {
+      "key": "si-androidstudio-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-androidstudio"
+      },
+      "source": "https://developer.android.com/studio"
+    },
+    {
+      "key": "si-angular-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-angular"
+      },
+      "source": "https://angular.dev/press-kit"
+    },
+    {
+      "key": "si-anichart-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-anichart"
+      },
+      "source": "https://anichart.net"
+    },
+    {
+      "key": "si-anilist-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-anilist"
+      },
+      "source": "https://anilist.co"
+    },
+    {
+      "key": "si-animalplanet-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-animalplanet"
+      },
+      "source": "https://www.animalplanet.com"
+    },
+    {
+      "key": "si-ankermake-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-ankermake"
+      },
+      "source": "https://www.ankermake.com"
+    },
+    {
+      "key": "si-ansible-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-ansible"
+      },
+      "source": "https://www.ansible.com/logos"
+    },
+    {
+      "key": "si-answer-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-answer"
+      },
+      "source": "https://answer.dev"
+    },
+    {
+      "key": "si-ansys-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-ansys"
+      },
+      "source": "https://www.ansys.com/about-ansys/brand"
+    },
+    {
+      "key": "si-antdesign-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-antdesign"
+      },
+      "source": "https://ant.design"
+    },
+    {
+      "key": "si-anta-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-anta"
+      },
+      "source": "https://www.anta.com"
+    },
+    {
+      "key": "si-antena3-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-antena3"
+      },
+      "source": "https://www.antena3.com"
+    },
+    {
+      "key": "si-anthropic-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-anthropic"
+      },
+      "source": "https://www.anthropic.com"
+    },
+    {
+      "key": "si-antv-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-antv"
+      },
+      "source": "https://antv.vision"
+    },
+    {
+      "key": "si-anycubic-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-anycubic"
+      },
+      "source": "https://store.anycubic.com/pages/firmware-software"
+    },
+    {
+      "key": "si-anydesk-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-anydesk"
+      },
+      "source": "https://anydesk.com"
+    },
+    {
+      "key": "si-apache-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-apache"
+      },
+      "source": "https://www.apache.org/foundation/press/kit"
+    },
+    {
+      "key": "si-apacheairflow-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-apacheairflow"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apacheant-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-apacheant"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachearrow-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-apachearrow"
+      },
+      "source": "https://arrow.apache.org/visual_identity"
+    },
+    {
+      "key": "si-apacheavro-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-apacheavro"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachecassandra-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-03.svg",
+        "symbolId": "si-apachecassandra"
+      },
+      "source": "https://www.apache.org/logos"
+    },
+    {
+      "key": "si-apachecloudstack-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachecloudstack"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachecordova-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachecordova"
+      },
+      "source": "https://cordova.apache.org/artwork"
+    },
+    {
+      "key": "si-apachecouchdb-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachecouchdb"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachedolphinscheduler-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachedolphinscheduler"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachedoris-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachedoris"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachedruid-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachedruid"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apacheecharts-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apacheecharts"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apacheflink-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apacheflink"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachefreemarker-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachefreemarker"
+      },
+      "source": "https://www.apache.org/logos"
+    },
+    {
+      "key": "si-apachegroovy-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachegroovy"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apacheguacamole-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apacheguacamole"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachehadoop-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachehadoop"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachehbase-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachehbase"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachehive-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachehive"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachejmeter-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachejmeter"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachekafka-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachekafka"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachekylin-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachekylin"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachelucene-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachelucene"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachemaven-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachemaven"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachenetbeanside-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachenetbeanside"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachenifi-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachenifi"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apacheopenoffice-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apacheopenoffice"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apacheparquet-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apacheparquet"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachepdfbox-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachepdfbox"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachepulsar-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachepulsar"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apacherocketmq-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apacherocketmq"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachesolr-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachesolr"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachespark-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachespark"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachestorm-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachestorm"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachesuperset-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachesuperset"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-apachetomcat-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apachetomcat"
+      },
+      "source": "https://apache.org/logos"
+    },
+    {
+      "key": "si-aparat-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-aparat"
+      },
+      "source": "https://www.aparat.com/logo"
+    },
+    {
+      "key": "si-apifox-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apifox"
+      },
+      "source": "https://apifox.com"
+    },
+    {
+      "key": "si-apmterminals-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apmterminals"
+      },
+      "source": "https://www.apmterminals.com"
+    },
+    {
+      "key": "si-apollographql-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-apollographql"
+      },
+      "source": "https://www.apollographql.com"
+    },
+    {
+      "key": "si-appstore-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-appstore"
+      },
+      "source": "https://developer.apple.com/app-store"
+    },
+    {
+      "key": "si-appgallery-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-appgallery"
+      },
+      "source": "https://appgallery.huawei.com"
+    },
+    {
+      "key": "si-appian-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-appian"
+      },
+      "source": "https://appian.com"
+    },
+    {
+      "key": "si-appimage-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-appimage"
+      },
+      "source": "https://appimage.org"
+    },
+    {
+      "key": "si-applenews-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-04.svg",
+        "symbolId": "si-applenews"
+      },
+      "source": "https://www.apple.com/apple-news"
+    },
+    {
+      "key": "si-applepay-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-applepay"
+      },
+      "source": "https://developer.apple.com/apple-pay/marketing"
+    },
+    {
+      "key": "si-applepodcasts-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-applepodcasts"
+      },
+      "source": "https://www.apple.com/itunes/marketing-on-podcasts/identity-guidelines.html#apple-podcasts-icon"
+    },
+    {
+      "key": "si-appsignal-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-appsignal"
+      },
+      "source": "https://appsignal.com"
+    },
+    {
+      "key": "si-appsmith-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-appsmith"
+      },
+      "source": "https://www.appsmith.com"
+    },
+    {
+      "key": "si-appveyor-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-appveyor"
+      },
+      "source": "https://www.appveyor.com"
+    },
+    {
+      "key": "si-appwrite-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-appwrite"
+      },
+      "source": "https://appwrite.io/assets"
+    },
+    {
+      "key": "si-aqua-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-aqua"
+      },
+      "source": "https://www.aquasec.com/brand"
+    },
+    {
+      "key": "si-arangodb-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-arangodb"
+      },
+      "source": "https://www.arangodb.com/resources/logos"
+    },
+    {
+      "key": "si-arc-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-arc"
+      },
+      "source": "https://arc.net"
+    },
+    {
+      "key": "si-arcgis-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-arcgis"
+      },
+      "source": "https://www.esri.com/en-us/arcgis/products/arcgis-pro/overview"
+    },
+    {
+      "key": "si-archlinux-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-archlinux"
+      },
+      "source": "https://www.archlinux.org/art"
+    },
+    {
+      "key": "si-archicad-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-archicad"
+      },
+      "source": "https://graphisoft.com/contact-us/press-relations#/documents/archicad-logo-98604"
+    },
+    {
+      "key": "si-archiveofourown-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-archiveofourown"
+      },
+      "source": "https://archiveofourown.org"
+    },
+    {
+      "key": "si-arduino-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-arduino"
+      },
+      "source": "https://www.arduino.cc"
+    },
+    {
+      "key": "si-argos-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-argos"
+      },
+      "source": "https://www.argos.co.uk"
+    },
+    {
+      "key": "si-arkecosystem-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-arkecosystem"
+      },
+      "source": "https://ark.io"
+    },
+    {
+      "key": "si-arlo-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-arlo"
+      },
+      "source": "https://www.arlo.com"
+    },
+    {
+      "key": "si-arm-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-arm"
+      },
+      "source": "https://www.arm.com"
+    },
+    {
+      "key": "si-armkeil-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-armkeil"
+      },
+      "source": "https://www.keil.arm.com"
+    },
+    {
+      "key": "si-arstechnica-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-arstechnica"
+      },
+      "source": "https://arstechnica.com"
+    },
+    {
+      "key": "si-artixlinux-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-artixlinux"
+      },
+      "source": "https://gitea.artixlinux.org/artix/artwork/src/commit/256432e3d06b3e9024bfd6912768e80281ea3746/icons/logo-gray.svg"
+    },
+    {
+      "key": "si-artstation-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-artstation"
+      },
+      "source": "https://www.artstation.com/about/logo"
+    },
+    {
+      "key": "si-arxiv-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-arxiv"
+      },
+      "source": "https://arxiv.org"
+    },
+    {
+      "key": "si-asana-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-asana"
+      },
+      "source": "https://asana.com/brand"
+    },
+    {
+      "key": "si-asda-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-asda"
+      },
+      "source": "https://www.asda.com"
+    },
+    {
+      "key": "si-aseprite-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-aseprite"
+      },
+      "source": "https://www.aseprite.org"
+    },
+    {
+      "key": "si-assemblyscript-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-assemblyscript"
+      },
+      "source": "https://www.assemblyscript.org"
+    },
+    {
+      "key": "si-astonmartin-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-astonmartin"
+      },
+      "source": "https://www.astonmartin.com"
+    },
+    {
+      "key": "si-astra-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-astra"
+      },
+      "source": "https://wpastra.com/brand-assets"
+    },
+    {
+      "key": "si-astral-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-astral"
+      },
+      "source": "https://brandpad.io/astral"
+    },
+    {
+      "key": "si-astro-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-astro"
+      },
+      "source": "https://astro.build/press"
+    },
+    {
+      "key": "si-asus-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-asus"
+      },
+      "source": "https://www.asus.com"
+    },
+    {
+      "key": "si-atari-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-atari"
+      },
+      "source": "https://atarivcs.com"
+    },
+    {
+      "key": "si-atlasos-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-atlasos"
+      },
+      "source": "https://docs.atlasos.net/branding"
+    },
+    {
+      "key": "si-atlassian-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-atlassian"
+      },
+      "source": "https://atlassian.design/resources/logo-library"
+    },
+    {
+      "key": "si-atomgit-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-atomgit"
+      },
+      "source": "https://cdn-static.atomgit.com/doc/logo.svg"
+    },
+    {
+      "key": "si-auchan-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-auchan"
+      },
+      "source": "https://www.auchan.fr"
+    },
+    {
+      "key": "si-audi-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-audi"
+      },
+      "source": "https://www.audi.com/ci/en/intro/basics/rings.html"
+    },
+    {
+      "key": "si-audioboom-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-audioboom"
+      },
+      "source": "https://audioboom.com/about/brand-guidelines"
+    },
+    {
+      "key": "si-audiomack-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-05.svg",
+        "symbolId": "si-audiomack"
+      },
+      "source": "https://styleguide.audiomack.com"
+    },
+    {
+      "key": "si-aurelia-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-aurelia"
+      },
+      "source": "https://aurelia.io"
+    },
+    {
+      "key": "si-autentique-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-autentique"
+      },
+      "source": "https://www.autentique.com.br"
+    },
+    {
+      "key": "si-auth0-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-auth0"
+      },
+      "source": "https://auth0.com"
+    },
+    {
+      "key": "si-autocad-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-autocad"
+      },
+      "source": "https://www.autodesk.com/blogs/autocad"
+    },
+    {
+      "key": "si-autodesk-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-autodesk"
+      },
+      "source": "https://brand.autodesk.com/brand-system/logo"
+    },
+    {
+      "key": "si-autodeskmaya-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-autodeskmaya"
+      },
+      "source": "https://area.autodesk.com/learn/courses/maya-intro"
+    },
+    {
+      "key": "si-autodeskrevit-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-autodeskrevit"
+      },
+      "source": "https://www.autodesk.com/products/revit"
+    },
+    {
+      "key": "si-autohotkey-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-autohotkey"
+      },
+      "source": "https://www.autohotkey.com"
+    },
+    {
+      "key": "si-autoit-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-autoit"
+      },
+      "source": "https://www.autoitscript.com"
+    },
+    {
+      "key": "si-automattic-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-automattic"
+      },
+      "source": "https://automattic.com/press/brand-materials"
+    },
+    {
+      "key": "si-autozone-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-autozone"
+      },
+      "source": "https://www.autozone.com"
+    },
+    {
+      "key": "si-avaloniaui-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-avaloniaui"
+      },
+      "source": "https://avaloniaui.net"
+    },
+    {
+      "key": "si-avast-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-avast"
+      },
+      "source": "https://press.avast.com/media-materials#logos-and-brand-guidelines"
+    },
+    {
+      "key": "si-avira-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-avira"
+      },
+      "source": "https://www.avira.com/en/media-library"
+    },
+    {
+      "key": "si-avm-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-avm"
+      },
+      "source": "https://en.fritz.com/about-avm/press/press-media"
+    },
+    {
+      "key": "si-await-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-await"
+      },
+      "source": "https://awaitwidget.com"
+    },
+    {
+      "key": "si-awesomewm-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-awesomewm"
+      },
+      "source": "https://awesomewm.org"
+    },
+    {
+      "key": "si-awwwards-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-awwwards"
+      },
+      "source": "https://www.awwwards.com"
+    },
+    {
+      "key": "si-axisbank-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-axisbank"
+      },
+      "source": "https://www.axisbank.com/shareholders-corner/shareholders-information/annual-reports"
+    },
+    {
+      "key": "si-bandrautomation-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-bandrautomation"
+      },
+      "source": "https://www.br-automation.com"
+    },
+    {
+      "key": "si-b4x-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-b4x"
+      },
+      "source": "https://www.b4x.com/android/forum/threads/b4x-svg-icon-for-simpleicons-library.163853/#post-1004900"
+    },
+    {
+      "key": "si-babelio-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-babelio"
+      },
+      "source": "https://www.babelio.com"
+    },
+    {
+      "key": "si-backblaze-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-backblaze"
+      },
+      "source": "https://www.backblaze.com/company/news.html"
+    },
+    {
+      "key": "si-backbone-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-backbone"
+      },
+      "source": "https://backbone.com/press"
+    },
+    {
+      "key": "si-backendless-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-backendless"
+      },
+      "source": "https://backendless.com"
+    },
+    {
+      "key": "si-badoo-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-badoo"
+      },
+      "source": "https://badoo.com"
+    },
+    {
+      "key": "si-baidu-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-baidu"
+      },
+      "source": "https://www.baidu.com"
+    },
+    {
+      "key": "si-bakalari-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-bakalari"
+      },
+      "source": "https://konference.bakalari.cz"
+    },
+    {
+      "key": "si-bamboo-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-bamboo"
+      },
+      "source": "https://www.atlassian.design/guidelines/marketing/resources/logo-files"
+    },
+    {
+      "key": "si-bambulab-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-bambulab"
+      },
+      "source": "https://bambulab.com"
+    },
+    {
+      "key": "si-bandcamp-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-bandcamp"
+      },
+      "source": "https://bandcamp.com/buttons"
+    },
+    {
+      "key": "si-bandlab-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-bandlab"
+      },
+      "source": "https://www.bandlab.com"
+    },
+    {
+      "key": "si-bandsintown-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-bandsintown"
+      },
+      "source": "https://www.company.bandsintown.com/brand-assets"
+    },
+    {
+      "key": "si-baremetrics-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-baremetrics"
+      },
+      "source": "https://baremetrics.com"
+    },
+    {
+      "key": "si-barmenia-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-barmenia"
+      },
+      "source": "https://barmenia.de"
+    },
+    {
+      "key": "si-baseui-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-baseui"
+      },
+      "source": "https://base-ui.com"
+    },
+    {
+      "key": "si-basecamp-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-basecamp"
+      },
+      "source": "https://basecamp.com/about/press"
+    },
+    {
+      "key": "si-baserow-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-baserow"
+      },
+      "source": "https://baserow.io"
+    },
+    {
+      "key": "si-basicattentiontoken-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-basicattentiontoken"
+      },
+      "source": "https://brave.com/media-assets"
+    },
+    {
+      "key": "si-bata-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-06.svg",
+        "symbolId": "si-bata"
+      },
+      "source": "https://www.bata.com"
+    },
+    {
+      "key": "si-battledotnet-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-battledotnet"
+      },
+      "source": "https://battle.net"
+    },
+    {
+      "key": "si-bazel-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bazel"
+      },
+      "source": "https://bazel.build"
+    },
+    {
+      "key": "si-beatport-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-beatport"
+      },
+      "source": "https://www.beatport.com"
+    },
+    {
+      "key": "si-beats-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-beats"
+      },
+      "source": "https://www.elastic.co/beats"
+    },
+    {
+      "key": "si-beatsbydre-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-beatsbydre"
+      },
+      "source": "https://www.beatsbydre.com"
+    },
+    {
+      "key": "si-beatstars-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-beatstars"
+      },
+      "source": "https://beatstars.world/brand-guidelines"
+    },
+    {
+      "key": "si-beekeeperstudio-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-beekeeperstudio"
+      },
+      "source": "https://www.beekeeperstudio.io/press"
+    },
+    {
+      "key": "si-behance-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-behance"
+      },
+      "source": "https://www.behance.net"
+    },
+    {
+      "key": "si-bem-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bem"
+      },
+      "source": "https://en.bem.info"
+    },
+    {
+      "key": "si-bento-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bento"
+      },
+      "source": "https://bento.me"
+    },
+    {
+      "key": "si-bentobox-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bentobox"
+      },
+      "source": "https://www.getbento.com"
+    },
+    {
+      "key": "si-bereal-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bereal"
+      },
+      "source": "https://bereal.com"
+    },
+    {
+      "key": "si-betfair-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-betfair"
+      },
+      "source": "https://www.betfair.com"
+    },
+    {
+      "key": "si-betterstack-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-betterstack"
+      },
+      "source": "https://betterstack.com"
+    },
+    {
+      "key": "si-bigcartel-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bigcartel"
+      },
+      "source": "https://www.bigcartel.com"
+    },
+    {
+      "key": "si-bigbasket-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bigbasket"
+      },
+      "source": "https://www.bigbasket.com"
+    },
+    {
+      "key": "si-bigcommerce-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bigcommerce"
+      },
+      "source": "https://www.bigcommerce.co.uk/press"
+    },
+    {
+      "key": "si-bilibili-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bilibili"
+      },
+      "source": "https://www.bilibili.com"
+    },
+    {
+      "key": "si-billboard-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-billboard"
+      },
+      "source": "https://www.billboard.com"
+    },
+    {
+      "key": "si-binance-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-binance"
+      },
+      "source": "https://binance.com"
+    },
+    {
+      "key": "si-biolink-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-biolink"
+      },
+      "source": "https://bio.link"
+    },
+    {
+      "key": "si-bisecthosting-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bisecthosting"
+      },
+      "source": "https://www.bisecthosting.com"
+    },
+    {
+      "key": "si-bit-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bit"
+      },
+      "source": "https://bit.dev"
+    },
+    {
+      "key": "si-bitbucket-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bitbucket"
+      },
+      "source": "https://atlassian.design/resources/logo-library"
+    },
+    {
+      "key": "si-bitcoin-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bitcoin"
+      },
+      "source": "https://bitcoin.org"
+    },
+    {
+      "key": "si-bitcoincash-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bitcoincash"
+      },
+      "source": "https://www.bitcoincash.org/graphics"
+    },
+    {
+      "key": "si-bitcoinsv-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bitcoinsv"
+      },
+      "source": "https://bitcoinsv.com"
+    },
+    {
+      "key": "si-bitdefender-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bitdefender"
+      },
+      "source": "https://brand.bitdefender.com"
+    },
+    {
+      "key": "si-bitly-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bitly"
+      },
+      "source": "https://bitly.com/pages/press"
+    },
+    {
+      "key": "si-bitrise-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bitrise"
+      },
+      "source": "https://www.bitrise.io/presskit"
+    },
+    {
+      "key": "si-bitsy-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bitsy"
+      },
+      "source": "https://www.bitsy.org/image/cat.svg"
+    },
+    {
+      "key": "si-bittorrent-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bittorrent"
+      },
+      "source": "https://www.bittorrent.com/products"
+    },
+    {
+      "key": "si-bitwarden-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bitwarden"
+      },
+      "source": "https://bitwarden.com/brand"
+    },
+    {
+      "key": "si-bitwig-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-bitwig"
+      },
+      "source": "https://www.bitwig.com"
+    },
+    {
+      "key": "si-black-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-black"
+      },
+      "source": "https://black.readthedocs.io"
+    },
+    {
+      "key": "si-blackberry-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-blackberry"
+      },
+      "source": "https://www.blackberry.com"
+    },
+    {
+      "key": "si-blackmagicdesign-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-blackmagicdesign"
+      },
+      "source": "https://www.blackmagicdesign.com"
+    },
+    {
+      "key": "si-blazemeter-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-blazemeter"
+      },
+      "source": "https://www.blazemeter.com"
+    },
+    {
+      "key": "si-blender-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-blender"
+      },
+      "source": "https://www.blender.org/about/logo"
+    },
+    {
+      "key": "si-blibli-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-07.svg",
+        "symbolId": "si-blibli"
+      },
+      "source": "https://www.blibli.com"
+    },
+    {
+      "key": "si-blockbench-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-blockbench"
+      },
+      "source": "https://www.blockbench.net/wiki/blockbench/logos"
+    },
+    {
+      "key": "si-blockchaindotcom-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-blockchaindotcom"
+      },
+      "source": "https://www.blockchain.com/en/press"
+    },
+    {
+      "key": "si-blogger-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-blogger"
+      },
+      "source": "https://www.blogger.com"
+    },
+    {
+      "key": "si-bloglovin-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-bloglovin"
+      },
+      "source": "https://www.bloglovin.com/widgets"
+    },
+    {
+      "key": "si-blueprint-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-blueprint"
+      },
+      "source": "https://blueprintjs.com/docs"
+    },
+    {
+      "key": "si-bluesky-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-bluesky"
+      },
+      "source": "https://bsky.social/about/blog/press-faq"
+    },
+    {
+      "key": "si-bluesound-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-bluesound"
+      },
+      "source": "https://www.bluesound.com/products/node-x"
+    },
+    {
+      "key": "si-bluetooth-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-bluetooth"
+      },
+      "source": "https://www.bluetooth.com/develop-with-bluetooth/marketing-branding"
+    },
+    {
+      "key": "si-bmcsoftware-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-bmcsoftware"
+      },
+      "source": "https://www.bmc.com"
+    },
+    {
+      "key": "si-bmw-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-bmw"
+      },
+      "source": "https://bmw.com"
+    },
+    {
+      "key": "si-bnbchain-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-bnbchain"
+      },
+      "source": "https://www.bnbchain.org"
+    },
+    {
+      "key": "si-boardgamegeek-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-boardgamegeek"
+      },
+      "source": "https://boardgamegeek.com"
+    },
+    {
+      "key": "si-boat-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-boat"
+      },
+      "source": "https://www.boat-lifestyle.com"
+    },
+    {
+      "key": "si-boehringeringelheim-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-boehringeringelheim"
+      },
+      "source": "https://www.boehringer-ingelheim.com"
+    },
+    {
+      "key": "si-bohemiainteractive-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-bohemiainteractive"
+      },
+      "source": "https://www.bohemia.net/press"
+    },
+    {
+      "key": "si-bombardier-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-bombardier"
+      },
+      "source": "https://bombardier.com"
+    },
+    {
+      "key": "si-bookalope-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-bookalope"
+      },
+      "source": "https://bookalope.net"
+    },
+    {
+      "key": "si-bookbub-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-bookbub"
+      },
+      "source": "https://insights.bookbub.com/bookbub-follow-bookmark-buttons-for-authors-websites"
+    },
+    {
+      "key": "si-bookingdotcom-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-bookingdotcom"
+      },
+      "source": "https://www.bookingholdings.com/media-room"
+    },
+    {
+      "key": "si-bookmeter-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-bookmeter"
+      },
+      "source": "https://bookmeter.com"
+    },
+    {
+      "key": "si-bookmyshow-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-bookmyshow"
+      },
+      "source": "https://in.bookmyshow.com"
+    },
+    {
+      "key": "si-bookstack-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-bookstack"
+      },
+      "source": "https://www.bookstackapp.com"
+    },
+    {
+      "key": "si-boost-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-boost"
+      },
+      "source": "https://www.boostmobile.com"
+    },
+    {
+      "key": "si-boosty-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-boosty"
+      },
+      "source": "https://boosty.to/app/brand"
+    },
+    {
+      "key": "si-boots-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-boots"
+      },
+      "source": "https://www.boots-uk.com"
+    },
+    {
+      "key": "si-bootstrap-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-bootstrap"
+      },
+      "source": "https://getbootstrap.com/docs/5.3/about/brand"
+    },
+    {
+      "key": "si-borgbackup-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-borgbackup"
+      },
+      "source": "https://www.borgbackup.org"
+    },
+    {
+      "key": "si-bosch-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-bosch"
+      },
+      "source": "https://www.bosch.de"
+    },
+    {
+      "key": "si-bose-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-bose"
+      },
+      "source": "https://www.bose.com"
+    },
+    {
+      "key": "si-botblecms-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-botblecms"
+      },
+      "source": "https://botble.com"
+    },
+    {
+      "key": "si-boulanger-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-boulanger"
+      },
+      "source": "https://www.boulanger.com"
+    },
+    {
+      "key": "si-bower-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-bower"
+      },
+      "source": "https://bower.io/docs/about/#brand"
+    },
+    {
+      "key": "si-box-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-box"
+      },
+      "source": "https://www.box.com/en-gb/about-us/press"
+    },
+    {
+      "key": "si-boxysvg-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-boxysvg"
+      },
+      "source": "https://boxy-svg.com/ideas/7/app-icon-redesign#comment-1953"
+    },
+    {
+      "key": "si-braintree-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-braintree"
+      },
+      "source": "https://www.braintreepayments.com/press"
+    },
+    {
+      "key": "si-brandfetch-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-brandfetch"
+      },
+      "source": "https://brandfetch.com/brandfetch.com"
+    },
+    {
+      "key": "si-brandfolder-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-brandfolder"
+      },
+      "source": "https://brandfolder.com/brandfolder"
+    },
+    {
+      "key": "si-brave-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-brave"
+      },
+      "source": "https://brave.com/brave-branding-assets"
+    },
+    {
+      "key": "si-breaker-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-breaker"
+      },
+      "source": "https://www.breaker.audio/i/brand"
+    },
+    {
+      "key": "si-brenntag-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-08.svg",
+        "symbolId": "si-brenntag"
+      },
+      "source": "https://www.brenntag.com"
+    },
+    {
+      "key": "si-brevo-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-brevo"
+      },
+      "source": "https://www.brevo.com"
+    },
+    {
+      "key": "si-brex-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-brex"
+      },
+      "source": "https://www.brex.com/journal/press"
+    },
+    {
+      "key": "si-bricks-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-bricks"
+      },
+      "source": "https://bricksbuilder.io"
+    },
+    {
+      "key": "si-broadcom-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-broadcom"
+      },
+      "source": "https://www.broadcom.com/support"
+    },
+    {
+      "key": "si-bruno-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-bruno"
+      },
+      "source": "https://www.usebruno.com"
+    },
+    {
+      "key": "si-bsd-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-bsd"
+      },
+      "source": "https://freebsdfoundation.org/about-us/about-the-foundation/project"
+    },
+    {
+      "key": "si-buddy-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-buddy"
+      },
+      "source": "https://buddy.works/about"
+    },
+    {
+      "key": "si-buffer-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-buffer"
+      },
+      "source": "https://buffer.com"
+    },
+    {
+      "key": "si-bugatti-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-bugatti"
+      },
+      "source": "https://newsroom.bugatti.com"
+    },
+    {
+      "key": "si-bugcrowd-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-bugcrowd"
+      },
+      "source": "https://www.bugcrowd.com/about/press-kit"
+    },
+    {
+      "key": "si-buhl-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-buhl"
+      },
+      "source": "https://buhl.de"
+    },
+    {
+      "key": "si-buildkite-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-buildkite"
+      },
+      "source": "https://buildkite.com/brand-assets"
+    },
+    {
+      "key": "si-builtbybit-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-builtbybit"
+      },
+      "source": "https://builtbybit.com/wiki/branding"
+    },
+    {
+      "key": "si-bukalapak-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-bukalapak"
+      },
+      "source": "https://www.bukalapak.com"
+    },
+    {
+      "key": "si-bulma-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-bulma"
+      },
+      "source": "https://bulma.io/brand"
+    },
+    {
+      "key": "si-bun-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-bun"
+      },
+      "source": "https://bun.sh/press-kit"
+    },
+    {
+      "key": "si-bungie-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-bungie"
+      },
+      "source": "https://www.bungie.net/7/en/Destiny"
+    },
+    {
+      "key": "si-bunnydotnet-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-bunnydotnet"
+      },
+      "source": "https://bunny.net"
+    },
+    {
+      "key": "si-bunq-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-bunq"
+      },
+      "source": "https://press.bunq.com/media_kits"
+    },
+    {
+      "key": "si-burgerking-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-burgerking"
+      },
+      "source": "https://www.bk.com"
+    },
+    {
+      "key": "si-burpsuite-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-burpsuite"
+      },
+      "source": "https://portswigger.net"
+    },
+    {
+      "key": "si-burton-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-burton"
+      },
+      "source": "https://brand.burton.com/logo"
+    },
+    {
+      "key": "si-buymeacoffee-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-buymeacoffee"
+      },
+      "source": "https://www.buymeacoffee.com/brand"
+    },
+    {
+      "key": "si-buysellads-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-buysellads"
+      },
+      "source": "https://docs.buysellads.com"
+    },
+    {
+      "key": "si-buzzfeed-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-buzzfeed"
+      },
+      "source": "https://www.buzzfeed.com/press/assets"
+    },
+    {
+      "key": "si-bvg-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-bvg"
+      },
+      "source": "https://www.bvg.de"
+    },
+    {
+      "key": "si-byjus-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-byjus"
+      },
+      "source": "https://byjus.com/byjus-the-learning-app"
+    },
+    {
+      "key": "si-bytedance-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-bytedance"
+      },
+      "source": "https://www.bytedance.com"
+    },
+    {
+      "key": "si-cplusplusbuilder-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-cplusplusbuilder"
+      },
+      "source": "https://www.embarcadero.com/news/logo"
+    },
+    {
+      "key": "si-cachet-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-cachet"
+      },
+      "source": "https://cachethq.io/press"
+    },
+    {
+      "key": "si-caddy-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-caddy"
+      },
+      "source": "https://caddyserver.com"
+    },
+    {
+      "key": "si-cadillac-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-cadillac"
+      },
+      "source": "https://www.cadillac.com"
+    },
+    {
+      "key": "si-cakephp-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-cakephp"
+      },
+      "source": "https://cakephp.org/logos"
+    },
+    {
+      "key": "si-caldotcom-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-caldotcom"
+      },
+      "source": "https://design.cal.com/assets/logos"
+    },
+    {
+      "key": "si-calendly-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-calendly"
+      },
+      "source": "https://calendly.com/newsroom"
+    },
+    {
+      "key": "si-campaignmonitor-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-campaignmonitor"
+      },
+      "source": "https://www.campaignmonitor.com/company/brand/"
+    },
+    {
+      "key": "si-camunda-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-camunda"
+      },
+      "source": "https://camunda.com/brand"
+    },
+    {
+      "key": "si-canonical-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-canonical"
+      },
+      "source": "https://design.ubuntu.com/resources"
+    },
+    {
+      "key": "si-canvas-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-canvas"
+      },
+      "source": "https://www.instructure.com/about/brand-guide/media-resources"
+    },
+    {
+      "key": "si-carthrottle-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-09.svg",
+        "symbolId": "si-carthrottle"
+      },
+      "source": "https://www.carthrottle.com"
+    },
+    {
+      "key": "si-cardano-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-cardano"
+      },
+      "source": "https://cardano.org/brand-assets/"
+    },
+    {
+      "key": "si-carlsberggroup-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-carlsberggroup"
+      },
+      "source": "https://www.carlsberggroup.com/who-we-are/about-the-carlsberg-group/design-guide"
+    },
+    {
+      "key": "si-carrd-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-carrd"
+      },
+      "source": "https://carrd.co/docs/general/brand-assets"
+    },
+    {
+      "key": "si-carto-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-carto"
+      },
+      "source": "https://carto.com/brand/"
+    },
+    {
+      "key": "si-cashapp-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-cashapp"
+      },
+      "source": "https://cash.app/press"
+    },
+    {
+      "key": "si-castbox-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-castbox"
+      },
+      "source": "https://castbox.fm/newsroom/"
+    },
+    {
+      "key": "si-castorama-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-castorama"
+      },
+      "source": "https://www.castorama.fr"
+    },
+    {
+      "key": "si-castro-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-castro"
+      },
+      "source": "https://supertop.co/castro/press/"
+    },
+    {
+      "key": "si-cbc-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-cbc"
+      },
+      "source": "https://www.cbc.ca"
+    },
+    {
+      "key": "si-cbs-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-cbs"
+      },
+      "source": "https://www.cbs.com"
+    },
+    {
+      "key": "si-ccc-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-ccc"
+      },
+      "source": "https://www.cqc.com.cn/www/chinese/c/2018-03-20/553293.shtml"
+    },
+    {
+      "key": "si-ccleaner-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-ccleaner"
+      },
+      "source": "https://www.ccleaner.com"
+    },
+    {
+      "key": "si-cdprojekt-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-cdprojekt"
+      },
+      "source": "https://www.cdprojekt.com/en/media/logotypes/"
+    },
+    {
+      "key": "si-ce-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-ce"
+      },
+      "source": "https://single-market-economy.ec.europa.eu/single-market/ce-marking_en"
+    },
+    {
+      "key": "si-celestron-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-celestron"
+      },
+      "source": "https://www.celestron.com"
+    },
+    {
+      "key": "si-centos-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-centos"
+      },
+      "source": "https://wiki.centos.org/ArtWork/Brand/Logo"
+    },
+    {
+      "key": "si-cesium-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-cesium"
+      },
+      "source": "https://cesium.com/press/"
+    },
+    {
+      "key": "si-chainguard-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-chainguard"
+      },
+      "source": "https://www.chainguard.dev"
+    },
+    {
+      "key": "si-chainlink-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-chainlink"
+      },
+      "source": "https://chain.link/brand-assets"
+    },
+    {
+      "key": "si-changedetection-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-changedetection"
+      },
+      "source": "https://changedetection.io"
+    },
+    {
+      "key": "si-channel4-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-channel4"
+      },
+      "source": "https://mediaassets.channel4.com/guidelines/guide/34286b7b-ea25-404d-a43b-e912fc85b0e0/page/8a2dd59a-51df-4f47-aa37-c235a761455e"
+    },
+    {
+      "key": "si-charles-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-charles"
+      },
+      "source": "https://www.charlesproxy.com"
+    },
+    {
+      "key": "si-chartdotjs-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-chartdotjs"
+      },
+      "source": "https://www.chartjs.org"
+    },
+    {
+      "key": "si-chartmogul-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-chartmogul"
+      },
+      "source": "https://chartmogul.com/company/"
+    },
+    {
+      "key": "si-chatbot-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-chatbot"
+      },
+      "source": "https://chatbot.design"
+    },
+    {
+      "key": "si-chatwoot-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-chatwoot"
+      },
+      "source": "https://www.chatwoot.com"
+    },
+    {
+      "key": "si-checkio-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-checkio"
+      },
+      "source": "https://py.checkio.org/blog/"
+    },
+    {
+      "key": "si-checkmarx-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-checkmarx"
+      },
+      "source": "https://www.checkmarx.com/resources/datasheets/"
+    },
+    {
+      "key": "si-checkmk-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-checkmk"
+      },
+      "source": "https://checkmk.com"
+    },
+    {
+      "key": "si-chedraui-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-chedraui"
+      },
+      "source": "https://www.chedraui.com.mx"
+    },
+    {
+      "key": "si-chef-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-chef"
+      },
+      "source": "https://www.chef.io"
+    },
+    {
+      "key": "si-chemex-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-chemex"
+      },
+      "source": "https://vtlogo.com/chemex-coffeemaker-vector-logo-svg/"
+    },
+    {
+      "key": "si-chessdotcom-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-chessdotcom"
+      },
+      "source": "https://www.chess.com/article/view/chess-com-brand-resources"
+    },
+    {
+      "key": "si-chevrolet-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-chevrolet"
+      },
+      "source": "https://www.chevrolet.com/content/dam/chevrolet/na/us/english/index/shopping-tools/download-catalog/02-pdf/2019-chevrolet-corvette-catalog.pdf"
+    },
+    {
+      "key": "si-chianetwork-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-chianetwork"
+      },
+      "source": "https://www.chia.net/branding/"
+    },
+    {
+      "key": "si-chinaeasternairlines-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-chinaeasternairlines"
+      },
+      "source": "https://uk.ceair.com/newCMS/uk/en/content/en_Footer/Support/201904/t20190404_5763.html"
+    },
+    {
+      "key": "si-chinasouthernairlines-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-chinasouthernairlines"
+      },
+      "source": "https://www.csair.com/en/about/investor/yejibaogao/2020/"
+    },
+    {
+      "key": "si-chocolatey-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-chocolatey"
+      },
+      "source": "https://chocolatey.org/media-kit"
+    },
+    {
+      "key": "si-chromatic-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-chromatic"
+      },
+      "source": "https://www.chromatic.com"
+    },
+    {
+      "key": "si-chromewebstore-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-10.svg",
+        "symbolId": "si-chromewebstore"
+      },
+      "source": "https://chromewebstore.google.com"
+    },
+    {
+      "key": "si-chrysler-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-chrysler"
+      },
+      "source": "https://www.stellantis.com/en/brands/chrysler"
+    },
+    {
+      "key": "si-chupachups-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-chupachups"
+      },
+      "source": "https://www.chupachups.co.uk"
+    },
+    {
+      "key": "si-cinema4d-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-cinema4d"
+      },
+      "source": "https://www.maxon.net/en/about-maxon/branding"
+    },
+    {
+      "key": "si-cinnamon-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-cinnamon"
+      },
+      "source": "https://projects.linuxmint.com/cinnamon"
+    },
+    {
+      "key": "si-cinny-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-cinny"
+      },
+      "source": "https://cinny.in/assets/cinny.svg"
+    },
+    {
+      "key": "si-circle-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-circle"
+      },
+      "source": "https://www.circle.com"
+    },
+    {
+      "key": "si-circleci-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-circleci"
+      },
+      "source": "https://circleci.com/press"
+    },
+    {
+      "key": "si-circuitverse-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-circuitverse"
+      },
+      "source": "https://circuitverse.org"
+    },
+    {
+      "key": "si-cirrusci-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-cirrusci"
+      },
+      "source": "https://cirrus-ci.org"
+    },
+    {
+      "key": "si-cisco-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-cisco"
+      },
+      "source": "https://www.cisco.com"
+    },
+    {
+      "key": "si-citrix-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-citrix"
+      },
+      "source": "https://brand.citrix.com"
+    },
+    {
+      "key": "si-citroen-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-citroen"
+      },
+      "source": "https://www.stellantis.com/en/brands/citroen"
+    },
+    {
+      "key": "si-civicrm-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-civicrm"
+      },
+      "source": "https://civicrm.org/trademark"
+    },
+    {
+      "key": "si-civo-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-civo"
+      },
+      "source": "https://www.civo.com/brand-assets"
+    },
+    {
+      "key": "si-clarifai-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-clarifai"
+      },
+      "source": "https://www.clarifai.com"
+    },
+    {
+      "key": "si-claris-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-claris"
+      },
+      "source": "https://www.claris.com"
+    },
+    {
+      "key": "si-clarivate-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-clarivate"
+      },
+      "source": "https://clarivate.com"
+    },
+    {
+      "key": "si-claude-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-claude"
+      },
+      "source": "https://claude.ai"
+    },
+    {
+      "key": "si-claudecode-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-claudecode"
+      },
+      "source": "https://code.claude.com"
+    },
+    {
+      "key": "si-clerk-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-clerk"
+      },
+      "source": "https://clerk.com"
+    },
+    {
+      "key": "si-clevercloud-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-clevercloud"
+      },
+      "source": "https://www.clever-cloud.com"
+    },
+    {
+      "key": "si-clickup-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-clickup"
+      },
+      "source": "https://clickup.com/brand"
+    },
+    {
+      "key": "si-cline-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-cline"
+      },
+      "source": "https://cline.bot/assets/branding/logos/cline-wordmark-black.svg"
+    },
+    {
+      "key": "si-clion-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-clion"
+      },
+      "source": "https://www.jetbrains.com/company/brand/logos/"
+    },
+    {
+      "key": "si-clockify-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-clockify"
+      },
+      "source": "https://clockify.me/brand-assets"
+    },
+    {
+      "key": "si-cloud66-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-cloud66"
+      },
+      "source": "https://www.cloud66.com"
+    },
+    {
+      "key": "si-cloudfoundry-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-cloudfoundry"
+      },
+      "source": "https://www.cloudfoundry.org"
+    },
+    {
+      "key": "si-cloudnativebuild-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-cloudnativebuild"
+      },
+      "source": "https://docs.cnb.cool/en/logo.html"
+    },
+    {
+      "key": "si-cloudbees-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-cloudbees"
+      },
+      "source": "https://www.cloudbees.com"
+    },
+    {
+      "key": "si-cloudcannon-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-cloudcannon"
+      },
+      "source": "https://cloudcannon.com"
+    },
+    {
+      "key": "si-cloudera-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-cloudera"
+      },
+      "source": "https://www.cloudera.com"
+    },
+    {
+      "key": "si-cloudflare-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-cloudflare"
+      },
+      "source": "https://www.cloudflare.com/logo/"
+    },
+    {
+      "key": "si-cloudflarepages-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-cloudflarepages"
+      },
+      "source": "https://pages.cloudflare.com"
+    },
+    {
+      "key": "si-cloudflareworkers-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-cloudflareworkers"
+      },
+      "source": "https://www.cloudflare.com/developer-platform/products/"
+    },
+    {
+      "key": "si-cloudinary-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-cloudinary"
+      },
+      "source": "https://cloudinary.com"
+    },
+    {
+      "key": "si-cloudron-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-cloudron"
+      },
+      "source": "https://www.cloudron.io/brand-assets.html"
+    },
+    {
+      "key": "si-cloudsmith-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-cloudsmith"
+      },
+      "source": "https://cloudsmith.com/company/brand/"
+    },
+    {
+      "key": "si-cloudways-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-cloudways"
+      },
+      "source": "https://www.cloudways.com/en/media-kit.php"
+    },
+    {
+      "key": "si-clubforce-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-clubforce"
+      },
+      "source": "https://clubforce.com/media-centre"
+    },
+    {
+      "key": "si-clubhouse-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-11.svg",
+        "symbolId": "si-clubhouse"
+      },
+      "source": "https://www.clubhouse.com/press"
+    },
+    {
+      "key": "si-clyp-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-clyp"
+      },
+      "source": "https://clyp.it"
+    },
+    {
+      "key": "si-cmake-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-cmake"
+      },
+      "source": "https://www.kitware.com/platforms/"
+    },
+    {
+      "key": "si-cnet-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-cnet"
+      },
+      "source": "https://www.cnet.com"
+    },
+    {
+      "key": "si-cnn-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-cnn"
+      },
+      "source": "https://edition.cnn.com"
+    },
+    {
+      "key": "si-coop-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-coop"
+      },
+      "source": "https://www.co-operative.coop/media/assets"
+    },
+    {
+      "key": "si-cobalt-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-cobalt"
+      },
+      "source": "https://cobalt.tools"
+    },
+    {
+      "key": "si-cockroachlabs-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-cockroachlabs"
+      },
+      "source": "https://www.cockroachlabs.com"
+    },
+    {
+      "key": "si-cocos-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-cocos"
+      },
+      "source": "https://www.cocos.com/en/"
+    },
+    {
+      "key": "si-coda-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-coda"
+      },
+      "source": "https://coda.io"
+    },
+    {
+      "key": "si-codacy-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codacy"
+      },
+      "source": "https://www.codacy.com/blog/"
+    },
+    {
+      "key": "si-codeclimate-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codeclimate"
+      },
+      "source": "https://codeclimate.com/github/codeclimate/python-test-reporter/badges/"
+    },
+    {
+      "key": "si-codeblocks-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codeblocks"
+      },
+      "source": "https://wiki.codeblocks.org/index.php/Main_Page"
+    },
+    {
+      "key": "si-codeberg-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codeberg"
+      },
+      "source": "https://codeberg.org/Codeberg/Design/src/commit/ac514aa9aaa2457d4af3c3e13df3ab136d22a49a/logo/special/codeberg-logo_special_fake-transaprency.svg"
+    },
+    {
+      "key": "si-codebuddy-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codebuddy"
+      },
+      "source": "https://www.codebuddy.cn"
+    },
+    {
+      "key": "si-codecademy-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codecademy"
+      },
+      "source": "https://www.codecademy.com"
+    },
+    {
+      "key": "si-codechef-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codechef"
+      },
+      "source": "https://www.codechef.com"
+    },
+    {
+      "key": "si-codecov-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codecov"
+      },
+      "source": "https://codecov.io"
+    },
+    {
+      "key": "si-codefactor-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codefactor"
+      },
+      "source": "https://www.codefactor.io"
+    },
+    {
+      "key": "si-codeforces-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codeforces"
+      },
+      "source": "https://codeforces.com"
+    },
+    {
+      "key": "si-codefresh-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codefresh"
+      },
+      "source": "https://codefresh.io"
+    },
+    {
+      "key": "si-codeigniter-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codeigniter"
+      },
+      "source": "https://www.codeigniter.com/help/legal"
+    },
+    {
+      "key": "si-codemagic-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codemagic"
+      },
+      "source": "https://codemagic.io"
+    },
+    {
+      "key": "si-codementor-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codementor"
+      },
+      "source": "https://www.codementor.io"
+    },
+    {
+      "key": "si-codenewbie-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codenewbie"
+      },
+      "source": "https://community.codenewbie.org"
+    },
+    {
+      "key": "si-codeproject-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codeproject"
+      },
+      "source": "https://www.codeproject.com"
+    },
+    {
+      "key": "si-coder-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-coder"
+      },
+      "source": "https://coder.com/brand#3-logos"
+    },
+    {
+      "key": "si-coderabbit-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-coderabbit"
+      },
+      "source": "https://www.coderabbit.ai/brand"
+    },
+    {
+      "key": "si-codersrank-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codersrank"
+      },
+      "source": "https://codersrank.io"
+    },
+    {
+      "key": "si-codesandbox-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codesandbox"
+      },
+      "source": "https://codesandbox.io/CodeSandbox-Press-Kit.zip"
+    },
+    {
+      "key": "si-codeship-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codeship"
+      },
+      "source": "https://app.codeship.com"
+    },
+    {
+      "key": "si-codesignal-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codesignal"
+      },
+      "source": "https://codesignal.com"
+    },
+    {
+      "key": "si-codestream-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codestream"
+      },
+      "source": "https://www.codestream.com"
+    },
+    {
+      "key": "si-codingninjas-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codingninjas"
+      },
+      "source": "https://www.codingninjas.com/press-release"
+    },
+    {
+      "key": "si-codingame-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codingame"
+      },
+      "source": "https://www.codingame.com/work/press/press-kit/"
+    },
+    {
+      "key": "si-codio-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-codio"
+      },
+      "source": "https://codio.com"
+    },
+    {
+      "key": "si-coffeescript-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-coffeescript"
+      },
+      "source": "https://coffeescript.org"
+    },
+    {
+      "key": "si-coggle-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-coggle"
+      },
+      "source": "https://coggle.it/press"
+    },
+    {
+      "key": "si-coinbase-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-coinbase"
+      },
+      "source": "https://www.coinbase.com/press"
+    },
+    {
+      "key": "si-coinmarketcap-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-coinmarketcap"
+      },
+      "source": "https://www.coinmarketcap.com"
+    },
+    {
+      "key": "si-collaboraonline-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-12.svg",
+        "symbolId": "si-collaboraonline"
+      },
+      "source": "https://www.collaboraonline.com/branding-guidelines"
+    },
+    {
+      "key": "si-comicfury-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-comicfury"
+      },
+      "source": "https://comicfury.com/images/gator-icon-black.png"
+    },
+    {
+      "key": "si-comma-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-comma"
+      },
+      "source": "https://comma.ai"
+    },
+    {
+      "key": "si-commodore-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-commodore"
+      },
+      "source": "https://commodore.inc"
+    },
+    {
+      "key": "si-composer-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-composer"
+      },
+      "source": "https://getcomposer.org"
+    },
+    {
+      "key": "si-comptia-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-comptia"
+      },
+      "source": "https://www.comptia.org"
+    },
+    {
+      "key": "si-comsol-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-comsol"
+      },
+      "source": "https://cdn.comsol.com/company/comsol-brand-guide-November2019.pdf"
+    },
+    {
+      "key": "si-conan-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-conan"
+      },
+      "source": "https://conan.io"
+    },
+    {
+      "key": "si-concourse-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-concourse"
+      },
+      "source": "https://concourse-ci.org"
+    },
+    {
+      "key": "si-conekta-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-conekta"
+      },
+      "source": "https://www.conekta.com"
+    },
+    {
+      "key": "si-confluence-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-confluence"
+      },
+      "source": "https://www.atlassian.com/company/news/press-kit"
+    },
+    {
+      "key": "si-construct3-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-construct3"
+      },
+      "source": "https://www.construct.net"
+    },
+    {
+      "key": "si-consul-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-consul"
+      },
+      "source": "https://www.hashicorp.com/brand"
+    },
+    {
+      "key": "si-contabo-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-contabo"
+      },
+      "source": "https://contabo.com"
+    },
+    {
+      "key": "si-containerd-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-containerd"
+      },
+      "source": "https://cncf-branding.netlify.app/projects/containerd/"
+    },
+    {
+      "key": "si-contao-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-contao"
+      },
+      "source": "https://contao.org"
+    },
+    {
+      "key": "si-contentful-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-contentful"
+      },
+      "source": "https://press.contentful.com/media_kits"
+    },
+    {
+      "key": "si-contentstack-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-contentstack"
+      },
+      "source": "https://www.contentstack.com"
+    },
+    {
+      "key": "si-continente-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-continente"
+      },
+      "source": "https://www.continente.pt"
+    },
+    {
+      "key": "si-contributorcovenant-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-contributorcovenant"
+      },
+      "source": "https://www.contributor-covenant.org"
+    },
+    {
+      "key": "si-conventionalcommits-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-conventionalcommits"
+      },
+      "source": "https://www.conventionalcommits.org"
+    },
+    {
+      "key": "si-convertio-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-convertio"
+      },
+      "source": "https://convertio.co"
+    },
+    {
+      "key": "si-convex-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-convex"
+      },
+      "source": "https://www.convex.dev/brand"
+    },
+    {
+      "key": "si-coolermaster-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-coolermaster"
+      },
+      "source": "https://www.coolermaster.com/branding"
+    },
+    {
+      "key": "si-coppel-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-coppel"
+      },
+      "source": "https://www.coppel.com"
+    },
+    {
+      "key": "si-cora-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-cora"
+      },
+      "source": "https://www.cora.fr"
+    },
+    {
+      "key": "si-coreboot-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-coreboot"
+      },
+      "source": "https://coreboot.org/assets/images/banner.svg"
+    },
+    {
+      "key": "si-coreldraw-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-coreldraw"
+      },
+      "source": "https://www.coreldraw.com/en/learn/webinars/ebook-embroidery"
+    },
+    {
+      "key": "si-coronaengine-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-coronaengine"
+      },
+      "source": "https://coronalabs.com"
+    },
+    {
+      "key": "si-coronarenderer-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-coronarenderer"
+      },
+      "source": "https://corona-renderer.com/about"
+    },
+    {
+      "key": "si-corsair-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-corsair"
+      },
+      "source": "https://www.corsair.com/newsroom/company-logos"
+    },
+    {
+      "key": "si-couchbase-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-couchbase"
+      },
+      "source": "https://www.couchbase.com"
+    },
+    {
+      "key": "si-counterstrike-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-counterstrike"
+      },
+      "source": "https://www.counter-strike.net"
+    },
+    {
+      "key": "si-countingworkspro-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-countingworkspro"
+      },
+      "source": "https://www.countingworks.com/blog"
+    },
+    {
+      "key": "si-coursera-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-coursera"
+      },
+      "source": "https://about.coursera.org/press"
+    },
+    {
+      "key": "si-coveralls-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-coveralls"
+      },
+      "source": "https://coveralls.io"
+    },
+    {
+      "key": "si-coze-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-coze"
+      },
+      "source": "https://www.coze.com/home"
+    },
+    {
+      "key": "si-cpanel-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-cpanel"
+      },
+      "source": "https://cpanel.net/company/cpanel-brand-guide/"
+    },
+    {
+      "key": "si-craftcms-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-craftcms"
+      },
+      "source": "https://craftcms.com/brand-resources"
+    },
+    {
+      "key": "si-craftsman-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-craftsman"
+      },
+      "source": "https://www.craftsman.com"
+    },
+    {
+      "key": "si-crayon-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-13.svg",
+        "symbolId": "si-crayon"
+      },
+      "source": "https://www.crayon.com"
+    },
+    {
+      "key": "si-creality-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-creality"
+      },
+      "source": "https://www.creality.com"
+    },
+    {
+      "key": "si-creativecommons-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-creativecommons"
+      },
+      "source": "https://creativecommons.org/mission/downloads"
+    },
+    {
+      "key": "si-creativetechnology-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-creativetechnology"
+      },
+      "source": "https://creative.com"
+    },
+    {
+      "key": "si-credly-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-credly"
+      },
+      "source": "https://cdn.credly.com/assets/structure/logo-78b59f8114817c758ca965ed8f1a58a76a39b6fd70d031f771a9bbc581fcde65.svg"
+    },
+    {
+      "key": "si-crehana-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-crehana"
+      },
+      "source": "https://www.crehana.com"
+    },
+    {
+      "key": "si-crewunited-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-crewunited"
+      },
+      "source": "https://www.crew-united.com"
+    },
+    {
+      "key": "si-criticalrole-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-criticalrole"
+      },
+      "source": "https://critrole.com"
+    },
+    {
+      "key": "si-crowdin-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-crowdin"
+      },
+      "source": "https://support.crowdin.com/using-logo/"
+    },
+    {
+      "key": "si-crowdsource-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-crowdsource"
+      },
+      "source": "https://crowdsource.google.com/about/"
+    },
+    {
+      "key": "si-crunchbase-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-crunchbase"
+      },
+      "source": "https://crunchbase.com"
+    },
+    {
+      "key": "si-cryengine-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-cryengine"
+      },
+      "source": "https://www.cryengine.com/brand"
+    },
+    {
+      "key": "si-cryptpad-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-cryptpad"
+      },
+      "source": "https://cryptpad.org"
+    },
+    {
+      "key": "si-crystal-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-crystal"
+      },
+      "source": "https://crystal-lang.org/media/"
+    },
+    {
+      "key": "si-csdn-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-csdn"
+      },
+      "source": "https://www.csdn.net/company/index.html"
+    },
+    {
+      "key": "si-cssdesignawards-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-cssdesignawards"
+      },
+      "source": "https://www.cssdesignawards.com"
+    },
+    {
+      "key": "si-csswizardry-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-csswizardry"
+      },
+      "source": "https://csswizardry.com"
+    },
+    {
+      "key": "si-cucumber-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-cucumber"
+      },
+      "source": "https://cucumber.io"
+    },
+    {
+      "key": "si-cultura-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-cultura"
+      },
+      "source": "https://www.cultura.com"
+    },
+    {
+      "key": "si-curl-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-curl"
+      },
+      "source": "https://curl.haxx.se/logo/"
+    },
+    {
+      "key": "si-curseforge-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-curseforge"
+      },
+      "source": "https://www.curseforge.com"
+    },
+    {
+      "key": "si-cursor-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-cursor"
+      },
+      "source": "https://cursor.com/brand"
+    },
+    {
+      "key": "si-customink-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-customink"
+      },
+      "source": "https://www.customink.com"
+    },
+    {
+      "key": "si-cyberdefenders-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-cyberdefenders"
+      },
+      "source": "https://cyberdefenders.org"
+    },
+    {
+      "key": "si-cycling74-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-cycling74"
+      },
+      "source": "https://cycling74.com"
+    },
+    {
+      "key": "si-cypress-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-cypress"
+      },
+      "source": "https://www.cypress.io/press-kit"
+    },
+    {
+      "key": "si-dwavesystems-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-dwavesystems"
+      },
+      "source": "https://www.dwavesys.com"
+    },
+    {
+      "key": "si-daf-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-daf"
+      },
+      "source": "https://www.daf.com/en"
+    },
+    {
+      "key": "si-dailydotdev-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-dailydotdev"
+      },
+      "source": "https://brand.daily.dev/d/4gCtbahXkzKk/guidelines"
+    },
+    {
+      "key": "si-dailymotion-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-dailymotion"
+      },
+      "source": "https://careers.dailymotion.com"
+    },
+    {
+      "key": "si-daisyui-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-daisyui"
+      },
+      "source": "https://daisyui.com/brand"
+    },
+    {
+      "key": "si-darty-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-darty"
+      },
+      "source": "https://www.darty.com"
+    },
+    {
+      "key": "si-dash-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-dash"
+      },
+      "source": "https://www.dash.org/brand-assets/"
+    },
+    {
+      "key": "si-dash0-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-dash0"
+      },
+      "source": "https://www.dash0.com"
+    },
+    {
+      "key": "si-dashlane-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-dashlane"
+      },
+      "source": "https://brandfolder.com/dashlane/brandkitpartners"
+    },
+    {
+      "key": "si-dassaultsystemes-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-dassaultsystemes"
+      },
+      "source": "https://www.3ds.com"
+    },
+    {
+      "key": "si-datadotai-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-datadotai"
+      },
+      "source": "https://www.data.ai/en/about/press/"
+    },
+    {
+      "key": "si-databricks-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-databricks"
+      },
+      "source": "https://www.databricks.com"
+    },
+    {
+      "key": "si-datacamp-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-datacamp"
+      },
+      "source": "https://www.datacamp.com"
+    },
+    {
+      "key": "si-datadog-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-datadog"
+      },
+      "source": "https://www.datadoghq.com/about/resources"
+    },
+    {
+      "key": "si-datagrip-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-14.svg",
+        "symbolId": "si-datagrip"
+      },
+      "source": "https://www.jetbrains.com/company/brand/logos/"
+    },
+    {
+      "key": "si-dataiku-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-dataiku"
+      },
+      "source": "https://www.dataiku.com/company/media-kit/"
+    },
+    {
+      "key": "si-datastax-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-datastax"
+      },
+      "source": "https://docs.datastax.com/en/astra/astra-db-vector"
+    },
+    {
+      "key": "si-datefns-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-datefns"
+      },
+      "source": "https://date-fns.org"
+    },
+    {
+      "key": "si-datocms-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-datocms"
+      },
+      "source": "https://www.datocms.com/company/brand-assets"
+    },
+    {
+      "key": "si-datto-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-datto"
+      },
+      "source": "https://www.datto.com/brand/logos"
+    },
+    {
+      "key": "si-davinciresolve-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-davinciresolve"
+      },
+      "source": "https://www.blackmagicdesign.com/media/images/davinci-resolve-logo-square"
+    },
+    {
+      "key": "si-dazhongdianping-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-dazhongdianping"
+      },
+      "source": "https://www.meituan.com/media"
+    },
+    {
+      "key": "si-dbeaver-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-dbeaver"
+      },
+      "source": "https://dbeaver.com"
+    },
+    {
+      "key": "si-dblp-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-dblp"
+      },
+      "source": "https://dblp.org"
+    },
+    {
+      "key": "si-dcentertainment-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-dcentertainment"
+      },
+      "source": "https://www.readdc.com"
+    },
+    {
+      "key": "si-delonghi-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-delonghi"
+      },
+      "source": "https://www.delonghi.com"
+    },
+    {
+      "key": "si-debian-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-debian"
+      },
+      "source": "https://www.debian.org/logos"
+    },
+    {
+      "key": "si-debridlink-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-debridlink"
+      },
+      "source": "https://debrid-link.com/brand"
+    },
+    {
+      "key": "si-deepcool-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-deepcool"
+      },
+      "source": "https://www.deepcool.com"
+    },
+    {
+      "key": "si-deepgram-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-deepgram"
+      },
+      "source": "https://deepgram.com/company/newsroom"
+    },
+    {
+      "key": "si-deepl-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-deepl"
+      },
+      "source": "https://www.deepl.com/press.html"
+    },
+    {
+      "key": "si-deepmind-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-deepmind"
+      },
+      "source": "https://deepmind.google"
+    },
+    {
+      "key": "si-deepnote-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-deepnote"
+      },
+      "source": "https://deepnote.com"
+    },
+    {
+      "key": "si-deepseek-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-deepseek"
+      },
+      "source": "https://www.deepseek.com"
+    },
+    {
+      "key": "si-deliveroo-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-deliveroo"
+      },
+      "source": "https://deliveroo.com"
+    },
+    {
+      "key": "si-dell-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-dell"
+      },
+      "source": "https://www.dell.com"
+    },
+    {
+      "key": "si-delphi-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-delphi"
+      },
+      "source": "https://www.embarcadero.com/news/logo"
+    },
+    {
+      "key": "si-denodeploy-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-denodeploy"
+      },
+      "source": "https://deno.com/logos/deploy/mark.svg"
+    },
+    {
+      "key": "si-denon-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-denon"
+      },
+      "source": "https://www.denon.com"
+    },
+    {
+      "key": "si-dependabot-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-dependabot"
+      },
+      "source": "https://dependabot.com"
+    },
+    {
+      "key": "si-depositphotos-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-depositphotos"
+      },
+      "source": "https://blog.depositphotos.com"
+    },
+    {
+      "key": "si-derspiegel-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-derspiegel"
+      },
+      "source": "https://www.spiegel.de"
+    },
+    {
+      "key": "si-deutschebahn-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-deutschebahn"
+      },
+      "source": "https://www.bahn.de"
+    },
+    {
+      "key": "si-deutschepost-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-deutschepost"
+      },
+      "source": "https://www.deutschepost.de"
+    },
+    {
+      "key": "si-deutschewelle-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-deutschewelle"
+      },
+      "source": "https://www.dw.com"
+    },
+    {
+      "key": "si-devdotto-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-devdotto"
+      },
+      "source": "https://dev.to"
+    },
+    {
+      "key": "si-devexpress-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-devexpress"
+      },
+      "source": "https://www.devexpress.com/aboutus/"
+    },
+    {
+      "key": "si-deviantart-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-deviantart"
+      },
+      "source": "https://help.deviantart.com/21"
+    },
+    {
+      "key": "si-devrant-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-devrant"
+      },
+      "source": "https://devrant.com"
+    },
+    {
+      "key": "si-devuan-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-devuan"
+      },
+      "source": "https://git.devuan.org/devuan/documentation/src/commit/f4931e70e17f043c2824d591bba7c7f70ed583b6/art/graphics/logo/devuan-emblem.svg"
+    },
+    {
+      "key": "si-dgraph-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-dgraph"
+      },
+      "source": "https://dgraph.io"
+    },
+    {
+      "key": "si-dhl-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-dhl"
+      },
+      "source": "https://www.dpdhl-brands.com/dhl/en/guides/design-basics/logo-and-claim.html"
+    },
+    {
+      "key": "si-dialogflow-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-dialogflow"
+      },
+      "source": "https://dialogflow.cloud.google.com"
+    },
+    {
+      "key": "si-diaspora-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-diaspora"
+      },
+      "source": "https://wiki.diasporafoundation.org/Branding"
+    },
+    {
+      "key": "si-dictionarydotcom-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-15.svg",
+        "symbolId": "si-dictionarydotcom"
+      },
+      "source": "https://www.dictionary.com"
+    },
+    {
+      "key": "si-digg-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-digg"
+      },
+      "source": "https://digg.com"
+    },
+    {
+      "key": "si-digikeyelectronics-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-digikeyelectronics"
+      },
+      "source": "https://www.digikey.com"
+    },
+    {
+      "key": "si-digitalocean-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-digitalocean"
+      },
+      "source": "https://www.digitalocean.com/press/"
+    },
+    {
+      "key": "si-dinersclub-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-dinersclub"
+      },
+      "source": "https://www.dinersclub.com/about-us/press"
+    },
+    {
+      "key": "si-dior-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-dior"
+      },
+      "source": "https://www.dior.com"
+    },
+    {
+      "key": "si-directus-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-directus"
+      },
+      "source": "https://directus.io"
+    },
+    {
+      "key": "si-discogs-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-discogs"
+      },
+      "source": "https://www.discogs.com/brand"
+    },
+    {
+      "key": "si-discord-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-discord"
+      },
+      "source": "https://discord.com/branding"
+    },
+    {
+      "key": "si-discourse-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-discourse"
+      },
+      "source": "https://www.discourse.org"
+    },
+    {
+      "key": "si-discover-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-discover"
+      },
+      "source": "https://www.discovernetwork.com/en-us/business-resources/free-signage-logos"
+    },
+    {
+      "key": "si-disqus-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-disqus"
+      },
+      "source": "https://disqus.com/brand"
+    },
+    {
+      "key": "si-disroot-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-disroot"
+      },
+      "source": "https://disroot.org/en"
+    },
+    {
+      "key": "si-distrokid-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-distrokid"
+      },
+      "source": "https://distrokid.com/logo"
+    },
+    {
+      "key": "si-django-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-django"
+      },
+      "source": "https://www.djangoproject.com/community/logos/"
+    },
+    {
+      "key": "si-dji-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-dji"
+      },
+      "source": "https://www.dji.com"
+    },
+    {
+      "key": "si-dm-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-dm"
+      },
+      "source": "https://www.dm.de"
+    },
+    {
+      "key": "si-dmm-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-dmm"
+      },
+      "source": "https://dmm-corp.com/presskit"
+    },
+    {
+      "key": "si-docker-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-docker"
+      },
+      "source": "https://www.docker.com/company/newsroom/media-resources"
+    },
+    {
+      "key": "si-docsdotrs-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-docsdotrs"
+      },
+      "source": "https://docs.rs"
+    },
+    {
+      "key": "si-doctrine-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-doctrine"
+      },
+      "source": "https://www.doctrine-project.org"
+    },
+    {
+      "key": "si-dodopayments-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-dodopayments"
+      },
+      "source": "https://dodopayments.com/brand"
+    },
+    {
+      "key": "si-dogecoin-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-dogecoin"
+      },
+      "source": "https://cryptologos.cc/dogecoin"
+    },
+    {
+      "key": "si-doi-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-doi"
+      },
+      "source": "https://www.doi.org/images/logos/header_logo_cropped.svg"
+    },
+    {
+      "key": "si-dolby-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-dolby"
+      },
+      "source": "https://www.dolby.com"
+    },
+    {
+      "key": "si-douban-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-douban"
+      },
+      "source": "https://www.douban.com/about"
+    },
+    {
+      "key": "si-doubanread-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-doubanread"
+      },
+      "source": "https://read.douban.com"
+    },
+    {
+      "key": "si-dovetail-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-dovetail"
+      },
+      "source": "https://dovetail.com/help/press-kit"
+    },
+    {
+      "key": "si-downdetector-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-downdetector"
+      },
+      "source": "https://downdetector.com"
+    },
+    {
+      "key": "si-dpd-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-dpd"
+      },
+      "source": "https://www.dpd.com"
+    },
+    {
+      "key": "si-dragonframe-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-dragonframe"
+      },
+      "source": "https://dragonframe.com"
+    },
+    {
+      "key": "si-draugiemdotlv-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-draugiemdotlv"
+      },
+      "source": "https://www.frype.com/applications/dev/docs/logos/"
+    },
+    {
+      "key": "si-dreamstime-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-dreamstime"
+      },
+      "source": "https://www.dreamstime.com"
+    },
+    {
+      "key": "si-dribbble-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-dribbble"
+      },
+      "source": "https://dribbble.com/branding"
+    },
+    {
+      "key": "si-drizzle-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-drizzle"
+      },
+      "source": "https://orm.drizzle.team"
+    },
+    {
+      "key": "si-drooble-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-drooble"
+      },
+      "source": "https://blog.drooble.com/press/"
+    },
+    {
+      "key": "si-dropbox-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-dropbox"
+      },
+      "source": "https://www.dropbox.com/branding"
+    },
+    {
+      "key": "si-drupal-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-drupal"
+      },
+      "source": "https://www.drupal.org/about/media-kit/logos"
+    },
+    {
+      "key": "si-dsautomobiles-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-dsautomobiles"
+      },
+      "source": "https://www.stellantis.com/en/brands/ds"
+    },
+    {
+      "key": "si-dts-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-dts"
+      },
+      "source": "https://xperi.com/brands/dts/"
+    },
+    {
+      "key": "si-ducati-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-16.svg",
+        "symbolId": "si-ducati"
+      },
+      "source": "https://brandlogos.net/ducati-logo-vector-svg-92931.html"
+    },
+    {
+      "key": "si-duckdb-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-duckdb"
+      },
+      "source": "https://duckdb.org"
+    },
+    {
+      "key": "si-dungeonsanddragons-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-dungeonsanddragons"
+      },
+      "source": "https://dnd.wizards.com/articles/features/basicrules"
+    },
+    {
+      "key": "si-dunked-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-dunked"
+      },
+      "source": "https://dunked.com"
+    },
+    {
+      "key": "si-dunzo-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-dunzo"
+      },
+      "source": "https://www.dunzo.com"
+    },
+    {
+      "key": "si-duolingo-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-duolingo"
+      },
+      "source": "https://design.duolingo.com"
+    },
+    {
+      "key": "si-duplicati-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-duplicati"
+      },
+      "source": "https://duplicati.com"
+    },
+    {
+      "key": "si-dvc-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-dvc"
+      },
+      "source": "https://iterative.ai/brand/"
+    },
+    {
+      "key": "si-dwm-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-dwm"
+      },
+      "source": "https://dwm.suckless.org"
+    },
+    {
+      "key": "si-dynatrace-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-dynatrace"
+      },
+      "source": "https://www.dynatrace.com/company/press-kit/"
+    },
+    {
+      "key": "si-edotleclerc-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-edotleclerc"
+      },
+      "source": "https://www.e.leclerc/assets/images/sue-logo.svg"
+    },
+    {
+      "key": "si-ea-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-ea"
+      },
+      "source": "https://www.ea.com"
+    },
+    {
+      "key": "si-eagle-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-eagle"
+      },
+      "source": "https://en.eagle.cool"
+    },
+    {
+      "key": "si-easyeda-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-easyeda"
+      },
+      "source": "https://easyeda.com"
+    },
+    {
+      "key": "si-ebox-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-ebox"
+      },
+      "source": "https://www.ebox.ca"
+    },
+    {
+      "key": "si-eclipseadoptium-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-eclipseadoptium"
+      },
+      "source": "https://www.eclipse.org/org/artwork/"
+    },
+    {
+      "key": "si-eclipseche-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-eclipseche"
+      },
+      "source": "https://www.eclipse.org/che/"
+    },
+    {
+      "key": "si-eclipseide-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-eclipseide"
+      },
+      "source": "https://www.eclipse.org/artwork/"
+    },
+    {
+      "key": "si-ecosia-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-ecosia"
+      },
+      "source": "https://www.ecosia.org/imprint"
+    },
+    {
+      "key": "si-ecovacs-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-ecovacs"
+      },
+      "source": "https://www.ecovacs.com"
+    },
+    {
+      "key": "si-edeka-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-edeka"
+      },
+      "source": "https://www.edeka.de"
+    },
+    {
+      "key": "si-edgeimpulse-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-edgeimpulse"
+      },
+      "source": "https://edgeimpulse.com/branding"
+    },
+    {
+      "key": "si-editorconfig-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-editorconfig"
+      },
+      "source": "https://editorconfig.org"
+    },
+    {
+      "key": "si-educative-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-educative"
+      },
+      "source": "https://www.educative.io"
+    },
+    {
+      "key": "si-edx-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-edx"
+      },
+      "source": "https://www.edx.org"
+    },
+    {
+      "key": "si-effect-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-effect"
+      },
+      "source": "https://effect.website"
+    },
+    {
+      "key": "si-egghead-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-egghead"
+      },
+      "source": "https://egghead.io"
+    },
+    {
+      "key": "si-egnyte-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-egnyte"
+      },
+      "source": "https://www.egnyte.com/presskit.html"
+    },
+    {
+      "key": "si-eight-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-eight"
+      },
+      "source": "https://8card.net/en"
+    },
+    {
+      "key": "si-eightsleep-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-eightsleep"
+      },
+      "source": "https://www.eightsleep.com/press/"
+    },
+    {
+      "key": "si-elastic-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-elastic"
+      },
+      "source": "https://www.elastic.co/brand"
+    },
+    {
+      "key": "si-elasticcloud-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-elasticcloud"
+      },
+      "source": "https://www.elastic.co/brand"
+    },
+    {
+      "key": "si-elasticstack-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-elasticstack"
+      },
+      "source": "https://www.elastic.co/brand"
+    },
+    {
+      "key": "si-elasticsearch-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-elasticsearch"
+      },
+      "source": "https://www.elastic.co/brand"
+    },
+    {
+      "key": "si-elavon-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-elavon"
+      },
+      "source": "https://www.elavon.com"
+    },
+    {
+      "key": "si-electron-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-electron"
+      },
+      "source": "https://www.electronjs.org"
+    },
+    {
+      "key": "si-electronbuilder-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-electronbuilder"
+      },
+      "source": "https://www.electron.build"
+    },
+    {
+      "key": "si-elegoo-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-elegoo"
+      },
+      "source": "https://www.elegoo.com/pages/download"
+    },
+    {
+      "key": "si-element-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-element"
+      },
+      "source": "https://element.io"
+    },
+    {
+      "key": "si-elementary-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-elementary"
+      },
+      "source": "https://elementary.io/brand"
+    },
+    {
+      "key": "si-elementor-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-17.svg",
+        "symbolId": "si-elementor"
+      },
+      "source": "https://elementor.com/logos/"
+    },
+    {
+      "key": "si-elevenlabs-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-elevenlabs"
+      },
+      "source": "https://elevenlabs.io/brand"
+    },
+    {
+      "key": "si-eleventy-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-eleventy"
+      },
+      "source": "https://www.11ty.dev"
+    },
+    {
+      "key": "si-elgato-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-elgato"
+      },
+      "source": "https://www.elgato.com/en/media-room"
+    },
+    {
+      "key": "si-elsevier-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-elsevier"
+      },
+      "source": "https://www.elsevier.com"
+    },
+    {
+      "key": "si-embarcadero-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-embarcadero"
+      },
+      "source": "https://www.embarcadero.com/news/logo"
+    },
+    {
+      "key": "si-embark-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-embark"
+      },
+      "source": "https://www.embark-studios.com/press"
+    },
+    {
+      "key": "si-emberdotjs-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-emberdotjs"
+      },
+      "source": "https://emberjs.com/logos/"
+    },
+    {
+      "key": "si-emby-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-emby"
+      },
+      "source": "https://emby.media"
+    },
+    {
+      "key": "si-emlakjet-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-emlakjet"
+      },
+      "source": "https://www.emlakjet.com/kurumsal-materyaller/"
+    },
+    {
+      "key": "si-enpass-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-enpass"
+      },
+      "source": "https://www.enpass.io/press/"
+    },
+    {
+      "key": "si-ens-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-ens"
+      },
+      "source": "https://ens.domains/brand"
+    },
+    {
+      "key": "si-ente-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-ente"
+      },
+      "source": "https://ente.io"
+    },
+    {
+      "key": "si-enterprisedb-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-enterprisedb"
+      },
+      "source": "https://www.enterprisedb.com"
+    },
+    {
+      "key": "si-envato-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-envato"
+      },
+      "source": "https://envato.com"
+    },
+    {
+      "key": "si-envoyproxy-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-envoyproxy"
+      },
+      "source": "https://d33wubrfki0l68.cloudfront.net/6f16455dae972425b77c7e31642269b375ec250e/3bd11/img/envoy-logo.svg"
+    },
+    {
+      "key": "si-epel-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-epel"
+      },
+      "source": "https://fedoraproject.org/wiki/EPEL"
+    },
+    {
+      "key": "si-epicgames-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-epicgames"
+      },
+      "source": "https://dev.epicgames.com/docs/services/en-US/EpicAccountServices/DesignGuidelines/index.html#epicgamesbrandguidelines"
+    },
+    {
+      "key": "si-epson-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-epson"
+      },
+      "source": "https://global.epson.com/IR/library/"
+    },
+    {
+      "key": "si-equinixmetal-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-equinixmetal"
+      },
+      "source": "https://metal.equinix.com"
+    },
+    {
+      "key": "si-eraser-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-eraser"
+      },
+      "source": "https://www.eraser.io"
+    },
+    {
+      "key": "si-ericsson-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-ericsson"
+      },
+      "source": "https://www.ericsson.com/en/newsroom/media-kits/logo"
+    },
+    {
+      "key": "si-esea-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-esea"
+      },
+      "source": "https://play.esea.net"
+    },
+    {
+      "key": "si-eslgaming-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-eslgaming"
+      },
+      "source": "https://brand.eslgaming.com"
+    },
+    {
+      "key": "si-eslint-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-eslint"
+      },
+      "source": "https://eslint.org"
+    },
+    {
+      "key": "si-esotericsoftware-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-esotericsoftware"
+      },
+      "source": "https://esotericsoftware.com/forum/d/25405-sheildsio-branding"
+    },
+    {
+      "key": "si-espressif-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-espressif"
+      },
+      "source": "https://www.espressif.com"
+    },
+    {
+      "key": "si-esri-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-esri"
+      },
+      "source": "https://www.esri.com/en-us/arcgis/products/arcgis-pro/overview"
+    },
+    {
+      "key": "si-etcd-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-etcd"
+      },
+      "source": "https://cncf-branding.netlify.app/projects/etcd/"
+    },
+    {
+      "key": "si-ethereum-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-ethereum"
+      },
+      "source": "https://ethereum.org/en/assets/"
+    },
+    {
+      "key": "si-ethers-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-ethers"
+      },
+      "source": "https://docs.ethers.org/v6"
+    },
+    {
+      "key": "si-ethiopianairlines-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-ethiopianairlines"
+      },
+      "source": "https://corporate.ethiopianairlines.com/media/Ethiopian-Factsheet"
+    },
+    {
+      "key": "si-etsy-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-etsy"
+      },
+      "source": "https://www.etsy.com/uk/press"
+    },
+    {
+      "key": "si-europeanunion-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-europeanunion"
+      },
+      "source": "https://europa.eu"
+    },
+    {
+      "key": "si-evernote-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-evernote"
+      },
+      "source": "https://evernote.com/about-us"
+    },
+    {
+      "key": "si-everydotorg-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-everydotorg"
+      },
+      "source": "https://www.every.org/brand"
+    },
+    {
+      "key": "si-excalidraw-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-excalidraw"
+      },
+      "source": "https://excalidraw.com"
+    },
+    {
+      "key": "si-exordo-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-exordo"
+      },
+      "source": "https://www.exordo.com"
+    },
+    {
+      "key": "si-exoscale-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-exoscale"
+      },
+      "source": "https://www.exoscale.com/press/"
+    },
+    {
+      "key": "si-expedia-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-expedia"
+      },
+      "source": "https://brandfolder.com/portals/brand-expedia"
+    },
+    {
+      "key": "si-expensify-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-18.svg",
+        "symbolId": "si-expensify"
+      },
+      "source": "https://use.expensify.com/press-kit"
+    },
+    {
+      "key": "si-expertsexchange-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-expertsexchange"
+      },
+      "source": "https://www.experts-exchange.com"
+    },
+    {
+      "key": "si-expo-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-expo"
+      },
+      "source": "https://expo.dev/brand/"
+    },
+    {
+      "key": "si-expressdotcom-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-expressdotcom"
+      },
+      "source": "https://www.express.com"
+    },
+    {
+      "key": "si-expressvpn-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-expressvpn"
+      },
+      "source": "https://www.expressvpn.com/press"
+    },
+    {
+      "key": "si-eyeem-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-eyeem"
+      },
+      "source": "https://www.eyeem.com"
+    },
+    {
+      "key": "si-fdroid-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-fdroid"
+      },
+      "source": "https://f-droid.org"
+    },
+    {
+      "key": "si-f1-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-f1"
+      },
+      "source": "https://www.formula1.com"
+    },
+    {
+      "key": "si-f5-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-f5"
+      },
+      "source": "https://www.f5.com/company/news/press-kit"
+    },
+    {
+      "key": "si-facebook-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-facebook"
+      },
+      "source": "https://about.meta.com/brand/resources/facebook/logo"
+    },
+    {
+      "key": "si-facebookgaming-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-facebookgaming"
+      },
+      "source": "https://www.facebook.com/fbgaminghome/"
+    },
+    {
+      "key": "si-facebooklive-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-facebooklive"
+      },
+      "source": "https://en.facebookbrand.com"
+    },
+    {
+      "key": "si-faceit-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-faceit"
+      },
+      "source": "https://corporate.faceit.com/branding/"
+    },
+    {
+      "key": "si-facepunch-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-facepunch"
+      },
+      "source": "https://sbox.facepunch.com/news"
+    },
+    {
+      "key": "si-fairphone-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-fairphone"
+      },
+      "source": "https://www.fairphone.com"
+    },
+    {
+      "key": "si-falco-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-falco"
+      },
+      "source": "https://falco.org/community/falco-brand"
+    },
+    {
+      "key": "si-falcon-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-falcon"
+      },
+      "source": "https://falconframework.org"
+    },
+    {
+      "key": "si-fampay-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-fampay"
+      },
+      "source": "https://fampay.in"
+    },
+    {
+      "key": "si-fandango-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-fandango"
+      },
+      "source": "https://www.fandango.com"
+    },
+    {
+      "key": "si-fandom-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-fandom"
+      },
+      "source": "https://fandomdesignsystem.com"
+    },
+    {
+      "key": "si-fanfou-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-fanfou"
+      },
+      "source": "https://fanfou.com"
+    },
+    {
+      "key": "si-fantom-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-fantom"
+      },
+      "source": "https://fantom.foundation"
+    },
+    {
+      "key": "si-farcaster-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-farcaster"
+      },
+      "source": "https://www.farcaster.xyz"
+    },
+    {
+      "key": "si-fareharbor-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-fareharbor"
+      },
+      "source": "https://help.fareharbor.com/about/logo"
+    },
+    {
+      "key": "si-farfetch-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-farfetch"
+      },
+      "source": "https://www.farfetch.com"
+    },
+    {
+      "key": "si-fastly-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-fastly"
+      },
+      "source": "https://assets.fastly.com/style-guide/docs/"
+    },
+    {
+      "key": "si-fathom-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-fathom"
+      },
+      "source": "https://usefathom.com/brand"
+    },
+    {
+      "key": "si-fauna-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-fauna"
+      },
+      "source": "https://fauna.com"
+    },
+    {
+      "key": "si-favro-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-favro"
+      },
+      "source": "https://favro.com/login"
+    },
+    {
+      "key": "si-fawry-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-fawry"
+      },
+      "source": "https://www.fawry.com/financials-and-earning-releases"
+    },
+    {
+      "key": "si-fcc-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "community-simple-icons-19.svg",
+        "symbolId": "si-fcc"
+      },
+      "source": "https://www.fcc.gov/logos"
+    }
+  ]
+}
