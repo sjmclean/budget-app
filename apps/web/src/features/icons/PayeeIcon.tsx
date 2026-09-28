@@ -7,6 +7,7 @@ import type { PayeeView } from "../accounts/payeeService.js";
 import { resolvePayeeIcon } from "./payeeIconResolver.js";
 import type { PayeeBuiltinIconKey } from "./payeeIconReference.js";
 import { TransferIcon } from "./TransferIcon.js";
+import { IncomeIcon } from "./IncomeIcon.js";
 
 const builtinComponents: Record<PayeeBuiltinIconKey, LucideIcon> = {
   merchant: Store, shopping: ShoppingBag, groceries: ShoppingBasket, dining: Utensils,
@@ -23,7 +24,13 @@ export function PayeeIcon({
   readonly decorative?: boolean;
 }) {
   const resolved = resolvePayeeIcon({ payee, state });
-  const label = state === "transfer" ? "Transfer" : payee?.name ? `${payee.name} icon` : "No payee";
+  const label = resolved.kind === "transfer"
+    ? "Transfer"
+    : resolved.kind === "income"
+      ? "Income"
+      : payee?.name
+        ? `${payee.name} icon`
+        : "No payee";
   const common = { className: "payee-icon", style: { width: size, height: size }, "data-icon-kind": resolved.kind };
   const accessibility = decorative ? { "aria-hidden": true as const } : { role: "img", "aria-label": label };
   if (resolved.kind === "builtin") {
@@ -58,6 +65,7 @@ export function PayeeIcon({
     );
   }
   if (resolved.kind === "transfer") return <span {...common} {...accessibility}><TransferIcon size="100%" /></span>;
+  if (resolved.kind === "income") return <span {...common} {...accessibility}><IncomeIcon size="100%" /></span>;
   if (resolved.kind === "none") return <span {...common} {...accessibility}><UserRound aria-hidden="true" /></span>;
   return <span {...common} {...accessibility} data-avatar-token={resolved.token}>{resolved.initials}</span>;
 }

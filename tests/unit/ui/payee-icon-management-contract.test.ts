@@ -9,6 +9,8 @@ test("Payee Management exposes the scalable merchant-aware icon picker", () => {
   assert.match(page, /aria-label=\{`Change icon for \$\{selectedPayee\.name\}`\}/);
   assert.match(page, /role="radiogroup" aria-label="Payee icon"/);
   assert.match(page, />Automatic<\/span>/);
+  assert.match(page, /PAYEE_SPECIAL_ICONS\.map/);
+  assert.match(page, /kind: "special", key/);
   assert.match(page, /PAYEE_BUILTIN_ICONS\.map/);
   assert.match(page, /searchMerchantIcons\(iconSearch, 48\)/);
   assert.match(page, /placeholder="Search merchant icons…"/);

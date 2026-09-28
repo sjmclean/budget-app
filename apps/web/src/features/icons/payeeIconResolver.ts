@@ -12,6 +12,7 @@ export type ResolvedPayeeIcon =
   | { readonly kind: "sprite"; readonly href: string }
   | { readonly kind: "initials"; readonly initials: string; readonly token: string }
   | { readonly kind: "transfer" }
+  | { readonly kind: "income" }
   | { readonly kind: "none" };
 
 export interface ResolvePayeeIconInput {
@@ -30,6 +31,7 @@ export function resolvePayeeIcon({
 
   const reference = parsePayeeIconReference(payee.iconRef);
   if (reference.kind === "builtin") return reference;
+  if (reference.kind === "special") return { kind: reference.key };
   if (reference.kind === "merchant") {
     const asset = resolveMerchantIconAsset(reference.key);
     if (asset) return asset;

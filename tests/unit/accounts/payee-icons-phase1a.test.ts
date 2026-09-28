@@ -16,13 +16,16 @@ function storage() {
 }
 
 describe("payee icon reference and resolver", () => {
-  it("parses automatic, built-in, merchant and reserved content references safely", () => {
+  it("parses automatic, built-in, special, merchant and reserved content references safely", () => {
     assert.deepEqual(parsePayeeIconReference(""), { kind: "automatic" });
     assert.deepEqual(parsePayeeIconReference("builtin:v1:shopping"), { kind: "builtin", key: "shopping" });
+    assert.deepEqual(parsePayeeIconReference("special:v1:income"), { kind: "special", key: "income" });
+    assert.deepEqual(parsePayeeIconReference("special:v1:transfer"), { kind: "special", key: "transfer" });
     assert.deepEqual(parsePayeeIconReference("merchant:v1:coles-au"), { kind: "merchant", key: "coles-au" });
     const hash = "a".repeat(64);
     assert.deepEqual(parsePayeeIconReference(`content:v1:${hash}`), { kind: "content", contentHash: hash });
     assert.equal(parsePayeeIconReference("builtin:v1:not-real").kind, "unknown");
+    assert.equal(parsePayeeIconReference("special:v1:not-real").kind, "unknown");
     assert.equal(parsePayeeIconReference("merchant:v1:not-real").kind, "unknown");
     assert.equal(parsePayeeIconReference("content:v1:ABC").kind, "unknown");
     assert.throws(() => validatePayeeIconReferenceForWrite("bad:v1:value"));
@@ -41,6 +44,8 @@ describe("payee icon reference and resolver", () => {
     );
     assert.equal(resolvePayeeIcon({ payee: payee("p-1", "Unknown merchant") }).kind, "initials");
     assert.equal(resolvePayeeIcon({ payee: payee("p-1", "Woolworths", `content:v1:${"b".repeat(64)}`) }).kind, "initials");
+    assert.deepEqual(resolvePayeeIcon({ payee: payee("income", "Income", "special:v1:income") }), { kind: "income" });
+    assert.deepEqual(resolvePayeeIcon({ payee: payee("transfer", "Transfer", "special:v1:transfer") }), { kind: "transfer" });
     assert.deepEqual(resolvePayeeIcon({ state: "transfer" }), { kind: "transfer" });
     assert.deepEqual(resolvePayeeIcon({ state: "none" }), { kind: "none" });
   });
@@ -70,6 +75,7 @@ describe("payee icon reference and resolver", () => {
     assert.equal(mergePayeeIconReferences("", ["builtin:v1:dining", "builtin:v1:fuel"]), "", "D: conflicting explicit sources keep an automatic target automatic");
     assert.equal(mergePayeeIconReferences("builtin:v1:shopping", ["builtin:v1:dining", "builtin:v1:fuel"]), "builtin:v1:shopping", "E: source conflicts never displace an explicit target");
     assert.equal(mergePayeeIconReferences("", ["merchant:v1:coles-au"]), "merchant:v1:coles-au");
+    assert.equal(mergePayeeIconReferences("", ["special:v1:income"]), "special:v1:income");
     assert.equal(mergePayeeIconReferences("", [""]), "");
   });
 });
