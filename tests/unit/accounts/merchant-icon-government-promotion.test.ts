@@ -14,7 +14,7 @@ const catalogue = readFileSync("apps/web/src/features/icons/merchantIconCatalogu
 const governmentExpansion = readFileSync("apps/web/src/features/icons/merchantIconGovernmentExpansion.ts", "utf8");
 
 test("government promotion is explicit, source-locked and agency-specific only", () => {
-  assert.equal(approval.entries.length, 12);
+  assert.equal(approval.entries.length, 10);
   assert.equal(new Set(approval.entries.map(({ key }) => key)).size, approval.entries.length);
   assert.ok(approval.entries.every(({ assetSource }) => assetSource.startsWith("https://")));
   assert.ok(approval.entries.every(({ assetPath }) => assetPath.startsWith("official/government/")));
