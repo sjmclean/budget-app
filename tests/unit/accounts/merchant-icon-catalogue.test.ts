@@ -126,6 +126,7 @@ describe("merchant icon catalogue", () => {
       kind: "image",
       assetPath: "user-supplied/oom-energy-au.svg",
     });
+    assert.equal(getMerchantIconEntry("oom-energy-au")?.category, "fuel");
     assert.deepEqual(getMerchantIconEntry("peter-alexander-au")?.asset, {
       kind: "image",
       assetPath: "user-supplied/peter-alexander-au.svg",
