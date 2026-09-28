@@ -120,16 +120,17 @@ for (const approval of approvals.entries) {
   }
 }
 
-const officialByKey = new Map(official.entries.map((entry) => [entry.key, entry] as const));
 for (const approval of promoted) {
-  officialByKey.set(approval.key, {
+  const manifestEntry = {
     key: approval.key,
     assetPath: approval.assetPath,
     source: approval.source,
     assetSource: approval.assetSource,
-  });
+  };
+  const existingIndex = official.entries.findIndex(({ key }) => key === approval.key);
+  if (existingIndex >= 0) official.entries[existingIndex] = manifestEntry;
+  else official.entries.push(manifestEntry);
 }
-official.entries = [...officialByKey.values()].sort((left, right) => left.key.localeCompare(right.key));
 await writeFile(officialPath, JSON.stringify(official, null, 2) + "\n");
 
 const runtimeEntries = promoted.map((entry) => `  {
