@@ -24,11 +24,17 @@ const manifestPath = resolve(root, "tools/merchant-icons/manifests/simple-icons-
 const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
   readonly version: number;
   readonly sourceCollection: string;
+  readonly sourceVersion: string;
   readonly entries: readonly ExpansionEntry[];
 };
 
-if (manifest.version !== 1 || manifest.sourceCollection !== "Simple Icons" || manifest.entries.length !== 750) {
-  throw new TypeError("Simple Icons expansion manifest must contain the frozen 750-brand v1 selection.");
+if (
+  manifest.version !== 1 ||
+  manifest.sourceCollection !== "Simple Icons" ||
+  manifest.sourceVersion !== "16.32.0" ||
+  manifest.entries.length !== 1750
+) {
+  throw new TypeError("Simple Icons expansion manifest must contain the frozen 1,750-brand v1 selection from 16.32.0.");
 }
 
 const packageIcons = Object.values(simpleIcons).filter((value): value is SimpleIcon => {

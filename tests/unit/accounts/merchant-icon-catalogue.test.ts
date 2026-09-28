@@ -17,7 +17,7 @@ describe("merchant icon catalogue", () => {
   it("keeps stable unique keys across the seed and imported batch", () => {
     const keys = MERCHANT_ICON_CATALOGUE.map(({ key }) => key);
     assert.equal(new Set(keys).size, keys.length);
-    assert.ok(MERCHANT_ICON_CATALOGUE.length >= 700 && MERCHANT_ICON_CATALOGUE.length <= 1600);
+    assert.ok(MERCHANT_ICON_CATALOGUE.length >= 1500 && MERCHANT_ICON_CATALOGUE.length <= 2700);
   });
 
   it("matches only exact canonical merchant identities automatically", () => {
@@ -59,9 +59,9 @@ describe("merchant icon catalogue", () => {
     const generatedFallbacks = MERCHANT_ICON_CATALOGUE.filter(({ provenance }) =>
       provenance?.kind === "generated" && provenance.reviewed === false
     );
-    assert.equal(MERCHANT_ICON_CATALOGUE.length, 1523);
+    assert.equal(MERCHANT_ICON_CATALOGUE.length, 2523);
     assert.ok(reviewed.length > MERCHANT_ICON_CATALOGUE.length / 2);
-    assert.equal(reviewed.length, 1265);
+    assert.equal(reviewed.length, 2265);
     assert.equal(generatedFallbacks.length, 258);
     assert.ok(MERCHANT_ICON_CATALOGUE.every(({ provenance }) => !provenance || !("source" in provenance)));
   });
@@ -147,6 +147,8 @@ describe("merchant icon catalogue", () => {
     assert.equal(findMerchantIconByPayeeName("Glassons")?.key, "glassons-global");
     assert.equal(findMerchantIconByPayeeName("Afterpay")?.key, "si-afterpay-global");
     assert.equal(findMerchantIconByPayeeName("Booking.com")?.key, "si-bookingdotcom-global");
+    assert.equal(findMerchantIconByPayeeName("FedEx")?.key, "si-fedex-global");
+    assert.equal(findMerchantIconByPayeeName("Ferrari")?.key, "si-ferrari-global");
 
     for (const key of ["jd-sports-global", "shein-global", "glassons-global", "chatgpt-global"]) {
       const entry = getMerchantIconEntry(key);
