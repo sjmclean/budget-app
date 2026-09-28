@@ -30,17 +30,26 @@ function canonical(value: string): string {
     .trim();
 }
 
-const CORE_PAYEE = [
-  /australian taxation office|\bato\b/iu,
-  /internal revenue service|\birs\b/iu,
-  /social security administration|\bssa\b/iu,
-  /hm revenue (?:&|and) customs|\bhmrc\b/iu,
-  /inland revenue|\bird\b/iu,
-  /services australia|centrelink|medicare/iu,
-  /births?.*deaths?.*marriages?|registry of births|passport office|home affairs/iu,
-  /driver and vehicle licensing agency|\bdvla\b|vicroads|transport for nsw/iu,
-  /revenue nsw|state revenue office|queensland revenue office/iu,
-];
+const CORE_PAYEE_IDENTITIES = new Set([
+  "Australian Taxation Office", "ATO",
+  "Australian Electoral Commission", "AEC",
+  "Internal Revenue Service", "IRS",
+  "Social Security Administration", "SSA",
+  "HM Revenue & Customs", "HM Revenue and Customs", "HMRC",
+  "Inland Revenue", "IRD",
+  "Services Australia", "Centrelink", "Medicare",
+  "Births, Deaths and Marriages", "NSW Registry of Births, Deaths & Marriages",
+  "HM Passport Office", "Department of Home Affairs",
+  "Driver and Vehicle Licensing Agency", "DVLA",
+  "Revenue NSW", "State Revenue Office", "Queensland Revenue Office",
+  "VicRoads", "Transport for NSW",
+].map(canonical));
+
+function isCorePayee(candidate: Candidate): boolean {
+  return [candidate.name, ...candidate.aliases]
+    .map(canonical)
+    .some((identity) => CORE_PAYEE_IDENTITIES.has(identity));
+}
 
 const HIGH_VALUE = [
   /tax|revenue|treasury|customs|internal revenue|inland revenue/iu,
@@ -75,7 +84,7 @@ function score(candidate: Candidate): number {
   if (candidate.aliases.length) value += Math.min(8, candidate.aliases.length * 2);
 
   const identity = `${candidate.name} ${candidate.aliases.join(" ")}`;
-  if (CORE_PAYEE.some((pattern) => pattern.test(identity))) value += 90;
+  if (isCorePayee(candidate)) value += 90;
   for (const pattern of HIGH_VALUE) if (pattern.test(identity)) value += 24;
   for (const pattern of LOW_VALUE) if (pattern.test(candidate.name)) value -= 36;
   for (const pattern of NOISE) if (pattern.test(candidate.name)) value -= 100;

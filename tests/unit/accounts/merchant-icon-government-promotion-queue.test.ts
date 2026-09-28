@@ -6,7 +6,9 @@ const generator = readFileSync("tools/merchant-icons/build-government-promotion-
 
 test("government promotion queue prioritises transaction-relevant public bodies", () => {
   assert.match(generator, /government-promotion-queue\.json/u);
-  assert.match(generator, /CORE_PAYEE/u);
+  assert.match(generator, /CORE_PAYEE_IDENTITIES/u);
+  assert.match(generator, /isCorePayee/u);
+  assert.match(generator, /CORE_PAYEE_IDENTITIES\.has\(identity\)/u);
   assert.match(generator, /Australian Taxation Office/iu);
   assert.match(generator, /Internal Revenue Service/iu);
   assert.match(generator, /Social Security Administration/iu);
