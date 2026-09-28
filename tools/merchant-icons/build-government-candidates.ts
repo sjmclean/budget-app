@@ -180,11 +180,11 @@ function parseUs(source: GovernmentSourceDefinition, text: string): Candidate[] 
 
 function parseAuLocal(source: GovernmentSourceDefinition, text: string): Candidate[] {
   const payload = JSON.parse(text) as {
-    readonly features?: readonly { readonly attributes?: { readonly lga_name?: string; readonly state_code?: string } }[];
+    readonly features?: readonly { readonly attributes?: { readonly lga_name?: string; readonly state?: string } }[];
   };
   if (!Array.isArray(payload.features)) throw new TypeError("Australian LGA snapshot is missing features.");
   return payload.features
-    .map(({ attributes }) => makeCandidate(source, attributes?.lga_name ?? "", [], attributes?.state_code))
+    .map(({ attributes }) => makeCandidate(source, attributes?.lga_name ?? "", [], attributes?.state))
     .filter((candidate): candidate is Candidate => Boolean(candidate));
 }
 
@@ -235,12 +235,14 @@ const parserById: Readonly<Record<string, (source: GovernmentSourceDefinition, t
 
 const all: Candidate[] = [];
 for (const source of GOVERNMENT_SOURCE_REGISTRY) {
-  const parser = parserById[source.id];
-  if (!parser) throw new TypeError(`No government candidate parser registered for ${source.id}.`);
   const snapshotPath = resolve(snapshotDirectory, source.snapshotFile);
+  const parser = parserById[source.id];
+  if (source.kind !== "zip-csv" && !parser) {
+    throw new TypeError(`No government candidate parser registered for ${source.id}.`);
+  }
   const candidates = source.kind === "zip-csv"
     ? parseUsGovernmentUnits(source, snapshotPath)
-    : parser(source, await readFile(snapshotPath, "utf8"));
+    : parser!(source, await readFile(snapshotPath, "utf8"));
   console.log(`Parsed ${source.id}: ${candidates.length.toLocaleString()} candidates.`);
   all.push(...candidates);
 }

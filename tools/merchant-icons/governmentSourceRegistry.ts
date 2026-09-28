@@ -52,7 +52,7 @@ export const GOVERNMENT_SOURCE_REGISTRY: readonly GovernmentSourceDefinition[] =
     country: "AU",
     level: "local",
     kind: "json",
-    url: "https://spatial.infrastructure.gov.au/server/rest/services/Hosted/Local_Government_Areas__Navigate__Live/FeatureServer/0/query?where=1%3D1&outFields=lga_name,state_code&returnGeometry=false&f=json",
+    url: "https://spatial.infrastructure.gov.au/server/rest/services/Hosted/Local_Government_Areas__Navigate__Live/FeatureServer/0/query?where=1%3D1&outFields=lga_name,state&returnGeometry=false&f=json",
     snapshotFile: "au-local-government-areas.json",
     authority: "Australian Government Department of Infrastructure / Geoscape Australia",
   },
