@@ -59,9 +59,9 @@ describe("merchant icon catalogue", () => {
     const generatedFallbacks = MERCHANT_ICON_CATALOGUE.filter(({ provenance }) =>
       provenance?.kind === "generated" && provenance.reviewed === false
     );
-    assert.equal(MERCHANT_ICON_CATALOGUE.length, 2523);
+    assert.equal(MERCHANT_ICON_CATALOGUE.length, 2526);
     assert.ok(reviewed.length > MERCHANT_ICON_CATALOGUE.length / 2);
-    assert.equal(reviewed.length, 2265);
+    assert.equal(reviewed.length, 2268);
     assert.equal(generatedFallbacks.length, 258);
     assert.ok(MERCHANT_ICON_CATALOGUE.every(({ provenance }) => !provenance || !("source" in provenance)));
   });
@@ -149,8 +149,20 @@ describe("merchant icon catalogue", () => {
     assert.equal(findMerchantIconByPayeeName("Booking.com")?.key, "si-bookingdotcom-global");
     assert.equal(findMerchantIconByPayeeName("FedEx")?.key, "si-fedex-global");
     assert.equal(findMerchantIconByPayeeName("Ferrari")?.key, "si-ferrari-global");
+    assert.equal(findMerchantIconByPayeeName("Montmorency Secondary College")?.key, "montmorency-secondary-college-au");
+    assert.equal(findMerchantIconByPayeeName("Regent Theatre")?.key, "regent-theatre-melbourne-au");
+    assert.equal(findMerchantIconByPayeeName("Regent Theatre Melbourne")?.key, "regent-theatre-melbourne-au");
+    assert.equal(findMerchantIconByPayeeName("Snooze")?.key, "snooze-au");
 
-    for (const key of ["jd-sports-global", "shein-global", "glassons-global", "chatgpt-global"]) {
+    for (const key of [
+      "jd-sports-global",
+      "shein-global",
+      "glassons-global",
+      "chatgpt-global",
+      "montmorency-secondary-college-au",
+      "regent-theatre-melbourne-au",
+      "snooze-au",
+    ]) {
       const entry = getMerchantIconEntry(key);
       assert.ok(entry, `Missing priority merchant ${key}`);
       assert.equal(entry.provenance?.kind, "community");
