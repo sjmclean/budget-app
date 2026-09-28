@@ -6,6 +6,7 @@ const catalogue = readFileSync("apps/web/src/features/icons/merchantIconCatalogu
 const expansion = readFileSync("apps/web/src/features/icons/merchantIconMajorExpansion.ts", "utf8");
 const fuelExpansion = readFileSync("apps/web/src/features/icons/merchantIconFuelExpansion.ts", "utf8");
 const simpleGenerator = readFileSync("tools/merchant-icons/generate-simple-icons-expansion.ts", "utf8");
+const main = readFileSync("apps/web/src/main.tsx", "utf8");
 const planning = JSON.parse(readFileSync("tools/merchant-icons/manifests/expansion-2-local-government-streaming.json", "utf8")) as { entries: unknown[] };
 
 test("catalogue references lazy static assets without bundling image payloads", () => {
@@ -15,6 +16,12 @@ test("catalogue references lazy static assets without bundling image payloads", 
   assert.match(fuelExpansion, /fuel\/ampol\.png/u);
   assert.match(simpleGenerator, /community-simple-icons-/u);
   assert.doesNotMatch(simpleGenerator, /data:image|;base64,/u);
+});
+
+test("extended brand identities stay out of the static catalogue graph and preload before App", () => {
+  assert.doesNotMatch(catalogue, /^import .*merchantIconSimpleBrands/mu);
+  assert.match(catalogue, /import\("\.\/merchantIconSimpleBrands\.js"\)/u);
+  assert.match(main, /await preloadExtendedMerchantIconCatalogue\(\);[\s\S]*?await import\("\.\/App"\)/u);
 });
 
 test("live catalogue expansion is distinct from planning manifest inventory", async () => {

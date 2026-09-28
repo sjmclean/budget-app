@@ -2,7 +2,6 @@ import { IMPORTED_MERCHANT_ICON_BATCH } from "./merchantIconImportedBatch.js";
 import { MAJOR_MERCHANT_ICON_EXPANSION } from "./merchantIconMajorExpansion.js";
 import { FUEL_MERCHANT_ICON_EXPANSION, MERCHANT_ICON_ENTRY_OVERRIDES } from "./merchantIconFuelExpansion.js";
 import { PRIORITY_MERCHANT_ICON_EXPANSION } from "./merchantIconPriorityExpansion.js";
-import { SIMPLE_BRAND_ICON_EXPANSION } from "./merchantIconSimpleBrands.js";
 
 export type MerchantIconAsset =
   | { readonly kind: "image"; readonly assetPath: string }
@@ -56,7 +55,7 @@ function applyMerchantIconOverride(entry: MerchantIconCatalogueEntry): MerchantI
   return override ? { ...entry, ...override } : entry;
 }
 
-export const MERCHANT_ICON_CATALOGUE: readonly MerchantIconCatalogueEntry[] = [
+const merchantIconCatalogue: MerchantIconCatalogueEntry[] = [
   ...[...SEED_MERCHANT_ICONS, ...IMPORTED_MERCHANT_ICON_BATCH].map((entry) => applyMerchantIconOverride({
     ...entry,
     category: entry.category ?? "other" as const,
@@ -67,14 +66,15 @@ export const MERCHANT_ICON_CATALOGUE: readonly MerchantIconCatalogueEntry[] = [
   })),
   ...MAJOR_MERCHANT_ICON_EXPANSION.map(applyMerchantIconOverride),
   ...PRIORITY_MERCHANT_ICON_EXPANSION,
-  ...SIMPLE_BRAND_ICON_EXPANSION,
   ...FUEL_MERCHANT_ICON_EXPANSION,
 ];
 
-const entriesByKey = new Map(MERCHANT_ICON_CATALOGUE.map((entry) => [entry.key, entry] as const));
+export const MERCHANT_ICON_CATALOGUE: readonly MerchantIconCatalogueEntry[] = merchantIconCatalogue;
+
+const entriesByKey = new Map(merchantIconCatalogue.map((entry) => [entry.key, entry] as const));
 const entriesByIdentity = new Map<string, MerchantIconCatalogueEntry[]>();
 
-for (const entry of MERCHANT_ICON_CATALOGUE) {
+function indexMerchantIconEntry(entry: MerchantIconCatalogueEntry): void {
   for (const identity of [entry.name, ...entry.aliases]) {
     const normalised = normaliseMerchantIconIdentity(identity);
     if (!normalised) continue;
@@ -82,6 +82,24 @@ for (const entry of MERCHANT_ICON_CATALOGUE) {
     if (!matches.some(({ key }) => key === entry.key)) matches.push(entry);
     entriesByIdentity.set(normalised, matches);
   }
+}
+
+for (const entry of merchantIconCatalogue) indexMerchantIconEntry(entry);
+
+let extendedCataloguePromise: Promise<void> | null = null;
+
+export function preloadExtendedMerchantIconCatalogue(): Promise<void> {
+  extendedCataloguePromise ??= import("./merchantIconSimpleBrands.js").then(({ SIMPLE_BRAND_ICON_EXPANSION }) => {
+    for (const entry of SIMPLE_BRAND_ICON_EXPANSION) {
+      if (entriesByKey.has(entry.key)) {
+        throw new TypeError(`Extended merchant icon key collides with the core catalogue: ${entry.key}`);
+      }
+      merchantIconCatalogue.push(entry);
+      entriesByKey.set(entry.key, entry);
+      indexMerchantIconEntry(entry);
+    }
+  });
+  return extendedCataloguePromise;
 }
 
 export function normaliseMerchantIconIdentity(value: string): string {

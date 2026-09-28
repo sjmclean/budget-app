@@ -3,7 +3,10 @@ import { extname, resolve } from "node:path";
 import {
   MERCHANT_ICON_CATALOGUE,
   normaliseMerchantIconIdentity,
+  preloadExtendedMerchantIconCatalogue,
 } from "../../apps/web/src/features/icons/merchantIconCatalogue.js";
+
+await preloadExtendedMerchantIconCatalogue();
 
 const root = process.cwd();
 const errors: string[] = [];

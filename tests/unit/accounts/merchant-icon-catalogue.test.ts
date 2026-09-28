@@ -1,15 +1,19 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { before, describe, it } from "node:test";
 import {
   MERCHANT_ICON_CATALOGUE,
   findMerchantIconByPayeeName,
   getMerchantIconEntry,
   normaliseMerchantIconIdentity,
+  preloadExtendedMerchantIconCatalogue,
   resolveMerchantIconAsset,
   searchMerchantIcons,
 } from "../../../apps/web/src/features/icons/merchantIconCatalogue.js";
 
 describe("merchant icon catalogue", () => {
+  before(async () => {
+    await preloadExtendedMerchantIconCatalogue();
+  });
   it("keeps stable unique keys across the seed and imported batch", () => {
     const keys = MERCHANT_ICON_CATALOGUE.map(({ key }) => key);
     assert.equal(new Set(keys).size, keys.length);

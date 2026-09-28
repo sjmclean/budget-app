@@ -5,9 +5,11 @@ import { test } from "node:test";
 import {
   MERCHANT_ICON_CATALOGUE,
   normaliseMerchantIconIdentity,
+  preloadExtendedMerchantIconCatalogue,
 } from "../../../apps/web/src/features/icons/merchantIconCatalogue.js";
 
-test("merchant catalogue entries have unique identities and real lazy assets", () => {
+test("merchant catalogue entries have unique identities and real lazy assets", async () => {
+  await preloadExtendedMerchantIconCatalogue();
   const keys = new Set<string>();
   const symbols = new Set<string>();
   const identities = new Map<string, typeof MERCHANT_ICON_CATALOGUE[number][]>();
