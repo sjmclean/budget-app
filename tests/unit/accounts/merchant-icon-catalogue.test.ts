@@ -9,6 +9,7 @@ import {
   resolveMerchantIconAsset,
   searchMerchantIcons,
 } from "../../../apps/web/src/features/icons/merchantIconCatalogue.js";
+import { GOVERNMENT_MERCHANT_ICON_EXPANSION } from "../../../apps/web/src/features/icons/merchantIconGovernmentExpansion.js";
 
 describe("merchant icon catalogue", () => {
   before(async () => {
@@ -59,9 +60,12 @@ describe("merchant icon catalogue", () => {
     const generatedFallbacks = MERCHANT_ICON_CATALOGUE.filter(({ provenance }) =>
       provenance?.kind === "generated" && provenance.reviewed === false
     );
-    assert.equal(MERCHANT_ICON_CATALOGUE.length, 2526);
+    assert.equal(MERCHANT_ICON_CATALOGUE.length, 2526 + GOVERNMENT_MERCHANT_ICON_EXPANSION.length);
     assert.ok(reviewed.length > MERCHANT_ICON_CATALOGUE.length / 2);
-    assert.equal(reviewed.length, 2268);
+    assert.equal(
+      reviewed.length,
+      2268 + GOVERNMENT_MERCHANT_ICON_EXPANSION.filter(({ provenance }) => provenance?.reviewed).length,
+    );
     assert.equal(generatedFallbacks.length, 258);
     assert.ok(MERCHANT_ICON_CATALOGUE.every(({ provenance }) => !provenance || !("source" in provenance)));
   });
