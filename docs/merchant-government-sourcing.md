@@ -12,8 +12,11 @@ Government directories can contain thousands of valid organisations, boards, age
 - New Zealand: New Zealand Government A-Z
 - United Kingdom: GOV.UK Organisations API
 - United States: USAGov agency index
+- Australia local/regional: national Local Government Area service from the Department of Infrastructure / Geoscape Australia
+- United Kingdom local: Planning Data local-authority dataset
+- United States state/local: 2026 Census Bureau Government Units Listing
 
-The source registry is designed to grow with state, territory, devolved, regional and local-government adapters. Those sources belong in the candidate layer first; promotion remains artwork-gated.
+The source registry is designed to grow with state, territory, devolved, regional and local-government adapters. The current second tier includes Australian LGAs, UK local authorities, and the US Census Bureau's state/local Government Units Listing. New Zealand local councils are already represented in the NZ Government A-Z source. Those sources belong in the candidate layer first; promotion remains artwork-gated.
 
 ## Refresh
 

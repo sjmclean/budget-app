@@ -21,6 +21,17 @@ await mkdir(snapshotDirectory, { recursive: true });
 
 for (const source of GOVERNMENT_SOURCE_REGISTRY) {
   const path = resolve(snapshotDirectory, source.snapshotFile);
+  if (source.kind === "zip-csv") {
+    const response = await fetch(source.url, {
+      headers: { "user-agent": "budget-app merchant catalogue source snapshotter" },
+      redirect: "follow",
+    });
+    if (!response.ok) throw new Error(`Government source request failed (${response.status}) for ${source.url}`);
+    const body = Buffer.from(await response.arrayBuffer());
+    await writeFile(path, body);
+    console.log(`Snapshotted ${source.id}: ${body.length.toLocaleString()} bytes.`);
+    continue;
+  }
   if (source.kind !== "paginated-json") {
     const body = await getText(source.url);
     await writeFile(path, body);

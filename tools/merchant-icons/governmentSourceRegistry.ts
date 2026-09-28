@@ -1,9 +1,9 @@
-export type GovernmentSourceKind = "csv" | "html" | "paginated-json";
+export type GovernmentSourceKind = "csv" | "html" | "json" | "paginated-json" | "zip-csv";
 
 export interface GovernmentSourceDefinition {
   readonly id: string;
   readonly country: "AU" | "NZ" | "GB" | "US";
-  readonly level: "federal" | "national";
+  readonly level: "federal" | "national" | "state-local" | "local";
   readonly kind: GovernmentSourceKind;
   readonly url: string;
   readonly snapshotFile: string;
@@ -46,5 +46,32 @@ export const GOVERNMENT_SOURCE_REGISTRY: readonly GovernmentSourceDefinition[] =
     url: "https://www.usa.gov/agency-index",
     snapshotFile: "us-usagov-agencies.html",
     authority: "USAGov",
+  },
+  {
+    id: "au-local-government-areas",
+    country: "AU",
+    level: "local",
+    kind: "json",
+    url: "https://spatial.infrastructure.gov.au/server/rest/services/Hosted/Local_Government_Areas__Navigate__Live/FeatureServer/0/query?where=1%3D1&outFields=lga_name,state_code&returnGeometry=false&f=json",
+    snapshotFile: "au-local-government-areas.json",
+    authority: "Australian Government Department of Infrastructure / Geoscape Australia",
+  },
+  {
+    id: "gb-local-authorities",
+    country: "GB",
+    level: "local",
+    kind: "json",
+    url: "https://www.planning.data.gov.uk/entity.json?dataset=local-authority&limit=500&field=name&field=entity",
+    snapshotFile: "gb-local-authorities.json",
+    authority: "UK Ministry of Housing, Communities and Local Government Planning Data",
+  },
+  {
+    id: "us-government-units-2026",
+    country: "US",
+    level: "state-local",
+    kind: "zip-csv",
+    url: "https://www2.census.gov/programs-surveys/gus/datasets/2026/gov_units_2026.zip",
+    snapshotFile: "us-government-units-2026.zip",
+    authority: "United States Census Bureau",
   },
 ] as const;
