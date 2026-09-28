@@ -55,9 +55,9 @@ describe("merchant icon catalogue", () => {
     const generatedFallbacks = MERCHANT_ICON_CATALOGUE.filter(({ provenance }) =>
       provenance?.kind === "generated" && provenance.reviewed === false
     );
-    assert.equal(MERCHANT_ICON_CATALOGUE.length, 1522);
+    assert.equal(MERCHANT_ICON_CATALOGUE.length, 1523);
     assert.ok(reviewed.length > MERCHANT_ICON_CATALOGUE.length / 2);
-    assert.equal(reviewed.length, 1264);
+    assert.equal(reviewed.length, 1265);
     assert.equal(generatedFallbacks.length, 258);
     assert.ok(MERCHANT_ICON_CATALOGUE.every(({ provenance }) => !provenance || !("source" in provenance)));
   });
@@ -140,10 +140,11 @@ describe("merchant icon catalogue", () => {
     assert.equal(findMerchantIconByPayeeName("JD Sports Australia")?.key, "jd-sports-global");
     assert.equal(findMerchantIconByPayeeName("SHEIN")?.key, "shein-global");
     assert.equal(findMerchantIconByPayeeName("Chat GPT")?.key, "chatgpt-global");
+    assert.equal(findMerchantIconByPayeeName("Glassons")?.key, "glassons-global");
     assert.equal(findMerchantIconByPayeeName("Afterpay")?.key, "si-afterpay-global");
     assert.equal(findMerchantIconByPayeeName("Booking.com")?.key, "si-bookingdotcom-global");
 
-    for (const key of ["jd-sports-global", "shein-global", "chatgpt-global"]) {
+    for (const key of ["jd-sports-global", "shein-global", "glassons-global", "chatgpt-global"]) {
       const entry = getMerchantIconEntry(key);
       assert.ok(entry, `Missing priority merchant ${key}`);
       assert.equal(entry.provenance?.kind, "community");

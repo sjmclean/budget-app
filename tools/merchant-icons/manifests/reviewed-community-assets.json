@@ -808,6 +808,14 @@
         "assetPath": "community/chatgpt-global.svg"
       },
       "source": "https://github.com/iconify/icon-sets/blob/master/json/bxl.json#openai"
+    },
+    {
+      "key": "glassons-global",
+      "asset": {
+        "kind": "image",
+        "assetPath": "community/glassons-global.svg"
+      },
+      "source": "https://github.com/rekha-credencesoft/seer/blob/f084013b28caded092240d621f48cad15a7f9ca4/src/assets/images/client_glassons.svg"
     }
   ]
 }

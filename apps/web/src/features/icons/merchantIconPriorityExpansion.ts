@@ -20,6 +20,15 @@ export const PRIORITY_MERCHANT_ICON_EXPANSION: readonly MerchantIconCatalogueEnt
     asset: { kind: "image", assetPath: "community/shein-global.svg" },
   },
   {
+    key: "glassons-global",
+    name: "Glassons",
+    regions: ["GLOBAL"],
+    aliases: ["Glassons Australia", "Glassons New Zealand"],
+    category: "clothing",
+    provenance: { kind: "community", reviewed: true },
+    asset: { kind: "image", assetPath: "community/glassons-global.svg" },
+  },
+  {
     key: "chatgpt-global",
     name: "ChatGPT",
     regions: ["GLOBAL"],
