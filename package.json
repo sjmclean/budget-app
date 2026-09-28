@@ -42,7 +42,8 @@
     "merchant-icons:generate-simple": "tsx tools/merchant-icons/generate-simple-icons-expansion.ts",
     "merchant-icons:check-simple": "tsx tools/merchant-icons/generate-simple-icons-expansion.ts --check",
     "merchant-icons:government:refresh": "tsx tools/merchant-icons/refresh-government-sources.ts",
-    "merchant-icons:government:candidates": "tsx tools/merchant-icons/build-government-candidates.ts"
+    "merchant-icons:government:candidates": "tsx tools/merchant-icons/build-government-candidates.ts",
+    "merchant-icons:government:audit": "tsx tools/merchant-icons/audit-government-candidates.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
