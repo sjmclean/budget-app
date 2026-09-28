@@ -9,7 +9,8 @@ const budgetPage = readFileSync("apps/web/src/pages/BudgetPage.tsx", "utf8");
 
 test("PayeeIcon renders the approved custom transfer icon with existing accessibility semantics", () => {
   assert.match(payeeIcon, /resolved\.kind === "transfer"[^\n]+<TransferIcon size="100%"/u);
-  assert.match(payeeIcon, /state === "transfer" \? "Transfer"/u);
+  assert.match(payeeIcon, /resolved\.kind === "transfer"[\s\S]*?\? "Transfer"/u);
+  assert.match(payeeIcon, /resolved\.kind === "income"[\s\S]*?\? "Income"/u);
   assert.match(payeeIcon, /decorative \? \{ "aria-hidden": true/u);
   assert.doesNotMatch(payeeIcon, /ArrowRightLeft/u);
   assert.match(transferIcon, /data-app-icon="transfer"/u);
