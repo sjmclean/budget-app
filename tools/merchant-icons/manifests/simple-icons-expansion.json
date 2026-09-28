@@ -1,0 +1,6008 @@
+{
+  "version": 1,
+  "sourceCollection": "Simple Icons",
+  "sourceRepository": "https://github.com/simple-icons/simple-icons",
+  "selectionPolicy": "First 750 non-conflicting official-source brand identities after excluding source records hosted primarily on code/package/wiki repositories; fixed for reproducible generation.",
+  "entries": [
+    {
+      "key": "si-1dot1dot1dot1-global",
+      "title": "1.1.1.1",
+      "slug": "1dot1dot1dot1",
+      "hex": "221E68",
+      "source": "https://one.one.one.one",
+      "shard": 1
+    },
+    {
+      "key": "si-1and1-global",
+      "title": "1&1",
+      "slug": "1and1",
+      "hex": "003D8F",
+      "source": "https://www.united-internet.de/en/newsroom/media-center/logos.html",
+      "shard": 1
+    },
+    {
+      "key": "si-1001tracklists-global",
+      "title": "1001Tracklists",
+      "slug": "1001tracklists",
+      "hex": "40AEF0",
+      "source": "https://www.1001tracklists.com",
+      "shard": 1
+    },
+    {
+      "key": "si-1panel-global",
+      "title": "1Panel",
+      "slug": "1panel",
+      "hex": "0854C1",
+      "source": "https://1panel.cn",
+      "shard": 1
+    },
+    {
+      "key": "si-1password-global",
+      "title": "1Password",
+      "slug": "1password",
+      "hex": "145FE4",
+      "source": "https://1password.com/press",
+      "shard": 1
+    },
+    {
+      "key": "si-2fas-global",
+      "title": "2FAS",
+      "slug": "2fas",
+      "hex": "EC1C24",
+      "source": "https://2fas.com/press-kit",
+      "shard": 1
+    },
+    {
+      "key": "si-2k-global",
+      "title": "2K",
+      "slug": "2k",
+      "hex": "DD0700",
+      "source": "https://support.2k.com/hc/en-us/articles/203972113-Digital-Copies-of-2K-Manuals",
+      "shard": 1
+    },
+    {
+      "key": "si-365datascience-global",
+      "title": "365 Data Science",
+      "slug": "365datascience",
+      "hex": "000C1F",
+      "source": "https://365datascience.com",
+      "shard": 1
+    },
+    {
+      "key": "si-3m-global",
+      "title": "3M",
+      "slug": "3m",
+      "hex": "FF0000",
+      "source": "https://www.3m.com",
+      "shard": 1
+    },
+    {
+      "key": "si-42-global",
+      "title": "42",
+      "slug": "42",
+      "hex": "000000",
+      "source": "https://www.42network.org",
+      "shard": 1
+    },
+    {
+      "key": "si-4chan-global",
+      "title": "4chan",
+      "slug": "4chan",
+      "hex": "006600",
+      "source": "https://www.4chan.org",
+      "shard": 1
+    },
+    {
+      "key": "si-4d-global",
+      "title": "4D",
+      "slug": "4d",
+      "hex": "004088",
+      "source": "https://www.4d.com",
+      "shard": 1
+    },
+    {
+      "key": "si-500px-global",
+      "title": "500px",
+      "slug": "500px",
+      "hex": "222222",
+      "source": "https://500px.com",
+      "shard": 1
+    },
+    {
+      "key": "si-99designs-global",
+      "title": "99designs",
+      "slug": "99designs",
+      "hex": "FE5F50",
+      "source": "https://99designs.com/branding",
+      "shard": 1
+    },
+    {
+      "key": "si-aframe-global",
+      "title": "A-Frame",
+      "slug": "aframe",
+      "hex": "EF2D5E",
+      "source": "https://aframe.io/docs",
+      "shard": 1
+    },
+    {
+      "key": "si-abdownloadmanager-global",
+      "title": "AB Download Manager",
+      "slug": "abdownloadmanager",
+      "hex": "897BFF",
+      "source": "https://abdownloadmanager.com",
+      "shard": 1
+    },
+    {
+      "key": "si-abb-global",
+      "title": "ABB",
+      "slug": "abb",
+      "hex": "FF000F",
+      "source": "https://global.abb",
+      "shard": 1
+    },
+    {
+      "key": "si-abbvie-global",
+      "title": "Abbvie",
+      "slug": "abbvie",
+      "hex": "071D49",
+      "source": "https://www.abbvie.com",
+      "shard": 1
+    },
+    {
+      "key": "si-aboutdotme-global",
+      "title": "about.me",
+      "slug": "aboutdotme",
+      "hex": "333333",
+      "source": "https://about.me/assets",
+      "shard": 1
+    },
+    {
+      "key": "si-abstract-global",
+      "title": "Abstract",
+      "slug": "abstract",
+      "hex": "191A1B",
+      "source": "https://www.abstract.com/about",
+      "shard": 1
+    },
+    {
+      "key": "si-abusedotch-global",
+      "title": "abuse.ch",
+      "slug": "abusedotch",
+      "hex": "00465B",
+      "source": "https://abuse.ch",
+      "shard": 1
+    },
+    {
+      "key": "si-academia-global",
+      "title": "Academia",
+      "slug": "academia",
+      "hex": "41454A",
+      "source": "https://www.academia.edu",
+      "shard": 1
+    },
+    {
+      "key": "si-accenture-global",
+      "title": "Accenture",
+      "slug": "accenture",
+      "hex": "A100FF",
+      "source": "https://www.accenture.com",
+      "shard": 1
+    },
+    {
+      "key": "si-accusoft-global",
+      "title": "Accusoft",
+      "slug": "accusoft",
+      "hex": "A9225C",
+      "source": "https://www.accusoft.com",
+      "shard": 1
+    },
+    {
+      "key": "si-accuweather-global",
+      "title": "AccuWeather",
+      "slug": "accuweather",
+      "hex": "FF6600",
+      "source": "https://accuweather.com",
+      "shard": 1
+    },
+    {
+      "key": "si-acer-global",
+      "title": "Acer",
+      "slug": "acer",
+      "hex": "83B81A",
+      "source": "https://www.acer.com",
+      "shard": 1
+    },
+    {
+      "key": "si-acm-global",
+      "title": "ACM",
+      "slug": "acm",
+      "hex": "0085CA",
+      "source": "https://identitystandards.acm.org",
+      "shard": 1
+    },
+    {
+      "key": "si-actigraph-global",
+      "title": "ActiGraph",
+      "slug": "actigraph",
+      "hex": "3A4259",
+      "source": "https://theactigraph.com",
+      "shard": 1
+    },
+    {
+      "key": "si-activision-global",
+      "title": "Activision",
+      "slug": "activision",
+      "hex": "000000",
+      "source": "https://www.activision.com",
+      "shard": 1
+    },
+    {
+      "key": "si-activitypub-global",
+      "title": "ActivityPub",
+      "slug": "activitypub",
+      "hex": "F1007E",
+      "source": "https://activitypub.rocks",
+      "shard": 1
+    },
+    {
+      "key": "si-acura-global",
+      "title": "Acura",
+      "slug": "acura",
+      "hex": "000000",
+      "source": "https://www.acura.com",
+      "shard": 1
+    },
+    {
+      "key": "si-ada-global",
+      "title": "Ada",
+      "slug": "ada",
+      "hex": "000000",
+      "source": "https://ada-lang-io.github.io/ada-logo-editor/",
+      "shard": 1
+    },
+    {
+      "key": "si-adafruit-global",
+      "title": "Adafruit",
+      "slug": "adafruit",
+      "hex": "000000",
+      "source": "https://www.adafruit.com",
+      "shard": 1
+    },
+    {
+      "key": "si-adblock-global",
+      "title": "AdBlock",
+      "slug": "adblock",
+      "hex": "F40D12",
+      "source": "https://getadblock.com",
+      "shard": 1
+    },
+    {
+      "key": "si-adblockplus-global",
+      "title": "Adblock Plus",
+      "slug": "adblockplus",
+      "hex": "C70D2C",
+      "source": "https://adblockplus.org",
+      "shard": 1
+    },
+    {
+      "key": "si-addydotio-global",
+      "title": "addy.io",
+      "slug": "addydotio",
+      "hex": "19216C",
+      "source": "https://addy.io",
+      "shard": 1
+    },
+    {
+      "key": "si-adguard-global",
+      "title": "AdGuard",
+      "slug": "adguard",
+      "hex": "68BC71",
+      "source": "https://adguard.com/en/media-materials.html",
+      "shard": 1
+    },
+    {
+      "key": "si-adidas-global",
+      "title": "Adidas",
+      "slug": "adidas",
+      "hex": "000000",
+      "source": "https://www.adidas.com",
+      "shard": 1
+    },
+    {
+      "key": "si-adminer-global",
+      "title": "Adminer",
+      "slug": "adminer",
+      "hex": "34567C",
+      "source": "https://www.adminer.org",
+      "shard": 1
+    },
+    {
+      "key": "si-adonisjs-global",
+      "title": "AdonisJS",
+      "slug": "adonisjs",
+      "hex": "5A45FF",
+      "source": "https://adonisjs.com",
+      "shard": 1
+    },
+    {
+      "key": "si-adp-global",
+      "title": "ADP",
+      "slug": "adp",
+      "hex": "D0271D",
+      "source": "https://www.adp.com",
+      "shard": 1
+    },
+    {
+      "key": "si-adroll-global",
+      "title": "Adroll",
+      "slug": "adroll",
+      "hex": "0DBDFF",
+      "source": "https://www.adroll.com",
+      "shard": 1
+    },
+    {
+      "key": "si-adventofcode-global",
+      "title": "Advent Of Code",
+      "slug": "adventofcode",
+      "hex": "FFFF66",
+      "source": "https://adventofcode.com",
+      "shard": 1
+    },
+    {
+      "key": "si-adyen-global",
+      "title": "Adyen",
+      "slug": "adyen",
+      "hex": "0ABF53",
+      "source": "https://www.adyen.com/press-and-media/presskit",
+      "shard": 1
+    },
+    {
+      "key": "si-aegisauthenticator-global",
+      "title": "Aegis Authenticator",
+      "slug": "aegisauthenticator",
+      "hex": "005E9D",
+      "source": "https://getaegis.app/aegis.svg",
+      "shard": 1
+    },
+    {
+      "key": "si-aeroflot-global",
+      "title": "Aeroflot",
+      "slug": "aeroflot",
+      "hex": "02458D",
+      "source": "https://www.aeroflot.ru/ru-en/information/onboard/press",
+      "shard": 1
+    },
+    {
+      "key": "si-aeromexico-global",
+      "title": "Aeroméxico",
+      "slug": "aeromexico",
+      "hex": "0B2343",
+      "source": "https://www.aeromexico.com",
+      "shard": 1
+    },
+    {
+      "key": "si-afdian-global",
+      "title": "AFDIAN",
+      "slug": "afdian",
+      "hex": "946CE6",
+      "source": "https://afdian.com/album/248b4bb2c9b111e9a9bb52540025c377/c3d32ae4b5f311eab4a952540025c377",
+      "shard": 1
+    },
+    {
+      "key": "si-affine-global",
+      "title": "AFFiNE",
+      "slug": "affine",
+      "hex": "1E96EB",
+      "source": "https://affine.pro",
+      "shard": 1
+    },
+    {
+      "key": "si-afterpay-global",
+      "title": "Afterpay",
+      "slug": "afterpay",
+      "hex": "B2FCE4",
+      "source": "https://www.afterpay.com/en-AU/business/resources/marketing/logos",
+      "shard": 1
+    },
+    {
+      "key": "si-aftership-global",
+      "title": "AfterShip",
+      "slug": "aftership",
+      "hex": "FF6B2B",
+      "source": "https://www.aftership.com",
+      "shard": 1
+    },
+    {
+      "key": "si-aib-global",
+      "title": "AIB",
+      "slug": "aib",
+      "hex": "7F2B7B",
+      "source": "https://aib.ie",
+      "shard": 1
+    },
+    {
+      "key": "si-airchina-global",
+      "title": "Air China",
+      "slug": "airchina",
+      "hex": "E30E17",
+      "source": "https://www.airchina.com.cn/en/investor_relations",
+      "shard": 1
+    },
+    {
+      "key": "si-airserbia-global",
+      "title": "Air Serbia",
+      "slug": "airserbia",
+      "hex": "0E203F",
+      "source": "https://www.airserbia.com",
+      "shard": 1
+    },
+    {
+      "key": "si-airtransat-global",
+      "title": "Air Transat",
+      "slug": "airtransat",
+      "hex": "172B54",
+      "source": "https://www.airtransat.com",
+      "shard": 1
+    },
+    {
+      "key": "si-airbnb-global",
+      "title": "Airbnb",
+      "slug": "airbnb",
+      "hex": "FF5A5F",
+      "source": "https://www.airbnb.com",
+      "shard": 1
+    },
+    {
+      "key": "si-airbus-global",
+      "title": "Airbus",
+      "slug": "airbus",
+      "hex": "00205B",
+      "source": "https://brand.airbus.com/en/asset-library/airbus-logo",
+      "shard": 1
+    },
+    {
+      "key": "si-airbyte-global",
+      "title": "Airbyte",
+      "slug": "airbyte",
+      "hex": "615EFF",
+      "source": "https://airbyte.com",
+      "shard": 1
+    },
+    {
+      "key": "si-aircall-global",
+      "title": "Aircall",
+      "slug": "aircall",
+      "hex": "00B388",
+      "source": "https://aircall.io",
+      "shard": 1
+    },
+    {
+      "key": "si-airplayaudio-global",
+      "title": "AirPlay Audio",
+      "slug": "airplayaudio",
+      "hex": "000000",
+      "source": "https://developer.apple.com/design/human-interface-guidelines/airplay/overview/icons",
+      "shard": 1
+    },
+    {
+      "key": "si-airplayvideo-global",
+      "title": "AirPlay Video",
+      "slug": "airplayvideo",
+      "hex": "000000",
+      "source": "https://developer.apple.com/design/human-interface-guidelines/airplay/overview/icons/",
+      "shard": 1
+    },
+    {
+      "key": "si-airtable-global",
+      "title": "Airtable",
+      "slug": "airtable",
+      "hex": "18BFFF",
+      "source": "https://airtable.com/newsroom",
+      "shard": 1
+    },
+    {
+      "key": "si-airtel-global",
+      "title": "Airtel",
+      "slug": "airtel",
+      "hex": "E40000",
+      "source": "https://www.airtel.in/logo-tune",
+      "shard": 1
+    },
+    {
+      "key": "si-akamai-global",
+      "title": "Akamai",
+      "slug": "akamai",
+      "hex": "0096D6",
+      "source": "https://www.akamai.com",
+      "shard": 1
+    },
+    {
+      "key": "si-akasaair-global",
+      "title": "Akasa Air",
+      "slug": "akasaair",
+      "hex": "FF6300",
+      "source": "https://www.akasaair.com",
+      "shard": 1
+    },
+    {
+      "key": "si-akaunting-global",
+      "title": "Akaunting",
+      "slug": "akaunting",
+      "hex": "6DA252",
+      "source": "https://akaunting.com/logo",
+      "shard": 1
+    },
+    {
+      "key": "si-akiflow-global",
+      "title": "Akiflow",
+      "slug": "akiflow",
+      "hex": "AF38F9",
+      "source": "https://www.akiflow.com",
+      "shard": 1
+    },
+    {
+      "key": "si-alamy-global",
+      "title": "Alamy",
+      "slug": "alamy",
+      "hex": "00FF7B",
+      "source": "https://www.alamy.com",
+      "shard": 1
+    },
+    {
+      "key": "si-albertheijn-global",
+      "title": "Albert Heijn",
+      "slug": "albertheijn",
+      "hex": "04ACE6",
+      "source": "https://www.ah.nl",
+      "shard": 1
+    },
+    {
+      "key": "si-albumoftheyear-global",
+      "title": "Album of the Year",
+      "slug": "albumoftheyear",
+      "hex": "222222",
+      "source": "https://albumoftheyear.org",
+      "shard": 1
+    },
+    {
+      "key": "si-alchemy-global",
+      "title": "Alchemy",
+      "slug": "alchemy",
+      "hex": "0C0C0E",
+      "source": "https://www.alchemy.com",
+      "shard": 1
+    },
+    {
+      "key": "si-aldisud-global",
+      "title": "Aldi Süd",
+      "slug": "aldisud",
+      "hex": "00005F",
+      "source": "https://www.aldi-sued.de",
+      "shard": 1
+    },
+    {
+      "key": "si-alfred-global",
+      "title": "Alfred",
+      "slug": "alfred",
+      "hex": "5C1F87",
+      "source": "https://www.alfredapp.com",
+      "shard": 1
+    },
+    {
+      "key": "si-algolia-global",
+      "title": "Algolia",
+      "slug": "algolia",
+      "hex": "003DFF",
+      "source": "https://algolia.frontify.com/d/1AZwVNcFZiu7/style-guide#/basics/algolia-logo",
+      "shard": 1
+    },
+    {
+      "key": "si-algorand-global",
+      "title": "Algorand",
+      "slug": "algorand",
+      "hex": "000000",
+      "source": "https://www.algorand.com/about/media-kit",
+      "shard": 1
+    },
+    {
+      "key": "si-alibabacloud-global",
+      "title": "Alibaba Cloud",
+      "slug": "alibabacloud",
+      "hex": "FF6A00",
+      "source": "https://www.alibabagroup.com/en/ir/reports",
+      "shard": 2
+    },
+    {
+      "key": "si-alibabadotcom-global",
+      "title": "Alibaba.com",
+      "slug": "alibabadotcom",
+      "hex": "FF6A00",
+      "source": "https://www.alibabagroup.com/en/ir/reports",
+      "shard": 2
+    },
+    {
+      "key": "si-alienware-global",
+      "title": "Alienware",
+      "slug": "alienware",
+      "hex": "541BAE",
+      "source": "https://www.dell.com/en-us/gaming/alienware",
+      "shard": 2
+    },
+    {
+      "key": "si-alipay-global",
+      "title": "Alipay",
+      "slug": "alipay",
+      "hex": "1677FF",
+      "source": "https://global.alipay.com/docs/ac/website_hk/design",
+      "shard": 2
+    },
+    {
+      "key": "si-alist-global",
+      "title": "AList",
+      "slug": "alist",
+      "hex": "70C6BE",
+      "source": "https://alistgo.com",
+      "shard": 2
+    },
+    {
+      "key": "si-allegro-global",
+      "title": "Allegro",
+      "slug": "allegro",
+      "hex": "FF5A00",
+      "source": "https://allegro.pl",
+      "shard": 2
+    },
+    {
+      "key": "si-alliedmodders-global",
+      "title": "AlliedModders",
+      "slug": "alliedmodders",
+      "hex": "1578D3",
+      "source": "https://forums.alliedmods.net",
+      "shard": 2
+    },
+    {
+      "key": "si-alltrails-global",
+      "title": "AllTrails",
+      "slug": "alltrails",
+      "hex": "142800",
+      "source": "https://www.alltrails.com/press?section=press-page-kit",
+      "shard": 2
+    },
+    {
+      "key": "si-almalinux-global",
+      "title": "AlmaLinux",
+      "slug": "almalinux",
+      "hex": "000000",
+      "source": "https://almalinux.org",
+      "shard": 2
+    },
+    {
+      "key": "si-alphaxiv-global",
+      "title": "alphaXiv",
+      "slug": "alphaxiv",
+      "hex": "9A2036",
+      "source": "https://alphaxiv.org",
+      "shard": 2
+    },
+    {
+      "key": "si-alpinelinux-global",
+      "title": "Alpine Linux",
+      "slug": "alpinelinux",
+      "hex": "0D597F",
+      "source": "https://alpinelinux.org",
+      "shard": 2
+    },
+    {
+      "key": "si-alpinedotjs-global",
+      "title": "Alpine.js",
+      "slug": "alpinedotjs",
+      "hex": "8BC0D0",
+      "source": "https://alpinejs.dev",
+      "shard": 2
+    },
+    {
+      "key": "si-alternativeto-global",
+      "title": "AlternativeTo",
+      "slug": "alternativeto",
+      "hex": "0289D5",
+      "source": "https://alternativeto.net",
+      "shard": 2
+    },
+    {
+      "key": "si-alwaysdata-global",
+      "title": "Alwaysdata",
+      "slug": "alwaysdata",
+      "hex": "E9568E",
+      "source": "https://www.alwaysdata.com",
+      "shard": 2
+    },
+    {
+      "key": "si-amd-global",
+      "title": "AMD",
+      "slug": "amd",
+      "hex": "ED1C24",
+      "source": "https://www.amd.com",
+      "shard": 2
+    },
+    {
+      "key": "si-ameba-global",
+      "title": "Ameba",
+      "slug": "ameba",
+      "hex": "2D8C3C",
+      "source": "https://ameblo.jp",
+      "shard": 2
+    },
+    {
+      "key": "si-amg-global",
+      "title": "AMG",
+      "slug": "amg",
+      "hex": "000000",
+      "source": "https://www.mercedes-amg.com",
+      "shard": 2
+    },
+    {
+      "key": "si-amp-global",
+      "title": "AMP",
+      "slug": "amp",
+      "hex": "005AF0",
+      "source": "https://amp.dev",
+      "shard": 2
+    },
+    {
+      "key": "si-amul-global",
+      "title": "Amul",
+      "slug": "amul",
+      "hex": "ED1D24",
+      "source": "https://amul.com/classic/products/horeca.php",
+      "shard": 2
+    },
+    {
+      "key": "si-analogue-global",
+      "title": "Analogue",
+      "slug": "analogue",
+      "hex": "1A1A1A",
+      "source": "https://www.analogue.co",
+      "shard": 2
+    },
+    {
+      "key": "si-andela-global",
+      "title": "Andela",
+      "slug": "andela",
+      "hex": "173B3F",
+      "source": "https://andela.com",
+      "shard": 2
+    },
+    {
+      "key": "si-android-global",
+      "title": "Android",
+      "slug": "android",
+      "hex": "3DDC84",
+      "source": "https://partnermarketinghub.withgoogle.com/brands/android/visual-identity/visual-identity/logo-lock-ups",
+      "shard": 2
+    },
+    {
+      "key": "si-androidauto-global",
+      "title": "Android Auto",
+      "slug": "androidauto",
+      "hex": "3DDC84",
+      "source": "https://thepartnermarketinghub.withgoogle.com/brands/android-auto",
+      "shard": 2
+    },
+    {
+      "key": "si-androidstudio-global",
+      "title": "Android Studio",
+      "slug": "androidstudio",
+      "hex": "3DDC84",
+      "source": "https://developer.android.com/studio",
+      "shard": 2
+    },
+    {
+      "key": "si-angular-global",
+      "title": "Angular",
+      "slug": "angular",
+      "hex": "0F0F11",
+      "source": "https://angular.dev/press-kit",
+      "shard": 2
+    },
+    {
+      "key": "si-anichart-global",
+      "title": "AniChart",
+      "slug": "anichart",
+      "hex": "41B1EA",
+      "source": "https://anichart.net",
+      "shard": 2
+    },
+    {
+      "key": "si-anilist-global",
+      "title": "AniList",
+      "slug": "anilist",
+      "hex": "02A9FF",
+      "source": "https://anilist.co",
+      "shard": 2
+    },
+    {
+      "key": "si-animalplanet-global",
+      "title": "Animal Planet",
+      "slug": "animalplanet",
+      "hex": "0073FF",
+      "source": "https://www.animalplanet.com",
+      "shard": 2
+    },
+    {
+      "key": "si-ankermake-global",
+      "title": "AnkerMake",
+      "slug": "ankermake",
+      "hex": "88F387",
+      "source": "https://www.ankermake.com",
+      "shard": 2
+    },
+    {
+      "key": "si-ansible-global",
+      "title": "Ansible",
+      "slug": "ansible",
+      "hex": "EE0000",
+      "source": "https://www.ansible.com/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-answer-global",
+      "title": "Answer",
+      "slug": "answer",
+      "hex": "0033FF",
+      "source": "https://answer.dev",
+      "shard": 2
+    },
+    {
+      "key": "si-ansys-global",
+      "title": "Ansys",
+      "slug": "ansys",
+      "hex": "FFB71B",
+      "source": "https://www.ansys.com/about-ansys/brand",
+      "shard": 2
+    },
+    {
+      "key": "si-antdesign-global",
+      "title": "Ant Design",
+      "slug": "antdesign",
+      "hex": "0170FE",
+      "source": "https://ant.design",
+      "shard": 2
+    },
+    {
+      "key": "si-anta-global",
+      "title": "Anta",
+      "slug": "anta",
+      "hex": "D70010",
+      "source": "https://www.anta.com",
+      "shard": 2
+    },
+    {
+      "key": "si-antena3-global",
+      "title": "Antena 3",
+      "slug": "antena3",
+      "hex": "FF7328",
+      "source": "https://www.antena3.com",
+      "shard": 2
+    },
+    {
+      "key": "si-anthropic-global",
+      "title": "Anthropic",
+      "slug": "anthropic",
+      "hex": "191919",
+      "source": "https://www.anthropic.com",
+      "shard": 2
+    },
+    {
+      "key": "si-antv-global",
+      "title": "AntV",
+      "slug": "antv",
+      "hex": "8B5DFF",
+      "source": "https://antv.vision",
+      "shard": 2
+    },
+    {
+      "key": "si-anycubic-global",
+      "title": "Anycubic",
+      "slug": "anycubic",
+      "hex": "476695",
+      "source": "https://store.anycubic.com/pages/firmware-software",
+      "shard": 2
+    },
+    {
+      "key": "si-anydesk-global",
+      "title": "AnyDesk",
+      "slug": "anydesk",
+      "hex": "EF443B",
+      "source": "https://anydesk.com",
+      "shard": 2
+    },
+    {
+      "key": "si-apache-global",
+      "title": "Apache",
+      "slug": "apache",
+      "hex": "D22128",
+      "source": "https://www.apache.org/foundation/press/kit",
+      "shard": 2
+    },
+    {
+      "key": "si-apacheairflow-global",
+      "title": "Apache Airflow",
+      "slug": "apacheairflow",
+      "hex": "017CEE",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apacheant-global",
+      "title": "Apache Ant",
+      "slug": "apacheant",
+      "hex": "A81C7D",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachearrow-global",
+      "title": "Apache Arrow",
+      "slug": "apachearrow",
+      "hex": "000000",
+      "source": "https://arrow.apache.org/visual_identity",
+      "shard": 2
+    },
+    {
+      "key": "si-apacheavro-global",
+      "title": "Apache Avro",
+      "slug": "apacheavro",
+      "hex": "30638E",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachecassandra-global",
+      "title": "Apache Cassandra",
+      "slug": "apachecassandra",
+      "hex": "1287B1",
+      "source": "https://www.apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachecloudstack-global",
+      "title": "Apache CloudStack",
+      "slug": "apachecloudstack",
+      "hex": "2AA5DC",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachecordova-global",
+      "title": "Apache Cordova",
+      "slug": "apachecordova",
+      "hex": "E8E8E8",
+      "source": "https://cordova.apache.org/artwork",
+      "shard": 2
+    },
+    {
+      "key": "si-apachecouchdb-global",
+      "title": "Apache CouchDB",
+      "slug": "apachecouchdb",
+      "hex": "E42528",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachedolphinscheduler-global",
+      "title": "Apache DolphinScheduler",
+      "slug": "apachedolphinscheduler",
+      "hex": "85CDF0",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachedoris-global",
+      "title": "Apache Doris",
+      "slug": "apachedoris",
+      "hex": "444FD9",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachedruid-global",
+      "title": "Apache Druid",
+      "slug": "apachedruid",
+      "hex": "29F1FB",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apacheecharts-global",
+      "title": "Apache ECharts",
+      "slug": "apacheecharts",
+      "hex": "AA344D",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apacheflink-global",
+      "title": "Apache Flink",
+      "slug": "apacheflink",
+      "hex": "E6526F",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachefreemarker-global",
+      "title": "Apache FreeMarker",
+      "slug": "apachefreemarker",
+      "hex": "326CAC",
+      "source": "https://www.apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachegroovy-global",
+      "title": "Apache Groovy",
+      "slug": "apachegroovy",
+      "hex": "4298B8",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apacheguacamole-global",
+      "title": "Apache Guacamole",
+      "slug": "apacheguacamole",
+      "hex": "578B34",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachehadoop-global",
+      "title": "Apache Hadoop",
+      "slug": "apachehadoop",
+      "hex": "66CCFF",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachehbase-global",
+      "title": "Apache HBase",
+      "slug": "apachehbase",
+      "hex": "BE160C",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachehive-global",
+      "title": "Apache Hive",
+      "slug": "apachehive",
+      "hex": "FDEE21",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachejmeter-global",
+      "title": "Apache JMeter",
+      "slug": "apachejmeter",
+      "hex": "D22128",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachekafka-global",
+      "title": "Apache Kafka",
+      "slug": "apachekafka",
+      "hex": "231F20",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachekylin-global",
+      "title": "Apache Kylin",
+      "slug": "apachekylin",
+      "hex": "F09D13",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachelucene-global",
+      "title": "Apache Lucene",
+      "slug": "apachelucene",
+      "hex": "019B8F",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachemaven-global",
+      "title": "Apache Maven",
+      "slug": "apachemaven",
+      "hex": "C71A36",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachenetbeanside-global",
+      "title": "Apache NetBeans IDE",
+      "slug": "apachenetbeanside",
+      "hex": "1B6AC6",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachenifi-global",
+      "title": "Apache NiFi",
+      "slug": "apachenifi",
+      "hex": "728E9B",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apacheopenoffice-global",
+      "title": "Apache OpenOffice",
+      "slug": "apacheopenoffice",
+      "hex": "0E85CD",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apacheparquet-global",
+      "title": "Apache Parquet",
+      "slug": "apacheparquet",
+      "hex": "50ABF1",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachepdfbox-global",
+      "title": "Apache PDFBox",
+      "slug": "apachepdfbox",
+      "hex": "34A5DA",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachepulsar-global",
+      "title": "Apache Pulsar",
+      "slug": "apachepulsar",
+      "hex": "188FFF",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apacherocketmq-global",
+      "title": "Apache RocketMQ",
+      "slug": "apacherocketmq",
+      "hex": "D77310",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachesolr-global",
+      "title": "Apache Solr",
+      "slug": "apachesolr",
+      "hex": "D9411E",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachespark-global",
+      "title": "Apache Spark",
+      "slug": "apachespark",
+      "hex": "E25A1C",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachestorm-global",
+      "title": "Apache Storm",
+      "slug": "apachestorm",
+      "hex": "225593",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachesuperset-global",
+      "title": "Apache Superset",
+      "slug": "apachesuperset",
+      "hex": "20A6C9",
+      "source": "https://apache.org/logos",
+      "shard": 2
+    },
+    {
+      "key": "si-apachetomcat-global",
+      "title": "Apache Tomcat",
+      "slug": "apachetomcat",
+      "hex": "F8DC75",
+      "source": "https://apache.org/logos",
+      "shard": 3
+    },
+    {
+      "key": "si-aparat-global",
+      "title": "Aparat",
+      "slug": "aparat",
+      "hex": "ED145B",
+      "source": "https://www.aparat.com/logo",
+      "shard": 3
+    },
+    {
+      "key": "si-apifox-global",
+      "title": "Apifox",
+      "slug": "apifox",
+      "hex": "F44A53",
+      "source": "https://apifox.com",
+      "shard": 3
+    },
+    {
+      "key": "si-apmterminals-global",
+      "title": "APM Terminals",
+      "slug": "apmterminals",
+      "hex": "FF6441",
+      "source": "https://www.apmterminals.com",
+      "shard": 3
+    },
+    {
+      "key": "si-apollographql-global",
+      "title": "Apollo GraphQL",
+      "slug": "apollographql",
+      "hex": "311C87",
+      "source": "https://www.apollographql.com",
+      "shard": 3
+    },
+    {
+      "key": "si-appstore-global",
+      "title": "App Store",
+      "slug": "appstore",
+      "hex": "0D96F6",
+      "source": "https://developer.apple.com/app-store",
+      "shard": 3
+    },
+    {
+      "key": "si-appgallery-global",
+      "title": "AppGallery",
+      "slug": "appgallery",
+      "hex": "FF0000",
+      "source": "https://appgallery.huawei.com",
+      "shard": 3
+    },
+    {
+      "key": "si-appian-global",
+      "title": "Appian",
+      "slug": "appian",
+      "hex": "2322F0",
+      "source": "https://appian.com",
+      "shard": 3
+    },
+    {
+      "key": "si-appimage-global",
+      "title": "AppImage",
+      "slug": "appimage",
+      "hex": "739FB9",
+      "source": "https://appimage.org",
+      "shard": 3
+    },
+    {
+      "key": "si-applenews-global",
+      "title": "Apple News",
+      "slug": "applenews",
+      "hex": "FD415E",
+      "source": "https://www.apple.com/apple-news",
+      "shard": 3
+    },
+    {
+      "key": "si-applepay-global",
+      "title": "Apple Pay",
+      "slug": "applepay",
+      "hex": "000000",
+      "source": "https://developer.apple.com/apple-pay/marketing",
+      "shard": 3
+    },
+    {
+      "key": "si-applepodcasts-global",
+      "title": "Apple Podcasts",
+      "slug": "applepodcasts",
+      "hex": "9933CC",
+      "source": "https://www.apple.com/itunes/marketing-on-podcasts/identity-guidelines.html#apple-podcasts-icon",
+      "shard": 3
+    },
+    {
+      "key": "si-appsignal-global",
+      "title": "AppSignal",
+      "slug": "appsignal",
+      "hex": "21375A",
+      "source": "https://appsignal.com",
+      "shard": 3
+    },
+    {
+      "key": "si-appsmith-global",
+      "title": "Appsmith",
+      "slug": "appsmith",
+      "hex": "2A2F3D",
+      "source": "https://www.appsmith.com",
+      "shard": 3
+    },
+    {
+      "key": "si-appveyor-global",
+      "title": "AppVeyor",
+      "slug": "appveyor",
+      "hex": "00B3E0",
+      "source": "https://www.appveyor.com",
+      "shard": 3
+    },
+    {
+      "key": "si-appwrite-global",
+      "title": "Appwrite",
+      "slug": "appwrite",
+      "hex": "FD366E",
+      "source": "https://appwrite.io/assets",
+      "shard": 3
+    },
+    {
+      "key": "si-aqua-global",
+      "title": "Aqua",
+      "slug": "aqua",
+      "hex": "1904DA",
+      "source": "https://www.aquasec.com/brand",
+      "shard": 3
+    },
+    {
+      "key": "si-arangodb-global",
+      "title": "ArangoDB",
+      "slug": "arangodb",
+      "hex": "DDDF72",
+      "source": "https://www.arangodb.com/resources/logos",
+      "shard": 3
+    },
+    {
+      "key": "si-arc-global",
+      "title": "Arc",
+      "slug": "arc",
+      "hex": "FCBFBD",
+      "source": "https://arc.net",
+      "shard": 3
+    },
+    {
+      "key": "si-arcgis-global",
+      "title": "ArcGIS",
+      "slug": "arcgis",
+      "hex": "2C7AC3",
+      "source": "https://www.esri.com/en-us/arcgis/products/arcgis-pro/overview",
+      "shard": 3
+    },
+    {
+      "key": "si-archlinux-global",
+      "title": "Arch Linux",
+      "slug": "archlinux",
+      "hex": "1793D1",
+      "source": "https://www.archlinux.org/art",
+      "shard": 3
+    },
+    {
+      "key": "si-archicad-global",
+      "title": "Archicad",
+      "slug": "archicad",
+      "hex": "2D50A5",
+      "source": "https://graphisoft.com/contact-us/press-relations#/documents/archicad-logo-98604",
+      "shard": 3
+    },
+    {
+      "key": "si-archiveofourown-global",
+      "title": "Archive of Our Own",
+      "slug": "archiveofourown",
+      "hex": "990000",
+      "source": "https://archiveofourown.org",
+      "shard": 3
+    },
+    {
+      "key": "si-arduino-global",
+      "title": "Arduino",
+      "slug": "arduino",
+      "hex": "00878F",
+      "source": "https://www.arduino.cc",
+      "shard": 3
+    },
+    {
+      "key": "si-argos-global",
+      "title": "Argos",
+      "slug": "argos",
+      "hex": "DA291C",
+      "source": "https://www.argos.co.uk",
+      "shard": 3
+    },
+    {
+      "key": "si-arkecosystem-global",
+      "title": "ARK Ecosystem",
+      "slug": "arkecosystem",
+      "hex": "C9292C",
+      "source": "https://ark.io",
+      "shard": 3
+    },
+    {
+      "key": "si-arlo-global",
+      "title": "Arlo",
+      "slug": "arlo",
+      "hex": "49B48A",
+      "source": "https://www.arlo.com",
+      "shard": 3
+    },
+    {
+      "key": "si-arm-global",
+      "title": "Arm",
+      "slug": "arm",
+      "hex": "0091BD",
+      "source": "https://www.arm.com",
+      "shard": 3
+    },
+    {
+      "key": "si-armkeil-global",
+      "title": "Arm Keil",
+      "slug": "armkeil",
+      "hex": "394049",
+      "source": "https://www.keil.arm.com",
+      "shard": 3
+    },
+    {
+      "key": "si-arstechnica-global",
+      "title": "Ars Technica",
+      "slug": "arstechnica",
+      "hex": "FF4E00",
+      "source": "https://arstechnica.com",
+      "shard": 3
+    },
+    {
+      "key": "si-artixlinux-global",
+      "title": "Artix Linux",
+      "slug": "artixlinux",
+      "hex": "10A0CC",
+      "source": "https://gitea.artixlinux.org/artix/artwork/src/commit/256432e3d06b3e9024bfd6912768e80281ea3746/icons/logo-gray.svg",
+      "shard": 3
+    },
+    {
+      "key": "si-artstation-global",
+      "title": "ArtStation",
+      "slug": "artstation",
+      "hex": "13AFF0",
+      "source": "https://www.artstation.com/about/logo",
+      "shard": 3
+    },
+    {
+      "key": "si-arxiv-global",
+      "title": "arXiv",
+      "slug": "arxiv",
+      "hex": "B31B1B",
+      "source": "https://arxiv.org",
+      "shard": 3
+    },
+    {
+      "key": "si-asana-global",
+      "title": "Asana",
+      "slug": "asana",
+      "hex": "F06A6A",
+      "source": "https://asana.com/brand",
+      "shard": 3
+    },
+    {
+      "key": "si-asda-global",
+      "title": "ASDA",
+      "slug": "asda",
+      "hex": "68A51C",
+      "source": "https://www.asda.com",
+      "shard": 3
+    },
+    {
+      "key": "si-aseprite-global",
+      "title": "Aseprite",
+      "slug": "aseprite",
+      "hex": "7D929E",
+      "source": "https://www.aseprite.org",
+      "shard": 3
+    },
+    {
+      "key": "si-assemblyscript-global",
+      "title": "AssemblyScript",
+      "slug": "assemblyscript",
+      "hex": "007ACC",
+      "source": "https://www.assemblyscript.org",
+      "shard": 3
+    },
+    {
+      "key": "si-astonmartin-global",
+      "title": "Aston Martin",
+      "slug": "astonmartin",
+      "hex": "00665E",
+      "source": "https://www.astonmartin.com",
+      "shard": 3
+    },
+    {
+      "key": "si-astra-global",
+      "title": "Astra",
+      "slug": "astra",
+      "hex": "5C2EDE",
+      "source": "https://wpastra.com/brand-assets",
+      "shard": 3
+    },
+    {
+      "key": "si-astral-global",
+      "title": "Astral",
+      "slug": "astral",
+      "hex": "261230",
+      "source": "https://brandpad.io/astral",
+      "shard": 3
+    },
+    {
+      "key": "si-astro-global",
+      "title": "Astro",
+      "slug": "astro",
+      "hex": "BC52EE",
+      "source": "https://astro.build/press",
+      "shard": 3
+    },
+    {
+      "key": "si-asus-global",
+      "title": "ASUS",
+      "slug": "asus",
+      "hex": "000000",
+      "source": "https://www.asus.com",
+      "shard": 3
+    },
+    {
+      "key": "si-atari-global",
+      "title": "Atari",
+      "slug": "atari",
+      "hex": "E4202E",
+      "source": "https://atarivcs.com",
+      "shard": 3
+    },
+    {
+      "key": "si-atlasos-global",
+      "title": "AtlasOS",
+      "slug": "atlasos",
+      "hex": "1A91FF",
+      "source": "https://docs.atlasos.net/branding",
+      "shard": 3
+    },
+    {
+      "key": "si-atlassian-global",
+      "title": "Atlassian",
+      "slug": "atlassian",
+      "hex": "0052CC",
+      "source": "https://atlassian.design/resources/logo-library",
+      "shard": 3
+    },
+    {
+      "key": "si-atomgit-global",
+      "title": "AtomGit",
+      "slug": "atomgit",
+      "hex": "DA203E",
+      "source": "https://cdn-static.atomgit.com/doc/logo.svg",
+      "shard": 3
+    },
+    {
+      "key": "si-auchan-global",
+      "title": "Auchan",
+      "slug": "auchan",
+      "hex": "D6180B",
+      "source": "https://www.auchan.fr",
+      "shard": 3
+    },
+    {
+      "key": "si-audi-global",
+      "title": "Audi",
+      "slug": "audi",
+      "hex": "BB0A30",
+      "source": "https://www.audi.com/ci/en/intro/basics/rings.html",
+      "shard": 3
+    },
+    {
+      "key": "si-audioboom-global",
+      "title": "Audioboom",
+      "slug": "audioboom",
+      "hex": "007CE2",
+      "source": "https://audioboom.com/about/brand-guidelines",
+      "shard": 3
+    },
+    {
+      "key": "si-audiomack-global",
+      "title": "Audiomack",
+      "slug": "audiomack",
+      "hex": "FFA200",
+      "source": "https://styleguide.audiomack.com",
+      "shard": 3
+    },
+    {
+      "key": "si-aurelia-global",
+      "title": "Aurelia",
+      "slug": "aurelia",
+      "hex": "ED2B88",
+      "source": "https://aurelia.io",
+      "shard": 3
+    },
+    {
+      "key": "si-autentique-global",
+      "title": "Autentique",
+      "slug": "autentique",
+      "hex": "3379F2",
+      "source": "https://www.autentique.com.br",
+      "shard": 3
+    },
+    {
+      "key": "si-auth0-global",
+      "title": "Auth0",
+      "slug": "auth0",
+      "hex": "EB5424",
+      "source": "https://auth0.com",
+      "shard": 3
+    },
+    {
+      "key": "si-autocad-global",
+      "title": "AutoCAD",
+      "slug": "autocad",
+      "hex": "E51050",
+      "source": "https://www.autodesk.com/blogs/autocad",
+      "shard": 3
+    },
+    {
+      "key": "si-autodesk-global",
+      "title": "Autodesk",
+      "slug": "autodesk",
+      "hex": "000000",
+      "source": "https://brand.autodesk.com/brand-system/logo",
+      "shard": 3
+    },
+    {
+      "key": "si-autodeskmaya-global",
+      "title": "Autodesk Maya",
+      "slug": "autodeskmaya",
+      "hex": "37A5CC",
+      "source": "https://area.autodesk.com/learn/courses/maya-intro",
+      "shard": 3
+    },
+    {
+      "key": "si-autodeskrevit-global",
+      "title": "Autodesk Revit",
+      "slug": "autodeskrevit",
+      "hex": "186BFF",
+      "source": "https://www.autodesk.com/products/revit",
+      "shard": 3
+    },
+    {
+      "key": "si-autohotkey-global",
+      "title": "AutoHotkey",
+      "slug": "autohotkey",
+      "hex": "334455",
+      "source": "https://www.autohotkey.com",
+      "shard": 3
+    },
+    {
+      "key": "si-autoit-global",
+      "title": "AutoIt",
+      "slug": "autoit",
+      "hex": "5D83AC",
+      "source": "https://www.autoitscript.com",
+      "shard": 3
+    },
+    {
+      "key": "si-automattic-global",
+      "title": "Automattic",
+      "slug": "automattic",
+      "hex": "3499CD",
+      "source": "https://automattic.com/press/brand-materials",
+      "shard": 3
+    },
+    {
+      "key": "si-autozone-global",
+      "title": "AutoZone",
+      "slug": "autozone",
+      "hex": "D52B1E",
+      "source": "https://www.autozone.com",
+      "shard": 3
+    },
+    {
+      "key": "si-avaloniaui-global",
+      "title": "AvaloniaUI",
+      "slug": "avaloniaui",
+      "hex": "165BFF",
+      "source": "https://avaloniaui.net",
+      "shard": 3
+    },
+    {
+      "key": "si-avast-global",
+      "title": "Avast",
+      "slug": "avast",
+      "hex": "FF7800",
+      "source": "https://press.avast.com/media-materials#logos-and-brand-guidelines",
+      "shard": 3
+    },
+    {
+      "key": "si-avira-global",
+      "title": "Avira",
+      "slug": "avira",
+      "hex": "E02027",
+      "source": "https://www.avira.com/en/media-library",
+      "shard": 3
+    },
+    {
+      "key": "si-avm-global",
+      "title": "AVM",
+      "slug": "avm",
+      "hex": "E2001A",
+      "source": "https://en.fritz.com/about-avm/press/press-media",
+      "shard": 3
+    },
+    {
+      "key": "si-await-global",
+      "title": "Await",
+      "slug": "await",
+      "hex": "7858F5",
+      "source": "https://awaitwidget.com",
+      "shard": 3
+    },
+    {
+      "key": "si-awesomewm-global",
+      "title": "awesomeWM",
+      "slug": "awesomewm",
+      "hex": "535D6C",
+      "source": "https://awesomewm.org",
+      "shard": 3
+    },
+    {
+      "key": "si-awwwards-global",
+      "title": "Awwwards",
+      "slug": "awwwards",
+      "hex": "222222",
+      "source": "https://www.awwwards.com",
+      "shard": 3
+    },
+    {
+      "key": "si-axisbank-global",
+      "title": "Axis Bank",
+      "slug": "axisbank",
+      "hex": "971A4D",
+      "source": "https://www.axisbank.com/shareholders-corner/shareholders-information/annual-reports",
+      "shard": 3
+    },
+    {
+      "key": "si-bandrautomation-global",
+      "title": "B&R Automation",
+      "slug": "bandrautomation",
+      "hex": "FF8800",
+      "source": "https://www.br-automation.com",
+      "shard": 3
+    },
+    {
+      "key": "si-b4x-global",
+      "title": "B4X",
+      "slug": "b4x",
+      "hex": "14AECB",
+      "source": "https://www.b4x.com/android/forum/threads/b4x-svg-icon-for-simpleicons-library.163853/#post-1004900",
+      "shard": 3
+    },
+    {
+      "key": "si-babelio-global",
+      "title": "Babelio",
+      "slug": "babelio",
+      "hex": "FBB91E",
+      "source": "https://www.babelio.com",
+      "shard": 3
+    },
+    {
+      "key": "si-backblaze-global",
+      "title": "Backblaze",
+      "slug": "backblaze",
+      "hex": "E21E29",
+      "source": "https://www.backblaze.com/company/news.html",
+      "shard": 3
+    },
+    {
+      "key": "si-backbone-global",
+      "title": "Backbone",
+      "slug": "backbone",
+      "hex": "000000",
+      "source": "https://backbone.com/press",
+      "shard": 3
+    },
+    {
+      "key": "si-backendless-global",
+      "title": "Backendless",
+      "slug": "backendless",
+      "hex": "1D77BD",
+      "source": "https://backendless.com",
+      "shard": 3
+    },
+    {
+      "key": "si-badoo-global",
+      "title": "Badoo",
+      "slug": "badoo",
+      "hex": "783BF9",
+      "source": "https://badoo.com",
+      "shard": 4
+    },
+    {
+      "key": "si-baidu-global",
+      "title": "Baidu",
+      "slug": "baidu",
+      "hex": "2932E1",
+      "source": "https://www.baidu.com",
+      "shard": 4
+    },
+    {
+      "key": "si-bakalari-global",
+      "title": "Bakaláři",
+      "slug": "bakalari",
+      "hex": "00A2E2",
+      "source": "https://konference.bakalari.cz",
+      "shard": 4
+    },
+    {
+      "key": "si-bamboo-global",
+      "title": "Bamboo",
+      "slug": "bamboo",
+      "hex": "0052CC",
+      "source": "https://www.atlassian.design/guidelines/marketing/resources/logo-files",
+      "shard": 4
+    },
+    {
+      "key": "si-bambulab-global",
+      "title": "Bambu Lab",
+      "slug": "bambulab",
+      "hex": "00AE42",
+      "source": "https://bambulab.com",
+      "shard": 4
+    },
+    {
+      "key": "si-bandcamp-global",
+      "title": "Bandcamp",
+      "slug": "bandcamp",
+      "hex": "408294",
+      "source": "https://bandcamp.com/buttons",
+      "shard": 4
+    },
+    {
+      "key": "si-bandlab-global",
+      "title": "BandLab",
+      "slug": "bandlab",
+      "hex": "F12C18",
+      "source": "https://www.bandlab.com",
+      "shard": 4
+    },
+    {
+      "key": "si-bandsintown-global",
+      "title": "Bandsintown",
+      "slug": "bandsintown",
+      "hex": "00CEC8",
+      "source": "https://www.company.bandsintown.com/brand-assets",
+      "shard": 4
+    },
+    {
+      "key": "si-baremetrics-global",
+      "title": "Baremetrics",
+      "slug": "baremetrics",
+      "hex": "6078FF",
+      "source": "https://baremetrics.com",
+      "shard": 4
+    },
+    {
+      "key": "si-barmenia-global",
+      "title": "Barmenia",
+      "slug": "barmenia",
+      "hex": "009FE3",
+      "source": "https://barmenia.de",
+      "shard": 4
+    },
+    {
+      "key": "si-baseui-global",
+      "title": "Base UI",
+      "slug": "baseui",
+      "hex": "EDEDED",
+      "source": "https://base-ui.com",
+      "shard": 4
+    },
+    {
+      "key": "si-basecamp-global",
+      "title": "Basecamp",
+      "slug": "basecamp",
+      "hex": "1D2D35",
+      "source": "https://basecamp.com/about/press",
+      "shard": 4
+    },
+    {
+      "key": "si-baserow-global",
+      "title": "Baserow",
+      "slug": "baserow",
+      "hex": "5190EF",
+      "source": "https://baserow.io",
+      "shard": 4
+    },
+    {
+      "key": "si-basicattentiontoken-global",
+      "title": "Basic Attention Token",
+      "slug": "basicattentiontoken",
+      "hex": "80247B",
+      "source": "https://brave.com/media-assets",
+      "shard": 4
+    },
+    {
+      "key": "si-bata-global",
+      "title": "Bata",
+      "slug": "bata",
+      "hex": "DD282E",
+      "source": "https://www.bata.com",
+      "shard": 4
+    },
+    {
+      "key": "si-battledotnet-global",
+      "title": "Battle.net",
+      "slug": "battledotnet",
+      "hex": "4381C3",
+      "source": "https://battle.net",
+      "shard": 4
+    },
+    {
+      "key": "si-bazel-global",
+      "title": "Bazel",
+      "slug": "bazel",
+      "hex": "43A047",
+      "source": "https://bazel.build",
+      "shard": 4
+    },
+    {
+      "key": "si-beatport-global",
+      "title": "Beatport",
+      "slug": "beatport",
+      "hex": "01FF95",
+      "source": "https://www.beatport.com",
+      "shard": 4
+    },
+    {
+      "key": "si-beats-global",
+      "title": "Beats",
+      "slug": "beats",
+      "hex": "005571",
+      "source": "https://www.elastic.co/beats",
+      "shard": 4
+    },
+    {
+      "key": "si-beatsbydre-global",
+      "title": "Beats by Dre",
+      "slug": "beatsbydre",
+      "hex": "E01F3D",
+      "source": "https://www.beatsbydre.com",
+      "shard": 4
+    },
+    {
+      "key": "si-beatstars-global",
+      "title": "BeatStars",
+      "slug": "beatstars",
+      "hex": "EB0000",
+      "source": "https://beatstars.world/brand-guidelines",
+      "shard": 4
+    },
+    {
+      "key": "si-beekeeperstudio-global",
+      "title": "Beekeeper Studio",
+      "slug": "beekeeperstudio",
+      "hex": "FAD83B",
+      "source": "https://www.beekeeperstudio.io/press",
+      "shard": 4
+    },
+    {
+      "key": "si-behance-global",
+      "title": "Behance",
+      "slug": "behance",
+      "hex": "1769FF",
+      "source": "https://www.behance.net",
+      "shard": 4
+    },
+    {
+      "key": "si-bem-global",
+      "title": "BEM",
+      "slug": "bem",
+      "hex": "000000",
+      "source": "https://en.bem.info",
+      "shard": 4
+    },
+    {
+      "key": "si-bento-global",
+      "title": "Bento",
+      "slug": "bento",
+      "hex": "768CFF",
+      "source": "https://bento.me",
+      "shard": 4
+    },
+    {
+      "key": "si-bentobox-global",
+      "title": "BentoBox",
+      "slug": "bentobox",
+      "hex": "F15541",
+      "source": "https://www.getbento.com",
+      "shard": 4
+    },
+    {
+      "key": "si-bereal-global",
+      "title": "BeReal",
+      "slug": "bereal",
+      "hex": "000000",
+      "source": "https://bereal.com",
+      "shard": 4
+    },
+    {
+      "key": "si-betfair-global",
+      "title": "Betfair",
+      "slug": "betfair",
+      "hex": "FFB80B",
+      "source": "https://www.betfair.com",
+      "shard": 4
+    },
+    {
+      "key": "si-betterstack-global",
+      "title": "Better Stack",
+      "slug": "betterstack",
+      "hex": "000000",
+      "source": "https://betterstack.com",
+      "shard": 4
+    },
+    {
+      "key": "si-bigcartel-global",
+      "title": "Big Cartel",
+      "slug": "bigcartel",
+      "hex": "222222",
+      "source": "https://www.bigcartel.com",
+      "shard": 4
+    },
+    {
+      "key": "si-bigbasket-global",
+      "title": "bigbasket",
+      "slug": "bigbasket",
+      "hex": "A5CD39",
+      "source": "https://www.bigbasket.com",
+      "shard": 4
+    },
+    {
+      "key": "si-bigcommerce-global",
+      "title": "BigCommerce",
+      "slug": "bigcommerce",
+      "hex": "121118",
+      "source": "https://www.bigcommerce.co.uk/press",
+      "shard": 4
+    },
+    {
+      "key": "si-bilibili-global",
+      "title": "Bilibili",
+      "slug": "bilibili",
+      "hex": "00A1D6",
+      "source": "https://www.bilibili.com",
+      "shard": 4
+    },
+    {
+      "key": "si-billboard-global",
+      "title": "Billboard",
+      "slug": "billboard",
+      "hex": "000000",
+      "source": "https://www.billboard.com",
+      "shard": 4
+    },
+    {
+      "key": "si-binance-global",
+      "title": "Binance",
+      "slug": "binance",
+      "hex": "F0B90B",
+      "source": "https://binance.com",
+      "shard": 4
+    },
+    {
+      "key": "si-biolink-global",
+      "title": "Bio Link",
+      "slug": "biolink",
+      "hex": "000000",
+      "source": "https://bio.link",
+      "shard": 4
+    },
+    {
+      "key": "si-bisecthosting-global",
+      "title": "BisectHosting",
+      "slug": "bisecthosting",
+      "hex": "0D1129",
+      "source": "https://www.bisecthosting.com",
+      "shard": 4
+    },
+    {
+      "key": "si-bit-global",
+      "title": "Bit",
+      "slug": "bit",
+      "hex": "592EC1",
+      "source": "https://bit.dev",
+      "shard": 4
+    },
+    {
+      "key": "si-bitbucket-global",
+      "title": "Bitbucket",
+      "slug": "bitbucket",
+      "hex": "0052CC",
+      "source": "https://atlassian.design/resources/logo-library",
+      "shard": 4
+    },
+    {
+      "key": "si-bitcoin-global",
+      "title": "Bitcoin",
+      "slug": "bitcoin",
+      "hex": "F7931A",
+      "source": "https://bitcoin.org",
+      "shard": 4
+    },
+    {
+      "key": "si-bitcoincash-global",
+      "title": "Bitcoin Cash",
+      "slug": "bitcoincash",
+      "hex": "0AC18E",
+      "source": "https://www.bitcoincash.org/graphics",
+      "shard": 4
+    },
+    {
+      "key": "si-bitcoinsv-global",
+      "title": "Bitcoin SV",
+      "slug": "bitcoinsv",
+      "hex": "EAB300",
+      "source": "https://bitcoinsv.com",
+      "shard": 4
+    },
+    {
+      "key": "si-bitdefender-global",
+      "title": "Bitdefender",
+      "slug": "bitdefender",
+      "hex": "ED1C24",
+      "source": "https://brand.bitdefender.com",
+      "shard": 4
+    },
+    {
+      "key": "si-bitly-global",
+      "title": "Bitly",
+      "slug": "bitly",
+      "hex": "EE6123",
+      "source": "https://bitly.com/pages/press",
+      "shard": 4
+    },
+    {
+      "key": "si-bitrise-global",
+      "title": "Bitrise",
+      "slug": "bitrise",
+      "hex": "683D87",
+      "source": "https://www.bitrise.io/presskit",
+      "shard": 4
+    },
+    {
+      "key": "si-bitsy-global",
+      "title": "Bitsy",
+      "slug": "bitsy",
+      "hex": "6767B2",
+      "source": "https://www.bitsy.org/image/cat.svg",
+      "shard": 4
+    },
+    {
+      "key": "si-bittorrent-global",
+      "title": "BitTorrent",
+      "slug": "bittorrent",
+      "hex": "050505",
+      "source": "https://www.bittorrent.com/products",
+      "shard": 4
+    },
+    {
+      "key": "si-bitwarden-global",
+      "title": "Bitwarden",
+      "slug": "bitwarden",
+      "hex": "175DDC",
+      "source": "https://bitwarden.com/brand",
+      "shard": 4
+    },
+    {
+      "key": "si-bitwig-global",
+      "title": "Bitwig",
+      "slug": "bitwig",
+      "hex": "FF5A00",
+      "source": "https://www.bitwig.com",
+      "shard": 4
+    },
+    {
+      "key": "si-black-global",
+      "title": "Black",
+      "slug": "black",
+      "hex": "000000",
+      "source": "https://black.readthedocs.io",
+      "shard": 4
+    },
+    {
+      "key": "si-blackberry-global",
+      "title": "Blackberry",
+      "slug": "blackberry",
+      "hex": "000000",
+      "source": "https://www.blackberry.com",
+      "shard": 4
+    },
+    {
+      "key": "si-blackmagicdesign-global",
+      "title": "Blackmagic Design",
+      "slug": "blackmagicdesign",
+      "hex": "FFA200",
+      "source": "https://www.blackmagicdesign.com",
+      "shard": 4
+    },
+    {
+      "key": "si-blazemeter-global",
+      "title": "Blazemeter",
+      "slug": "blazemeter",
+      "hex": "CA2133",
+      "source": "https://www.blazemeter.com",
+      "shard": 4
+    },
+    {
+      "key": "si-blender-global",
+      "title": "Blender",
+      "slug": "blender",
+      "hex": "E87D0D",
+      "source": "https://www.blender.org/about/logo",
+      "shard": 4
+    },
+    {
+      "key": "si-blibli-global",
+      "title": "Blibli",
+      "slug": "blibli",
+      "hex": "0072FF",
+      "source": "https://www.blibli.com",
+      "shard": 4
+    },
+    {
+      "key": "si-blockbench-global",
+      "title": "Blockbench",
+      "slug": "blockbench",
+      "hex": "1E93D9",
+      "source": "https://www.blockbench.net/wiki/blockbench/logos",
+      "shard": 4
+    },
+    {
+      "key": "si-blockchaindotcom-global",
+      "title": "Blockchain.com",
+      "slug": "blockchaindotcom",
+      "hex": "121D33",
+      "source": "https://www.blockchain.com/en/press",
+      "shard": 4
+    },
+    {
+      "key": "si-blogger-global",
+      "title": "Blogger",
+      "slug": "blogger",
+      "hex": "FF5722",
+      "source": "https://www.blogger.com",
+      "shard": 4
+    },
+    {
+      "key": "si-bloglovin-global",
+      "title": "Bloglovin",
+      "slug": "bloglovin",
+      "hex": "000000",
+      "source": "https://www.bloglovin.com/widgets",
+      "shard": 4
+    },
+    {
+      "key": "si-blueprint-global",
+      "title": "Blueprint",
+      "slug": "blueprint",
+      "hex": "137CBD",
+      "source": "https://blueprintjs.com/docs",
+      "shard": 4
+    },
+    {
+      "key": "si-bluesky-global",
+      "title": "Bluesky",
+      "slug": "bluesky",
+      "hex": "1185FE",
+      "source": "https://bsky.social/about/blog/press-faq",
+      "shard": 4
+    },
+    {
+      "key": "si-bluesound-global",
+      "title": "Bluesound",
+      "slug": "bluesound",
+      "hex": "0F131E",
+      "source": "https://www.bluesound.com/products/node-x",
+      "shard": 4
+    },
+    {
+      "key": "si-bluetooth-global",
+      "title": "Bluetooth",
+      "slug": "bluetooth",
+      "hex": "0082FC",
+      "source": "https://www.bluetooth.com/develop-with-bluetooth/marketing-branding",
+      "shard": 4
+    },
+    {
+      "key": "si-bmcsoftware-global",
+      "title": "BMC Software",
+      "slug": "bmcsoftware",
+      "hex": "FE5000",
+      "source": "https://www.bmc.com",
+      "shard": 4
+    },
+    {
+      "key": "si-bmw-global",
+      "title": "BMW",
+      "slug": "bmw",
+      "hex": "0066B1",
+      "source": "https://bmw.com",
+      "shard": 4
+    },
+    {
+      "key": "si-bnbchain-global",
+      "title": "BNB Chain",
+      "slug": "bnbchain",
+      "hex": "F0B90B",
+      "source": "https://www.bnbchain.org",
+      "shard": 4
+    },
+    {
+      "key": "si-boardgamegeek-global",
+      "title": "BoardGameGeek",
+      "slug": "boardgamegeek",
+      "hex": "FF5100",
+      "source": "https://boardgamegeek.com",
+      "shard": 4
+    },
+    {
+      "key": "si-boat-global",
+      "title": "boAt",
+      "slug": "boat",
+      "hex": "E20722",
+      "source": "https://www.boat-lifestyle.com",
+      "shard": 4
+    },
+    {
+      "key": "si-boehringeringelheim-global",
+      "title": "Boehringer Ingelheim",
+      "slug": "boehringeringelheim",
+      "hex": "00E47C",
+      "source": "https://www.boehringer-ingelheim.com",
+      "shard": 4
+    },
+    {
+      "key": "si-bohemiainteractive-global",
+      "title": "Bohemia Interactive",
+      "slug": "bohemiainteractive",
+      "hex": "6BA539",
+      "source": "https://www.bohemia.net/press",
+      "shard": 4
+    },
+    {
+      "key": "si-bombardier-global",
+      "title": "Bombardier",
+      "slug": "bombardier",
+      "hex": "000000",
+      "source": "https://bombardier.com",
+      "shard": 4
+    },
+    {
+      "key": "si-bookalope-global",
+      "title": "Bookalope",
+      "slug": "bookalope",
+      "hex": "DC2829",
+      "source": "https://bookalope.net",
+      "shard": 4
+    },
+    {
+      "key": "si-bookbub-global",
+      "title": "BookBub",
+      "slug": "bookbub",
+      "hex": "F44336",
+      "source": "https://insights.bookbub.com/bookbub-follow-bookmark-buttons-for-authors-websites",
+      "shard": 4
+    },
+    {
+      "key": "si-bookingdotcom-global",
+      "title": "Booking.com",
+      "slug": "bookingdotcom",
+      "hex": "003A9A",
+      "source": "https://www.bookingholdings.com/media-room",
+      "shard": 4
+    },
+    {
+      "key": "si-bookmeter-global",
+      "title": "Bookmeter",
+      "slug": "bookmeter",
+      "hex": "64BC4B",
+      "source": "https://bookmeter.com",
+      "shard": 4
+    },
+    {
+      "key": "si-bookmyshow-global",
+      "title": "BookMyShow",
+      "slug": "bookmyshow",
+      "hex": "C4242B",
+      "source": "https://in.bookmyshow.com",
+      "shard": 5
+    },
+    {
+      "key": "si-bookstack-global",
+      "title": "BookStack",
+      "slug": "bookstack",
+      "hex": "0288D1",
+      "source": "https://www.bookstackapp.com",
+      "shard": 5
+    },
+    {
+      "key": "si-boost-global",
+      "title": "Boost",
+      "slug": "boost",
+      "hex": "F7901E",
+      "source": "https://www.boostmobile.com",
+      "shard": 5
+    },
+    {
+      "key": "si-boosty-global",
+      "title": "Boosty",
+      "slug": "boosty",
+      "hex": "F15F2C",
+      "source": "https://boosty.to/app/brand",
+      "shard": 5
+    },
+    {
+      "key": "si-boots-global",
+      "title": "Boots",
+      "slug": "boots",
+      "hex": "05054B",
+      "source": "https://www.boots-uk.com",
+      "shard": 5
+    },
+    {
+      "key": "si-bootstrap-global",
+      "title": "Bootstrap",
+      "slug": "bootstrap",
+      "hex": "7952B3",
+      "source": "https://getbootstrap.com/docs/5.3/about/brand",
+      "shard": 5
+    },
+    {
+      "key": "si-borgbackup-global",
+      "title": "BorgBackup",
+      "slug": "borgbackup",
+      "hex": "00DD00",
+      "source": "https://www.borgbackup.org",
+      "shard": 5
+    },
+    {
+      "key": "si-bosch-global",
+      "title": "Bosch",
+      "slug": "bosch",
+      "hex": "EA0016",
+      "source": "https://www.bosch.de",
+      "shard": 5
+    },
+    {
+      "key": "si-bose-global",
+      "title": "Bose",
+      "slug": "bose",
+      "hex": "000000",
+      "source": "https://www.bose.com",
+      "shard": 5
+    },
+    {
+      "key": "si-botblecms-global",
+      "title": "Botble CMS",
+      "slug": "botblecms",
+      "hex": "205081",
+      "source": "https://botble.com",
+      "shard": 5
+    },
+    {
+      "key": "si-boulanger-global",
+      "title": "boulanger",
+      "slug": "boulanger",
+      "hex": "FD5300",
+      "source": "https://www.boulanger.com",
+      "shard": 5
+    },
+    {
+      "key": "si-bower-global",
+      "title": "Bower",
+      "slug": "bower",
+      "hex": "EF5734",
+      "source": "https://bower.io/docs/about/#brand",
+      "shard": 5
+    },
+    {
+      "key": "si-box-global",
+      "title": "Box",
+      "slug": "box",
+      "hex": "0061D5",
+      "source": "https://www.box.com/en-gb/about-us/press",
+      "shard": 5
+    },
+    {
+      "key": "si-boxysvg-global",
+      "title": "Boxy SVG",
+      "slug": "boxysvg",
+      "hex": "3584E3",
+      "source": "https://boxy-svg.com/ideas/7/app-icon-redesign#comment-1953",
+      "shard": 5
+    },
+    {
+      "key": "si-braintree-global",
+      "title": "Braintree",
+      "slug": "braintree",
+      "hex": "000000",
+      "source": "https://www.braintreepayments.com/press",
+      "shard": 5
+    },
+    {
+      "key": "si-brandfetch-global",
+      "title": "Brandfetch",
+      "slug": "brandfetch",
+      "hex": "0084FF",
+      "source": "https://brandfetch.com/brandfetch.com",
+      "shard": 5
+    },
+    {
+      "key": "si-brandfolder-global",
+      "title": "Brandfolder",
+      "slug": "brandfolder",
+      "hex": "40D1F5",
+      "source": "https://brandfolder.com/brandfolder",
+      "shard": 5
+    },
+    {
+      "key": "si-brave-global",
+      "title": "Brave",
+      "slug": "brave",
+      "hex": "FB542B",
+      "source": "https://brave.com/brave-branding-assets",
+      "shard": 5
+    },
+    {
+      "key": "si-breaker-global",
+      "title": "Breaker",
+      "slug": "breaker",
+      "hex": "003DAD",
+      "source": "https://www.breaker.audio/i/brand",
+      "shard": 5
+    },
+    {
+      "key": "si-brenntag-global",
+      "title": "Brenntag",
+      "slug": "brenntag",
+      "hex": "1A0033",
+      "source": "https://www.brenntag.com",
+      "shard": 5
+    },
+    {
+      "key": "si-brevo-global",
+      "title": "Brevo",
+      "slug": "brevo",
+      "hex": "0B996E",
+      "source": "https://www.brevo.com",
+      "shard": 5
+    },
+    {
+      "key": "si-brex-global",
+      "title": "Brex",
+      "slug": "brex",
+      "hex": "212121",
+      "source": "https://www.brex.com/journal/press",
+      "shard": 5
+    },
+    {
+      "key": "si-bricks-global",
+      "title": "Bricks",
+      "slug": "bricks",
+      "hex": "FFD54D",
+      "source": "https://bricksbuilder.io",
+      "shard": 5
+    },
+    {
+      "key": "si-broadcom-global",
+      "title": "Broadcom",
+      "slug": "broadcom",
+      "hex": "E31837",
+      "source": "https://www.broadcom.com/support",
+      "shard": 5
+    },
+    {
+      "key": "si-bruno-global",
+      "title": "Bruno",
+      "slug": "bruno",
+      "hex": "F4AA41",
+      "source": "https://www.usebruno.com",
+      "shard": 5
+    },
+    {
+      "key": "si-bsd-global",
+      "title": "BSD",
+      "slug": "bsd",
+      "hex": "AB2B28",
+      "source": "https://freebsdfoundation.org/about-us/about-the-foundation/project",
+      "shard": 5
+    },
+    {
+      "key": "si-buddy-global",
+      "title": "Buddy",
+      "slug": "buddy",
+      "hex": "1A86FD",
+      "source": "https://buddy.works/about",
+      "shard": 5
+    },
+    {
+      "key": "si-buffer-global",
+      "title": "Buffer",
+      "slug": "buffer",
+      "hex": "231F20",
+      "source": "https://buffer.com",
+      "shard": 5
+    },
+    {
+      "key": "si-bugatti-global",
+      "title": "Bugatti",
+      "slug": "bugatti",
+      "hex": "000000",
+      "source": "https://newsroom.bugatti.com",
+      "shard": 5
+    },
+    {
+      "key": "si-bugcrowd-global",
+      "title": "Bugcrowd",
+      "slug": "bugcrowd",
+      "hex": "F26822",
+      "source": "https://www.bugcrowd.com/about/press-kit",
+      "shard": 5
+    },
+    {
+      "key": "si-buhl-global",
+      "title": "Buhl",
+      "slug": "buhl",
+      "hex": "023E84",
+      "source": "https://buhl.de",
+      "shard": 5
+    },
+    {
+      "key": "si-buildkite-global",
+      "title": "Buildkite",
+      "slug": "buildkite",
+      "hex": "14CC80",
+      "source": "https://buildkite.com/brand-assets",
+      "shard": 5
+    },
+    {
+      "key": "si-builtbybit-global",
+      "title": "BuiltByBit",
+      "slug": "builtbybit",
+      "hex": "2D87C3",
+      "source": "https://builtbybit.com/wiki/branding",
+      "shard": 5
+    },
+    {
+      "key": "si-bukalapak-global",
+      "title": "Bukalapak",
+      "slug": "bukalapak",
+      "hex": "E31E52",
+      "source": "https://www.bukalapak.com",
+      "shard": 5
+    },
+    {
+      "key": "si-bulma-global",
+      "title": "Bulma",
+      "slug": "bulma",
+      "hex": "00D1B2",
+      "source": "https://bulma.io/brand",
+      "shard": 5
+    },
+    {
+      "key": "si-bun-global",
+      "title": "Bun",
+      "slug": "bun",
+      "hex": "000000",
+      "source": "https://bun.sh/press-kit",
+      "shard": 5
+    },
+    {
+      "key": "si-bungie-global",
+      "title": "Bungie",
+      "slug": "bungie",
+      "hex": "0075BB",
+      "source": "https://www.bungie.net/7/en/Destiny",
+      "shard": 5
+    },
+    {
+      "key": "si-bunnydotnet-global",
+      "title": "bunny.net",
+      "slug": "bunnydotnet",
+      "hex": "FFAA49",
+      "source": "https://bunny.net",
+      "shard": 5
+    },
+    {
+      "key": "si-bunq-global",
+      "title": "bunq",
+      "slug": "bunq",
+      "hex": "3394D7",
+      "source": "https://press.bunq.com/media_kits",
+      "shard": 5
+    },
+    {
+      "key": "si-burgerking-global",
+      "title": "Burger King",
+      "slug": "burgerking",
+      "hex": "D62300",
+      "source": "https://www.bk.com",
+      "shard": 5
+    },
+    {
+      "key": "si-burpsuite-global",
+      "title": "Burp Suite",
+      "slug": "burpsuite",
+      "hex": "FF6633",
+      "source": "https://portswigger.net",
+      "shard": 5
+    },
+    {
+      "key": "si-burton-global",
+      "title": "Burton",
+      "slug": "burton",
+      "hex": "000000",
+      "source": "https://brand.burton.com/logo",
+      "shard": 5
+    },
+    {
+      "key": "si-buymeacoffee-global",
+      "title": "Buy Me A Coffee",
+      "slug": "buymeacoffee",
+      "hex": "FFDD00",
+      "source": "https://www.buymeacoffee.com/brand",
+      "shard": 5
+    },
+    {
+      "key": "si-buysellads-global",
+      "title": "BuySellAds",
+      "slug": "buysellads",
+      "hex": "EB4714",
+      "source": "https://docs.buysellads.com",
+      "shard": 5
+    },
+    {
+      "key": "si-buzzfeed-global",
+      "title": "BuzzFeed",
+      "slug": "buzzfeed",
+      "hex": "EE3322",
+      "source": "https://www.buzzfeed.com/press/assets",
+      "shard": 5
+    },
+    {
+      "key": "si-bvg-global",
+      "title": "BVG",
+      "slug": "bvg",
+      "hex": "F0D722",
+      "source": "https://www.bvg.de",
+      "shard": 5
+    },
+    {
+      "key": "si-byjus-global",
+      "title": "Byju's",
+      "slug": "byjus",
+      "hex": "813588",
+      "source": "https://byjus.com/byjus-the-learning-app",
+      "shard": 5
+    },
+    {
+      "key": "si-bytedance-global",
+      "title": "ByteDance",
+      "slug": "bytedance",
+      "hex": "3C8CFF",
+      "source": "https://www.bytedance.com",
+      "shard": 5
+    },
+    {
+      "key": "si-cplusplusbuilder-global",
+      "title": "C++ Builder",
+      "slug": "cplusplusbuilder",
+      "hex": "E62431",
+      "source": "https://www.embarcadero.com/news/logo",
+      "shard": 5
+    },
+    {
+      "key": "si-cachet-global",
+      "title": "Cachet",
+      "slug": "cachet",
+      "hex": "7ED321",
+      "source": "https://cachethq.io/press",
+      "shard": 5
+    },
+    {
+      "key": "si-caddy-global",
+      "title": "Caddy",
+      "slug": "caddy",
+      "hex": "1F88C0",
+      "source": "https://caddyserver.com",
+      "shard": 5
+    },
+    {
+      "key": "si-cadillac-global",
+      "title": "Cadillac",
+      "slug": "cadillac",
+      "hex": "000000",
+      "source": "https://www.cadillac.com",
+      "shard": 5
+    },
+    {
+      "key": "si-cakephp-global",
+      "title": "CakePHP",
+      "slug": "cakephp",
+      "hex": "D33C43",
+      "source": "https://cakephp.org/logos",
+      "shard": 5
+    },
+    {
+      "key": "si-caldotcom-global",
+      "title": "Cal.com",
+      "slug": "caldotcom",
+      "hex": "292929",
+      "source": "https://design.cal.com/assets/logos",
+      "shard": 5
+    },
+    {
+      "key": "si-calendly-global",
+      "title": "Calendly",
+      "slug": "calendly",
+      "hex": "006BFF",
+      "source": "https://calendly.com/newsroom",
+      "shard": 5
+    },
+    {
+      "key": "si-campaignmonitor-global",
+      "title": "Campaign Monitor",
+      "slug": "campaignmonitor",
+      "hex": "111324",
+      "source": "https://www.campaignmonitor.com/company/brand/",
+      "shard": 5
+    },
+    {
+      "key": "si-camunda-global",
+      "title": "Camunda",
+      "slug": "camunda",
+      "hex": "FC5D0D",
+      "source": "https://camunda.com/brand",
+      "shard": 5
+    },
+    {
+      "key": "si-canonical-global",
+      "title": "Canonical",
+      "slug": "canonical",
+      "hex": "E95420",
+      "source": "https://design.ubuntu.com/resources",
+      "shard": 5
+    },
+    {
+      "key": "si-canvas-global",
+      "title": "Canvas",
+      "slug": "canvas",
+      "hex": "E72429",
+      "source": "https://www.instructure.com/about/brand-guide/media-resources",
+      "shard": 5
+    },
+    {
+      "key": "si-carthrottle-global",
+      "title": "Car Throttle",
+      "slug": "carthrottle",
+      "hex": "FF9C42",
+      "source": "https://www.carthrottle.com",
+      "shard": 5
+    },
+    {
+      "key": "si-cardano-global",
+      "title": "Cardano",
+      "slug": "cardano",
+      "hex": "0133AD",
+      "source": "https://cardano.org/brand-assets/",
+      "shard": 5
+    },
+    {
+      "key": "si-carlsberggroup-global",
+      "title": "Carlsberg Group",
+      "slug": "carlsberggroup",
+      "hex": "00321E",
+      "source": "https://www.carlsberggroup.com/who-we-are/about-the-carlsberg-group/design-guide",
+      "shard": 5
+    },
+    {
+      "key": "si-carrd-global",
+      "title": "Carrd",
+      "slug": "carrd",
+      "hex": "596CAF",
+      "source": "https://carrd.co/docs/general/brand-assets",
+      "shard": 5
+    },
+    {
+      "key": "si-carto-global",
+      "title": "Carto",
+      "slug": "carto",
+      "hex": "EB1510",
+      "source": "https://carto.com/brand/",
+      "shard": 5
+    },
+    {
+      "key": "si-cashapp-global",
+      "title": "Cash App",
+      "slug": "cashapp",
+      "hex": "00C244",
+      "source": "https://cash.app/press",
+      "shard": 5
+    },
+    {
+      "key": "si-castbox-global",
+      "title": "Castbox",
+      "slug": "castbox",
+      "hex": "F55B23",
+      "source": "https://castbox.fm/newsroom/",
+      "shard": 5
+    },
+    {
+      "key": "si-castorama-global",
+      "title": "Castorama",
+      "slug": "castorama",
+      "hex": "0078D7",
+      "source": "https://www.castorama.fr",
+      "shard": 5
+    },
+    {
+      "key": "si-castro-global",
+      "title": "Castro",
+      "slug": "castro",
+      "hex": "00B265",
+      "source": "https://supertop.co/castro/press/",
+      "shard": 5
+    },
+    {
+      "key": "si-cbc-global",
+      "title": "CBC",
+      "slug": "cbc",
+      "hex": "E60505",
+      "source": "https://www.cbc.ca",
+      "shard": 5
+    },
+    {
+      "key": "si-cbs-global",
+      "title": "CBS",
+      "slug": "cbs",
+      "hex": "033963",
+      "source": "https://www.cbs.com",
+      "shard": 5
+    },
+    {
+      "key": "si-ccc-global",
+      "title": "CCC",
+      "slug": "ccc",
+      "hex": "000000",
+      "source": "https://www.cqc.com.cn/www/chinese/c/2018-03-20/553293.shtml",
+      "shard": 5
+    },
+    {
+      "key": "si-ccleaner-global",
+      "title": "CCleaner",
+      "slug": "ccleaner",
+      "hex": "CB2D29",
+      "source": "https://www.ccleaner.com",
+      "shard": 5
+    },
+    {
+      "key": "si-cdprojekt-global",
+      "title": "CD Projekt",
+      "slug": "cdprojekt",
+      "hex": "DC0D15",
+      "source": "https://www.cdprojekt.com/en/media/logotypes/",
+      "shard": 5
+    },
+    {
+      "key": "si-ce-global",
+      "title": "CE",
+      "slug": "ce",
+      "hex": "000000",
+      "source": "https://single-market-economy.ec.europa.eu/single-market/ce-marking_en",
+      "shard": 5
+    },
+    {
+      "key": "si-celestron-global",
+      "title": "Celestron",
+      "slug": "celestron",
+      "hex": "F47216",
+      "source": "https://www.celestron.com",
+      "shard": 5
+    },
+    {
+      "key": "si-centos-global",
+      "title": "CentOS",
+      "slug": "centos",
+      "hex": "262577",
+      "source": "https://wiki.centos.org/ArtWork/Brand/Logo",
+      "shard": 6
+    },
+    {
+      "key": "si-cesium-global",
+      "title": "Cesium",
+      "slug": "cesium",
+      "hex": "6CADDF",
+      "source": "https://cesium.com/press/",
+      "shard": 6
+    },
+    {
+      "key": "si-chainguard-global",
+      "title": "Chainguard",
+      "slug": "chainguard",
+      "hex": "4445E7",
+      "source": "https://www.chainguard.dev",
+      "shard": 6
+    },
+    {
+      "key": "si-chainlink-global",
+      "title": "Chainlink",
+      "slug": "chainlink",
+      "hex": "375BD2",
+      "source": "https://chain.link/brand-assets",
+      "shard": 6
+    },
+    {
+      "key": "si-changedetection-global",
+      "title": "Change Detection",
+      "slug": "changedetection",
+      "hex": "3056D3",
+      "source": "https://changedetection.io",
+      "shard": 6
+    },
+    {
+      "key": "si-channel4-global",
+      "title": "Channel 4",
+      "slug": "channel4",
+      "hex": "AAFF89",
+      "source": "https://mediaassets.channel4.com/guidelines/guide/34286b7b-ea25-404d-a43b-e912fc85b0e0/page/8a2dd59a-51df-4f47-aa37-c235a761455e",
+      "shard": 6
+    },
+    {
+      "key": "si-charles-global",
+      "title": "Charles",
+      "slug": "charles",
+      "hex": "F3F5F5",
+      "source": "https://www.charlesproxy.com",
+      "shard": 6
+    },
+    {
+      "key": "si-chartdotjs-global",
+      "title": "Chart.js",
+      "slug": "chartdotjs",
+      "hex": "FF6384",
+      "source": "https://www.chartjs.org",
+      "shard": 6
+    },
+    {
+      "key": "si-chartmogul-global",
+      "title": "ChartMogul",
+      "slug": "chartmogul",
+      "hex": "13324B",
+      "source": "https://chartmogul.com/company/",
+      "shard": 6
+    },
+    {
+      "key": "si-chatbot-global",
+      "title": "ChatBot",
+      "slug": "chatbot",
+      "hex": "0066FF",
+      "source": "https://chatbot.design",
+      "shard": 6
+    },
+    {
+      "key": "si-chatwoot-global",
+      "title": "Chatwoot",
+      "slug": "chatwoot",
+      "hex": "1F93FF",
+      "source": "https://www.chatwoot.com",
+      "shard": 6
+    },
+    {
+      "key": "si-checkio-global",
+      "title": "CheckiO",
+      "slug": "checkio",
+      "hex": "008DB6",
+      "source": "https://py.checkio.org/blog/",
+      "shard": 6
+    },
+    {
+      "key": "si-checkmarx-global",
+      "title": "Checkmarx",
+      "slug": "checkmarx",
+      "hex": "54B848",
+      "source": "https://www.checkmarx.com/resources/datasheets/",
+      "shard": 6
+    },
+    {
+      "key": "si-checkmk-global",
+      "title": "Checkmk",
+      "slug": "checkmk",
+      "hex": "15D1A0",
+      "source": "https://checkmk.com",
+      "shard": 6
+    },
+    {
+      "key": "si-chedraui-global",
+      "title": "Chedraui",
+      "slug": "chedraui",
+      "hex": "E0832F",
+      "source": "https://www.chedraui.com.mx",
+      "shard": 6
+    },
+    {
+      "key": "si-chef-global",
+      "title": "Chef",
+      "slug": "chef",
+      "hex": "F09820",
+      "source": "https://www.chef.io",
+      "shard": 6
+    },
+    {
+      "key": "si-chemex-global",
+      "title": "Chemex",
+      "slug": "chemex",
+      "hex": "4D2B1A",
+      "source": "https://vtlogo.com/chemex-coffeemaker-vector-logo-svg/",
+      "shard": 6
+    },
+    {
+      "key": "si-chessdotcom-global",
+      "title": "Chess.com",
+      "slug": "chessdotcom",
+      "hex": "81B64C",
+      "source": "https://www.chess.com/article/view/chess-com-brand-resources",
+      "shard": 6
+    },
+    {
+      "key": "si-chevrolet-global",
+      "title": "Chevrolet",
+      "slug": "chevrolet",
+      "hex": "CD9834",
+      "source": "https://www.chevrolet.com/content/dam/chevrolet/na/us/english/index/shopping-tools/download-catalog/02-pdf/2019-chevrolet-corvette-catalog.pdf",
+      "shard": 6
+    },
+    {
+      "key": "si-chianetwork-global",
+      "title": "Chia Network",
+      "slug": "chianetwork",
+      "hex": "5ECE71",
+      "source": "https://www.chia.net/branding/",
+      "shard": 6
+    },
+    {
+      "key": "si-chinaeasternairlines-global",
+      "title": "China Eastern Airlines",
+      "slug": "chinaeasternairlines",
+      "hex": "1A2477",
+      "source": "https://uk.ceair.com/newCMS/uk/en/content/en_Footer/Support/201904/t20190404_5763.html",
+      "shard": 6
+    },
+    {
+      "key": "si-chinasouthernairlines-global",
+      "title": "China Southern Airlines",
+      "slug": "chinasouthernairlines",
+      "hex": "008BCB",
+      "source": "https://www.csair.com/en/about/investor/yejibaogao/2020/",
+      "shard": 6
+    },
+    {
+      "key": "si-chocolatey-global",
+      "title": "Chocolatey",
+      "slug": "chocolatey",
+      "hex": "80B5E3",
+      "source": "https://chocolatey.org/media-kit",
+      "shard": 6
+    },
+    {
+      "key": "si-chromatic-global",
+      "title": "Chromatic",
+      "slug": "chromatic",
+      "hex": "FC521F",
+      "source": "https://www.chromatic.com",
+      "shard": 6
+    },
+    {
+      "key": "si-chromewebstore-global",
+      "title": "Chrome Web Store",
+      "slug": "chromewebstore",
+      "hex": "4285F4",
+      "source": "https://chromewebstore.google.com",
+      "shard": 6
+    },
+    {
+      "key": "si-chrysler-global",
+      "title": "Chrysler",
+      "slug": "chrysler",
+      "hex": "000000",
+      "source": "https://www.stellantis.com/en/brands/chrysler",
+      "shard": 6
+    },
+    {
+      "key": "si-chupachups-global",
+      "title": "Chupa Chups",
+      "slug": "chupachups",
+      "hex": "CF103E",
+      "source": "https://www.chupachups.co.uk",
+      "shard": 6
+    },
+    {
+      "key": "si-cinema4d-global",
+      "title": "Cinema 4D",
+      "slug": "cinema4d",
+      "hex": "011A6A",
+      "source": "https://www.maxon.net/en/about-maxon/branding",
+      "shard": 6
+    },
+    {
+      "key": "si-cinnamon-global",
+      "title": "Cinnamon",
+      "slug": "cinnamon",
+      "hex": "DC682E",
+      "source": "https://projects.linuxmint.com/cinnamon",
+      "shard": 6
+    },
+    {
+      "key": "si-cinny-global",
+      "title": "Cinny",
+      "slug": "cinny",
+      "hex": "000000",
+      "source": "https://cinny.in/assets/cinny.svg",
+      "shard": 6
+    },
+    {
+      "key": "si-circle-global",
+      "title": "Circle",
+      "slug": "circle",
+      "hex": "8669AE",
+      "source": "https://www.circle.com",
+      "shard": 6
+    },
+    {
+      "key": "si-circleci-global",
+      "title": "CircleCI",
+      "slug": "circleci",
+      "hex": "343434",
+      "source": "https://circleci.com/press",
+      "shard": 6
+    },
+    {
+      "key": "si-circuitverse-global",
+      "title": "CircuitVerse",
+      "slug": "circuitverse",
+      "hex": "42B883",
+      "source": "https://circuitverse.org",
+      "shard": 6
+    },
+    {
+      "key": "si-cirrusci-global",
+      "title": "Cirrus CI",
+      "slug": "cirrusci",
+      "hex": "4051B5",
+      "source": "https://cirrus-ci.org",
+      "shard": 6
+    },
+    {
+      "key": "si-cisco-global",
+      "title": "Cisco",
+      "slug": "cisco",
+      "hex": "1BA0D7",
+      "source": "https://www.cisco.com",
+      "shard": 6
+    },
+    {
+      "key": "si-citrix-global",
+      "title": "Citrix",
+      "slug": "citrix",
+      "hex": "452170",
+      "source": "https://brand.citrix.com",
+      "shard": 6
+    },
+    {
+      "key": "si-citroen-global",
+      "title": "Citroën",
+      "slug": "citroen",
+      "hex": "DA291C",
+      "source": "https://www.stellantis.com/en/brands/citroen",
+      "shard": 6
+    },
+    {
+      "key": "si-civicrm-global",
+      "title": "CiviCRM",
+      "slug": "civicrm",
+      "hex": "81C459",
+      "source": "https://civicrm.org/trademark",
+      "shard": 6
+    },
+    {
+      "key": "si-civo-global",
+      "title": "Civo",
+      "slug": "civo",
+      "hex": "239DFF",
+      "source": "https://www.civo.com/brand-assets",
+      "shard": 6
+    },
+    {
+      "key": "si-clarifai-global",
+      "title": "Clarifai",
+      "slug": "clarifai",
+      "hex": "1955FF",
+      "source": "https://www.clarifai.com",
+      "shard": 6
+    },
+    {
+      "key": "si-claris-global",
+      "title": "Claris",
+      "slug": "claris",
+      "hex": "000000",
+      "source": "https://www.claris.com",
+      "shard": 6
+    },
+    {
+      "key": "si-clarivate-global",
+      "title": "Clarivate",
+      "slug": "clarivate",
+      "hex": "93FF9E",
+      "source": "https://clarivate.com",
+      "shard": 6
+    },
+    {
+      "key": "si-claude-global",
+      "title": "Claude",
+      "slug": "claude",
+      "hex": "D97757",
+      "source": "https://claude.ai",
+      "shard": 6
+    },
+    {
+      "key": "si-claudecode-global",
+      "title": "Claude Code",
+      "slug": "claudecode",
+      "hex": "D97757",
+      "source": "https://code.claude.com",
+      "shard": 6
+    },
+    {
+      "key": "si-clerk-global",
+      "title": "Clerk",
+      "slug": "clerk",
+      "hex": "6C47FF",
+      "source": "https://clerk.com",
+      "shard": 6
+    },
+    {
+      "key": "si-clevercloud-global",
+      "title": "Clever Cloud",
+      "slug": "clevercloud",
+      "hex": "171C36",
+      "source": "https://www.clever-cloud.com",
+      "shard": 6
+    },
+    {
+      "key": "si-clickup-global",
+      "title": "ClickUp",
+      "slug": "clickup",
+      "hex": "7B68EE",
+      "source": "https://clickup.com/brand",
+      "shard": 6
+    },
+    {
+      "key": "si-cline-global",
+      "title": "Cline",
+      "slug": "cline",
+      "hex": "18181B",
+      "source": "https://cline.bot/assets/branding/logos/cline-wordmark-black.svg",
+      "shard": 6
+    },
+    {
+      "key": "si-clion-global",
+      "title": "CLion",
+      "slug": "clion",
+      "hex": "000000",
+      "source": "https://www.jetbrains.com/company/brand/logos/",
+      "shard": 6
+    },
+    {
+      "key": "si-clockify-global",
+      "title": "Clockify",
+      "slug": "clockify",
+      "hex": "03A9F4",
+      "source": "https://clockify.me/brand-assets",
+      "shard": 6
+    },
+    {
+      "key": "si-cloud66-global",
+      "title": "Cloud 66",
+      "slug": "cloud66",
+      "hex": "3C72B9",
+      "source": "https://www.cloud66.com",
+      "shard": 6
+    },
+    {
+      "key": "si-cloudfoundry-global",
+      "title": "Cloud Foundry",
+      "slug": "cloudfoundry",
+      "hex": "0C9ED5",
+      "source": "https://www.cloudfoundry.org",
+      "shard": 6
+    },
+    {
+      "key": "si-cloudnativebuild-global",
+      "title": "Cloud Native Build",
+      "slug": "cloudnativebuild",
+      "hex": "F76945",
+      "source": "https://docs.cnb.cool/en/logo.html",
+      "shard": 6
+    },
+    {
+      "key": "si-cloudbees-global",
+      "title": "CloudBees",
+      "slug": "cloudbees",
+      "hex": "1997B5",
+      "source": "https://www.cloudbees.com",
+      "shard": 6
+    },
+    {
+      "key": "si-cloudcannon-global",
+      "title": "CloudCannon",
+      "slug": "cloudcannon",
+      "hex": "407AFC",
+      "source": "https://cloudcannon.com",
+      "shard": 6
+    },
+    {
+      "key": "si-cloudera-global",
+      "title": "Cloudera",
+      "slug": "cloudera",
+      "hex": "F96702",
+      "source": "https://www.cloudera.com",
+      "shard": 6
+    },
+    {
+      "key": "si-cloudflare-global",
+      "title": "Cloudflare",
+      "slug": "cloudflare",
+      "hex": "F38020",
+      "source": "https://www.cloudflare.com/logo/",
+      "shard": 6
+    },
+    {
+      "key": "si-cloudflarepages-global",
+      "title": "Cloudflare Pages",
+      "slug": "cloudflarepages",
+      "hex": "F38020",
+      "source": "https://pages.cloudflare.com",
+      "shard": 6
+    },
+    {
+      "key": "si-cloudflareworkers-global",
+      "title": "Cloudflare Workers",
+      "slug": "cloudflareworkers",
+      "hex": "F38020",
+      "source": "https://www.cloudflare.com/developer-platform/products/",
+      "shard": 6
+    },
+    {
+      "key": "si-cloudinary-global",
+      "title": "Cloudinary",
+      "slug": "cloudinary",
+      "hex": "3448C5",
+      "source": "https://cloudinary.com",
+      "shard": 6
+    },
+    {
+      "key": "si-cloudron-global",
+      "title": "Cloudron",
+      "slug": "cloudron",
+      "hex": "03A9F4",
+      "source": "https://www.cloudron.io/brand-assets.html",
+      "shard": 6
+    },
+    {
+      "key": "si-cloudsmith-global",
+      "title": "Cloudsmith",
+      "slug": "cloudsmith",
+      "hex": "2A6FE1",
+      "source": "https://cloudsmith.com/company/brand/",
+      "shard": 6
+    },
+    {
+      "key": "si-cloudways-global",
+      "title": "Cloudways",
+      "slug": "cloudways",
+      "hex": "2C39BD",
+      "source": "https://www.cloudways.com/en/media-kit.php",
+      "shard": 6
+    },
+    {
+      "key": "si-clubforce-global",
+      "title": "Clubforce",
+      "slug": "clubforce",
+      "hex": "191176",
+      "source": "https://clubforce.com/media-centre",
+      "shard": 6
+    },
+    {
+      "key": "si-clubhouse-global",
+      "title": "Clubhouse",
+      "slug": "clubhouse",
+      "hex": "FFE450",
+      "source": "https://www.clubhouse.com/press",
+      "shard": 6
+    },
+    {
+      "key": "si-clyp-global",
+      "title": "Clyp",
+      "slug": "clyp",
+      "hex": "3CBDB1",
+      "source": "https://clyp.it",
+      "shard": 6
+    },
+    {
+      "key": "si-cmake-global",
+      "title": "CMake",
+      "slug": "cmake",
+      "hex": "064F8C",
+      "source": "https://www.kitware.com/platforms/",
+      "shard": 6
+    },
+    {
+      "key": "si-cnet-global",
+      "title": "CNET",
+      "slug": "cnet",
+      "hex": "E71D1D",
+      "source": "https://www.cnet.com",
+      "shard": 6
+    },
+    {
+      "key": "si-cnn-global",
+      "title": "CNN",
+      "slug": "cnn",
+      "hex": "CC0000",
+      "source": "https://edition.cnn.com",
+      "shard": 6
+    },
+    {
+      "key": "si-coop-global",
+      "title": "Co-op",
+      "slug": "coop",
+      "hex": "00B1E7",
+      "source": "https://www.co-operative.coop/media/assets",
+      "shard": 6
+    },
+    {
+      "key": "si-cobalt-global",
+      "title": "cobalt",
+      "slug": "cobalt",
+      "hex": "FFFFFF",
+      "source": "https://cobalt.tools",
+      "shard": 6
+    },
+    {
+      "key": "si-cockroachlabs-global",
+      "title": "Cockroach Labs",
+      "slug": "cockroachlabs",
+      "hex": "6933FF",
+      "source": "https://www.cockroachlabs.com",
+      "shard": 6
+    },
+    {
+      "key": "si-cocos-global",
+      "title": "Cocos",
+      "slug": "cocos",
+      "hex": "55C2E1",
+      "source": "https://www.cocos.com/en/",
+      "shard": 6
+    },
+    {
+      "key": "si-coda-global",
+      "title": "Coda",
+      "slug": "coda",
+      "hex": "F46A54",
+      "source": "https://coda.io",
+      "shard": 6
+    },
+    {
+      "key": "si-codacy-global",
+      "title": "Codacy",
+      "slug": "codacy",
+      "hex": "222F29",
+      "source": "https://www.codacy.com/blog/",
+      "shard": 6
+    },
+    {
+      "key": "si-codeclimate-global",
+      "title": "Code Climate",
+      "slug": "codeclimate",
+      "hex": "000000",
+      "source": "https://codeclimate.com/github/codeclimate/python-test-reporter/badges/",
+      "shard": 7
+    },
+    {
+      "key": "si-codeblocks-global",
+      "title": "Code::Blocks",
+      "slug": "codeblocks",
+      "hex": "41AD48",
+      "source": "https://wiki.codeblocks.org/index.php/Main_Page",
+      "shard": 7
+    },
+    {
+      "key": "si-codeberg-global",
+      "title": "Codeberg",
+      "slug": "codeberg",
+      "hex": "2185D0",
+      "source": "https://codeberg.org/Codeberg/Design/src/commit/ac514aa9aaa2457d4af3c3e13df3ab136d22a49a/logo/special/codeberg-logo_special_fake-transaprency.svg",
+      "shard": 7
+    },
+    {
+      "key": "si-codebuddy-global",
+      "title": "CodeBuddy",
+      "slug": "codebuddy",
+      "hex": "6C4DFF",
+      "source": "https://www.codebuddy.cn",
+      "shard": 7
+    },
+    {
+      "key": "si-codecademy-global",
+      "title": "Codecademy",
+      "slug": "codecademy",
+      "hex": "1F4056",
+      "source": "https://www.codecademy.com",
+      "shard": 7
+    },
+    {
+      "key": "si-codechef-global",
+      "title": "CodeChef",
+      "slug": "codechef",
+      "hex": "5B4638",
+      "source": "https://www.codechef.com",
+      "shard": 7
+    },
+    {
+      "key": "si-codecov-global",
+      "title": "Codecov",
+      "slug": "codecov",
+      "hex": "F01F7A",
+      "source": "https://codecov.io",
+      "shard": 7
+    },
+    {
+      "key": "si-codefactor-global",
+      "title": "CodeFactor",
+      "slug": "codefactor",
+      "hex": "F44A6A",
+      "source": "https://www.codefactor.io",
+      "shard": 7
+    },
+    {
+      "key": "si-codeforces-global",
+      "title": "Codeforces",
+      "slug": "codeforces",
+      "hex": "1F8ACB",
+      "source": "https://codeforces.com",
+      "shard": 7
+    },
+    {
+      "key": "si-codefresh-global",
+      "title": "Codefresh",
+      "slug": "codefresh",
+      "hex": "08B1AB",
+      "source": "https://codefresh.io",
+      "shard": 7
+    },
+    {
+      "key": "si-codeigniter-global",
+      "title": "CodeIgniter",
+      "slug": "codeigniter",
+      "hex": "EF4223",
+      "source": "https://www.codeigniter.com/help/legal",
+      "shard": 7
+    },
+    {
+      "key": "si-codemagic-global",
+      "title": "Codemagic",
+      "slug": "codemagic",
+      "hex": "F45E3F",
+      "source": "https://codemagic.io",
+      "shard": 7
+    },
+    {
+      "key": "si-codementor-global",
+      "title": "Codementor",
+      "slug": "codementor",
+      "hex": "003648",
+      "source": "https://www.codementor.io",
+      "shard": 7
+    },
+    {
+      "key": "si-codenewbie-global",
+      "title": "CodeNewbie",
+      "slug": "codenewbie",
+      "hex": "9013FE",
+      "source": "https://community.codenewbie.org",
+      "shard": 7
+    },
+    {
+      "key": "si-codeproject-global",
+      "title": "CodeProject",
+      "slug": "codeproject",
+      "hex": "FF9900",
+      "source": "https://www.codeproject.com",
+      "shard": 7
+    },
+    {
+      "key": "si-coder-global",
+      "title": "Coder",
+      "slug": "coder",
+      "hex": "090B0B",
+      "source": "https://coder.com/brand#3-logos",
+      "shard": 7
+    },
+    {
+      "key": "si-coderabbit-global",
+      "title": "CodeRabbit",
+      "slug": "coderabbit",
+      "hex": "FF570A",
+      "source": "https://www.coderabbit.ai/brand",
+      "shard": 7
+    },
+    {
+      "key": "si-codersrank-global",
+      "title": "CodersRank",
+      "slug": "codersrank",
+      "hex": "67A4AC",
+      "source": "https://codersrank.io",
+      "shard": 7
+    },
+    {
+      "key": "si-codesandbox-global",
+      "title": "CodeSandbox",
+      "slug": "codesandbox",
+      "hex": "151515",
+      "source": "https://codesandbox.io/CodeSandbox-Press-Kit.zip",
+      "shard": 7
+    },
+    {
+      "key": "si-codeship-global",
+      "title": "Codeship",
+      "slug": "codeship",
+      "hex": "004466",
+      "source": "https://app.codeship.com",
+      "shard": 7
+    },
+    {
+      "key": "si-codesignal-global",
+      "title": "CodeSignal",
+      "slug": "codesignal",
+      "hex": "1062FB",
+      "source": "https://codesignal.com",
+      "shard": 7
+    },
+    {
+      "key": "si-codestream-global",
+      "title": "CodeStream",
+      "slug": "codestream",
+      "hex": "008C99",
+      "source": "https://www.codestream.com",
+      "shard": 7
+    },
+    {
+      "key": "si-codingninjas-global",
+      "title": "Coding Ninjas",
+      "slug": "codingninjas",
+      "hex": "DD6620",
+      "source": "https://www.codingninjas.com/press-release",
+      "shard": 7
+    },
+    {
+      "key": "si-codingame-global",
+      "title": "CodinGame",
+      "slug": "codingame",
+      "hex": "F2BB13",
+      "source": "https://www.codingame.com/work/press/press-kit/",
+      "shard": 7
+    },
+    {
+      "key": "si-codio-global",
+      "title": "Codio",
+      "slug": "codio",
+      "hex": "4574E0",
+      "source": "https://codio.com",
+      "shard": 7
+    },
+    {
+      "key": "si-coffeescript-global",
+      "title": "CoffeeScript",
+      "slug": "coffeescript",
+      "hex": "2F2625",
+      "source": "https://coffeescript.org",
+      "shard": 7
+    },
+    {
+      "key": "si-coggle-global",
+      "title": "Coggle",
+      "slug": "coggle",
+      "hex": "9ED56B",
+      "source": "https://coggle.it/press",
+      "shard": 7
+    },
+    {
+      "key": "si-coinbase-global",
+      "title": "Coinbase",
+      "slug": "coinbase",
+      "hex": "0052FF",
+      "source": "https://www.coinbase.com/press",
+      "shard": 7
+    },
+    {
+      "key": "si-coinmarketcap-global",
+      "title": "CoinMarketCap",
+      "slug": "coinmarketcap",
+      "hex": "17181B",
+      "source": "https://www.coinmarketcap.com",
+      "shard": 7
+    },
+    {
+      "key": "si-collaboraonline-global",
+      "title": "Collabora Online",
+      "slug": "collaboraonline",
+      "hex": "5C2983",
+      "source": "https://www.collaboraonline.com/branding-guidelines",
+      "shard": 7
+    },
+    {
+      "key": "si-comicfury-global",
+      "title": "ComicFury",
+      "slug": "comicfury",
+      "hex": "79BD42",
+      "source": "https://comicfury.com/images/gator-icon-black.png",
+      "shard": 7
+    },
+    {
+      "key": "si-comma-global",
+      "title": "comma",
+      "slug": "comma",
+      "hex": "51FF00",
+      "source": "https://comma.ai",
+      "shard": 7
+    },
+    {
+      "key": "si-commodore-global",
+      "title": "Commodore",
+      "slug": "commodore",
+      "hex": "1E2A4E",
+      "source": "https://commodore.inc",
+      "shard": 7
+    },
+    {
+      "key": "si-composer-global",
+      "title": "Composer",
+      "slug": "composer",
+      "hex": "885630",
+      "source": "https://getcomposer.org",
+      "shard": 7
+    },
+    {
+      "key": "si-comptia-global",
+      "title": "CompTIA",
+      "slug": "comptia",
+      "hex": "C8202F",
+      "source": "https://www.comptia.org",
+      "shard": 7
+    },
+    {
+      "key": "si-comsol-global",
+      "title": "Comsol",
+      "slug": "comsol",
+      "hex": "368CCB",
+      "source": "https://cdn.comsol.com/company/comsol-brand-guide-November2019.pdf",
+      "shard": 7
+    },
+    {
+      "key": "si-conan-global",
+      "title": "Conan",
+      "slug": "conan",
+      "hex": "6699CB",
+      "source": "https://conan.io",
+      "shard": 7
+    },
+    {
+      "key": "si-concourse-global",
+      "title": "Concourse",
+      "slug": "concourse",
+      "hex": "3398DC",
+      "source": "https://concourse-ci.org",
+      "shard": 7
+    },
+    {
+      "key": "si-conekta-global",
+      "title": "Conekta",
+      "slug": "conekta",
+      "hex": "0A1837",
+      "source": "https://www.conekta.com",
+      "shard": 7
+    },
+    {
+      "key": "si-confluence-global",
+      "title": "Confluence",
+      "slug": "confluence",
+      "hex": "172B4D",
+      "source": "https://www.atlassian.com/company/news/press-kit",
+      "shard": 7
+    },
+    {
+      "key": "si-construct3-global",
+      "title": "Construct 3",
+      "slug": "construct3",
+      "hex": "00FFDA",
+      "source": "https://www.construct.net",
+      "shard": 7
+    },
+    {
+      "key": "si-consul-global",
+      "title": "Consul",
+      "slug": "consul",
+      "hex": "F24C53",
+      "source": "https://www.hashicorp.com/brand",
+      "shard": 7
+    },
+    {
+      "key": "si-contabo-global",
+      "title": "Contabo",
+      "slug": "contabo",
+      "hex": "00AAEB",
+      "source": "https://contabo.com",
+      "shard": 7
+    },
+    {
+      "key": "si-containerd-global",
+      "title": "containerd",
+      "slug": "containerd",
+      "hex": "575757",
+      "source": "https://cncf-branding.netlify.app/projects/containerd/",
+      "shard": 7
+    },
+    {
+      "key": "si-contao-global",
+      "title": "Contao",
+      "slug": "contao",
+      "hex": "F47C00",
+      "source": "https://contao.org",
+      "shard": 7
+    },
+    {
+      "key": "si-contentful-global",
+      "title": "Contentful",
+      "slug": "contentful",
+      "hex": "2478CC",
+      "source": "https://press.contentful.com/media_kits",
+      "shard": 7
+    },
+    {
+      "key": "si-contentstack-global",
+      "title": "Contentstack",
+      "slug": "contentstack",
+      "hex": "E74C3D",
+      "source": "https://www.contentstack.com",
+      "shard": 7
+    },
+    {
+      "key": "si-continente-global",
+      "title": "Continente",
+      "slug": "continente",
+      "hex": "E31E24",
+      "source": "https://www.continente.pt",
+      "shard": 7
+    },
+    {
+      "key": "si-contributorcovenant-global",
+      "title": "Contributor Covenant",
+      "slug": "contributorcovenant",
+      "hex": "5E0D73",
+      "source": "https://www.contributor-covenant.org",
+      "shard": 7
+    },
+    {
+      "key": "si-conventionalcommits-global",
+      "title": "Conventional Commits",
+      "slug": "conventionalcommits",
+      "hex": "FE5196",
+      "source": "https://www.conventionalcommits.org",
+      "shard": 7
+    },
+    {
+      "key": "si-convertio-global",
+      "title": "Convertio",
+      "slug": "convertio",
+      "hex": "FF3333",
+      "source": "https://convertio.co",
+      "shard": 7
+    },
+    {
+      "key": "si-convex-global",
+      "title": "Convex",
+      "slug": "convex",
+      "hex": "EE342F",
+      "source": "https://www.convex.dev/brand",
+      "shard": 7
+    },
+    {
+      "key": "si-coolermaster-global",
+      "title": "Cooler Master",
+      "slug": "coolermaster",
+      "hex": "1E1E28",
+      "source": "https://www.coolermaster.com/branding",
+      "shard": 7
+    },
+    {
+      "key": "si-coppel-global",
+      "title": "Coppel",
+      "slug": "coppel",
+      "hex": "0266AE",
+      "source": "https://www.coppel.com",
+      "shard": 7
+    },
+    {
+      "key": "si-cora-global",
+      "title": "Cora",
+      "slug": "cora",
+      "hex": "E61845",
+      "source": "https://www.cora.fr",
+      "shard": 7
+    },
+    {
+      "key": "si-coreboot-global",
+      "title": "Coreboot",
+      "slug": "coreboot",
+      "hex": "000000",
+      "source": "https://coreboot.org/assets/images/banner.svg",
+      "shard": 7
+    },
+    {
+      "key": "si-coreldraw-global",
+      "title": "CorelDRAW",
+      "slug": "coreldraw",
+      "hex": "000000",
+      "source": "https://www.coreldraw.com/en/learn/webinars/ebook-embroidery",
+      "shard": 7
+    },
+    {
+      "key": "si-coronaengine-global",
+      "title": "Corona Engine",
+      "slug": "coronaengine",
+      "hex": "F96F29",
+      "source": "https://coronalabs.com",
+      "shard": 7
+    },
+    {
+      "key": "si-coronarenderer-global",
+      "title": "Corona Renderer",
+      "slug": "coronarenderer",
+      "hex": "E6502A",
+      "source": "https://corona-renderer.com/about",
+      "shard": 7
+    },
+    {
+      "key": "si-corsair-global",
+      "title": "Corsair",
+      "slug": "corsair",
+      "hex": "231F20",
+      "source": "https://www.corsair.com/newsroom/company-logos",
+      "shard": 7
+    },
+    {
+      "key": "si-couchbase-global",
+      "title": "Couchbase",
+      "slug": "couchbase",
+      "hex": "EA2328",
+      "source": "https://www.couchbase.com",
+      "shard": 7
+    },
+    {
+      "key": "si-counterstrike-global",
+      "title": "Counter-Strike",
+      "slug": "counterstrike",
+      "hex": "000000",
+      "source": "https://www.counter-strike.net",
+      "shard": 7
+    },
+    {
+      "key": "si-countingworkspro-global",
+      "title": "CountingWorks PRO",
+      "slug": "countingworkspro",
+      "hex": "2E3084",
+      "source": "https://www.countingworks.com/blog",
+      "shard": 7
+    },
+    {
+      "key": "si-coursera-global",
+      "title": "Coursera",
+      "slug": "coursera",
+      "hex": "0056D2",
+      "source": "https://about.coursera.org/press",
+      "shard": 7
+    },
+    {
+      "key": "si-coveralls-global",
+      "title": "Coveralls",
+      "slug": "coveralls",
+      "hex": "3F5767",
+      "source": "https://coveralls.io",
+      "shard": 7
+    },
+    {
+      "key": "si-coze-global",
+      "title": "Coze",
+      "slug": "coze",
+      "hex": "4D53E8",
+      "source": "https://www.coze.com/home",
+      "shard": 7
+    },
+    {
+      "key": "si-cpanel-global",
+      "title": "cPanel",
+      "slug": "cpanel",
+      "hex": "FF6C2C",
+      "source": "https://cpanel.net/company/cpanel-brand-guide/",
+      "shard": 7
+    },
+    {
+      "key": "si-craftcms-global",
+      "title": "Craft CMS",
+      "slug": "craftcms",
+      "hex": "E5422B",
+      "source": "https://craftcms.com/brand-resources",
+      "shard": 7
+    },
+    {
+      "key": "si-craftsman-global",
+      "title": "Craftsman",
+      "slug": "craftsman",
+      "hex": "D6001C",
+      "source": "https://www.craftsman.com",
+      "shard": 7
+    },
+    {
+      "key": "si-crayon-global",
+      "title": "Crayon",
+      "slug": "crayon",
+      "hex": "FF6A4C",
+      "source": "https://www.crayon.com",
+      "shard": 7
+    },
+    {
+      "key": "si-creality-global",
+      "title": "Creality",
+      "slug": "creality",
+      "hex": "000000",
+      "source": "https://www.creality.com",
+      "shard": 7
+    },
+    {
+      "key": "si-creativecommons-global",
+      "title": "Creative Commons",
+      "slug": "creativecommons",
+      "hex": "ED592F",
+      "source": "https://creativecommons.org/mission/downloads",
+      "shard": 7
+    },
+    {
+      "key": "si-creativetechnology-global",
+      "title": "Creative Technology",
+      "slug": "creativetechnology",
+      "hex": "000000",
+      "source": "https://creative.com",
+      "shard": 7
+    },
+    {
+      "key": "si-credly-global",
+      "title": "Credly",
+      "slug": "credly",
+      "hex": "FF6B00",
+      "source": "https://cdn.credly.com/assets/structure/logo-78b59f8114817c758ca965ed8f1a58a76a39b6fd70d031f771a9bbc581fcde65.svg",
+      "shard": 7
+    },
+    {
+      "key": "si-crehana-global",
+      "title": "Crehana",
+      "slug": "crehana",
+      "hex": "4B22F4",
+      "source": "https://www.crehana.com",
+      "shard": 7
+    },
+    {
+      "key": "si-crewunited-global",
+      "title": "Crew United",
+      "slug": "crewunited",
+      "hex": "000000",
+      "source": "https://www.crew-united.com",
+      "shard": 8
+    },
+    {
+      "key": "si-criticalrole-global",
+      "title": "Critical Role",
+      "slug": "criticalrole",
+      "hex": "000000",
+      "source": "https://critrole.com",
+      "shard": 8
+    },
+    {
+      "key": "si-crowdin-global",
+      "title": "Crowdin",
+      "slug": "crowdin",
+      "hex": "2E3340",
+      "source": "https://support.crowdin.com/using-logo/",
+      "shard": 8
+    },
+    {
+      "key": "si-crowdsource-global",
+      "title": "Crowdsource",
+      "slug": "crowdsource",
+      "hex": "4285F4",
+      "source": "https://crowdsource.google.com/about/",
+      "shard": 8
+    },
+    {
+      "key": "si-crunchbase-global",
+      "title": "Crunchbase",
+      "slug": "crunchbase",
+      "hex": "0288D1",
+      "source": "https://crunchbase.com",
+      "shard": 8
+    },
+    {
+      "key": "si-cryengine-global",
+      "title": "CRYENGINE",
+      "slug": "cryengine",
+      "hex": "000000",
+      "source": "https://www.cryengine.com/brand",
+      "shard": 8
+    },
+    {
+      "key": "si-cryptpad-global",
+      "title": "CryptPad",
+      "slug": "cryptpad",
+      "hex": "0087FF",
+      "source": "https://cryptpad.org",
+      "shard": 8
+    },
+    {
+      "key": "si-crystal-global",
+      "title": "Crystal",
+      "slug": "crystal",
+      "hex": "000000",
+      "source": "https://crystal-lang.org/media/",
+      "shard": 8
+    },
+    {
+      "key": "si-csdn-global",
+      "title": "CSDN",
+      "slug": "csdn",
+      "hex": "FC5531",
+      "source": "https://www.csdn.net/company/index.html",
+      "shard": 8
+    },
+    {
+      "key": "si-cssdesignawards-global",
+      "title": "CSS Design Awards",
+      "slug": "cssdesignawards",
+      "hex": "280FEE",
+      "source": "https://www.cssdesignawards.com",
+      "shard": 8
+    },
+    {
+      "key": "si-csswizardry-global",
+      "title": "CSS Wizardry",
+      "slug": "csswizardry",
+      "hex": "F43059",
+      "source": "https://csswizardry.com",
+      "shard": 8
+    },
+    {
+      "key": "si-cucumber-global",
+      "title": "Cucumber",
+      "slug": "cucumber",
+      "hex": "23D96C",
+      "source": "https://cucumber.io",
+      "shard": 8
+    },
+    {
+      "key": "si-cultura-global",
+      "title": "Cultura",
+      "slug": "cultura",
+      "hex": "1D2C54",
+      "source": "https://www.cultura.com",
+      "shard": 8
+    },
+    {
+      "key": "si-curl-global",
+      "title": "curl",
+      "slug": "curl",
+      "hex": "073551",
+      "source": "https://curl.haxx.se/logo/",
+      "shard": 8
+    },
+    {
+      "key": "si-curseforge-global",
+      "title": "CurseForge",
+      "slug": "curseforge",
+      "hex": "F16436",
+      "source": "https://www.curseforge.com",
+      "shard": 8
+    },
+    {
+      "key": "si-cursor-global",
+      "title": "Cursor",
+      "slug": "cursor",
+      "hex": "000000",
+      "source": "https://cursor.com/brand",
+      "shard": 8
+    },
+    {
+      "key": "si-customink-global",
+      "title": "Custom Ink",
+      "slug": "customink",
+      "hex": "FA3C00",
+      "source": "https://www.customink.com",
+      "shard": 8
+    },
+    {
+      "key": "si-cyberdefenders-global",
+      "title": "CyberDefenders",
+      "slug": "cyberdefenders",
+      "hex": "335EEA",
+      "source": "https://cyberdefenders.org",
+      "shard": 8
+    },
+    {
+      "key": "si-cycling74-global",
+      "title": "Cycling '74",
+      "slug": "cycling74",
+      "hex": "111111",
+      "source": "https://cycling74.com",
+      "shard": 8
+    },
+    {
+      "key": "si-cypress-global",
+      "title": "Cypress",
+      "slug": "cypress",
+      "hex": "69D3A7",
+      "source": "https://www.cypress.io/press-kit",
+      "shard": 8
+    },
+    {
+      "key": "si-dwavesystems-global",
+      "title": "D-Wave Systems",
+      "slug": "dwavesystems",
+      "hex": "008CD7",
+      "source": "https://www.dwavesys.com",
+      "shard": 8
+    },
+    {
+      "key": "si-daf-global",
+      "title": "DAF",
+      "slug": "daf",
+      "hex": "00529B",
+      "source": "https://www.daf.com/en",
+      "shard": 8
+    },
+    {
+      "key": "si-dailydotdev-global",
+      "title": "daily.dev",
+      "slug": "dailydotdev",
+      "hex": "CE3DF3",
+      "source": "https://brand.daily.dev/d/4gCtbahXkzKk/guidelines",
+      "shard": 8
+    },
+    {
+      "key": "si-dailymotion-global",
+      "title": "Dailymotion",
+      "slug": "dailymotion",
+      "hex": "0A0A0A",
+      "source": "https://careers.dailymotion.com",
+      "shard": 8
+    },
+    {
+      "key": "si-daisyui-global",
+      "title": "daisyUI",
+      "slug": "daisyui",
+      "hex": "FFC63A",
+      "source": "https://daisyui.com/brand",
+      "shard": 8
+    },
+    {
+      "key": "si-darty-global",
+      "title": "Darty",
+      "slug": "darty",
+      "hex": "EB1B23",
+      "source": "https://www.darty.com",
+      "shard": 8
+    },
+    {
+      "key": "si-dash-global",
+      "title": "Dash",
+      "slug": "dash",
+      "hex": "008DE4",
+      "source": "https://www.dash.org/brand-assets/",
+      "shard": 8
+    },
+    {
+      "key": "si-dash0-global",
+      "title": "Dash0",
+      "slug": "dash0",
+      "hex": "EA3D3B",
+      "source": "https://www.dash0.com",
+      "shard": 8
+    },
+    {
+      "key": "si-dashlane-global",
+      "title": "Dashlane",
+      "slug": "dashlane",
+      "hex": "0E353D",
+      "source": "https://brandfolder.com/dashlane/brandkitpartners",
+      "shard": 8
+    },
+    {
+      "key": "si-dassaultsystemes-global",
+      "title": "Dassault Systèmes",
+      "slug": "dassaultsystemes",
+      "hex": "005386",
+      "source": "https://www.3ds.com",
+      "shard": 8
+    },
+    {
+      "key": "si-datadotai-global",
+      "title": "data.ai",
+      "slug": "datadotai",
+      "hex": "000000",
+      "source": "https://www.data.ai/en/about/press/",
+      "shard": 8
+    },
+    {
+      "key": "si-databricks-global",
+      "title": "Databricks",
+      "slug": "databricks",
+      "hex": "FF3621",
+      "source": "https://www.databricks.com",
+      "shard": 8
+    },
+    {
+      "key": "si-datacamp-global",
+      "title": "DataCamp",
+      "slug": "datacamp",
+      "hex": "03EF62",
+      "source": "https://www.datacamp.com",
+      "shard": 8
+    },
+    {
+      "key": "si-datadog-global",
+      "title": "Datadog",
+      "slug": "datadog",
+      "hex": "632CA6",
+      "source": "https://www.datadoghq.com/about/resources",
+      "shard": 8
+    },
+    {
+      "key": "si-datagrip-global",
+      "title": "DataGrip",
+      "slug": "datagrip",
+      "hex": "000000",
+      "source": "https://www.jetbrains.com/company/brand/logos/",
+      "shard": 8
+    },
+    {
+      "key": "si-dataiku-global",
+      "title": "Dataiku",
+      "slug": "dataiku",
+      "hex": "2AB1AC",
+      "source": "https://www.dataiku.com/company/media-kit/",
+      "shard": 8
+    },
+    {
+      "key": "si-datastax-global",
+      "title": "DataStax",
+      "slug": "datastax",
+      "hex": "000000",
+      "source": "https://docs.datastax.com/en/astra/astra-db-vector",
+      "shard": 8
+    },
+    {
+      "key": "si-datefns-global",
+      "title": "date-fns",
+      "slug": "datefns",
+      "hex": "770C56",
+      "source": "https://date-fns.org",
+      "shard": 8
+    },
+    {
+      "key": "si-datocms-global",
+      "title": "DatoCMS",
+      "slug": "datocms",
+      "hex": "FF7751",
+      "source": "https://www.datocms.com/company/brand-assets",
+      "shard": 8
+    },
+    {
+      "key": "si-datto-global",
+      "title": "Datto",
+      "slug": "datto",
+      "hex": "199ED9",
+      "source": "https://www.datto.com/brand/logos",
+      "shard": 8
+    },
+    {
+      "key": "si-davinciresolve-global",
+      "title": "DaVinci Resolve",
+      "slug": "davinciresolve",
+      "hex": "233A51",
+      "source": "https://www.blackmagicdesign.com/media/images/davinci-resolve-logo-square",
+      "shard": 8
+    },
+    {
+      "key": "si-dazhongdianping-global",
+      "title": "Dazhong Dianping",
+      "slug": "dazhongdianping",
+      "hex": "FF6633",
+      "source": "https://www.meituan.com/media",
+      "shard": 8
+    },
+    {
+      "key": "si-dbeaver-global",
+      "title": "DBeaver",
+      "slug": "dbeaver",
+      "hex": "382923",
+      "source": "https://dbeaver.com",
+      "shard": 8
+    },
+    {
+      "key": "si-dblp-global",
+      "title": "dblp",
+      "slug": "dblp",
+      "hex": "004F9F",
+      "source": "https://dblp.org",
+      "shard": 8
+    },
+    {
+      "key": "si-dcentertainment-global",
+      "title": "DC Entertainment",
+      "slug": "dcentertainment",
+      "hex": "0078F0",
+      "source": "https://www.readdc.com",
+      "shard": 8
+    },
+    {
+      "key": "si-delonghi-global",
+      "title": "De'Longhi",
+      "slug": "delonghi",
+      "hex": "072240",
+      "source": "https://www.delonghi.com",
+      "shard": 8
+    },
+    {
+      "key": "si-debian-global",
+      "title": "Debian",
+      "slug": "debian",
+      "hex": "A81D33",
+      "source": "https://www.debian.org/logos",
+      "shard": 8
+    },
+    {
+      "key": "si-debridlink-global",
+      "title": "Debrid-Link",
+      "slug": "debridlink",
+      "hex": "264E70",
+      "source": "https://debrid-link.com/brand",
+      "shard": 8
+    },
+    {
+      "key": "si-deepcool-global",
+      "title": "DeepCool",
+      "slug": "deepcool",
+      "hex": "068584",
+      "source": "https://www.deepcool.com",
+      "shard": 8
+    },
+    {
+      "key": "si-deepgram-global",
+      "title": "Deepgram",
+      "slug": "deepgram",
+      "hex": "13EF93",
+      "source": "https://deepgram.com/company/newsroom",
+      "shard": 8
+    },
+    {
+      "key": "si-deepl-global",
+      "title": "DeepL",
+      "slug": "deepl",
+      "hex": "0F2B46",
+      "source": "https://www.deepl.com/press.html",
+      "shard": 8
+    },
+    {
+      "key": "si-deepmind-global",
+      "title": "DeepMind",
+      "slug": "deepmind",
+      "hex": "4285F4",
+      "source": "https://deepmind.google",
+      "shard": 8
+    },
+    {
+      "key": "si-deepnote-global",
+      "title": "Deepnote",
+      "slug": "deepnote",
+      "hex": "3793EF",
+      "source": "https://deepnote.com",
+      "shard": 8
+    },
+    {
+      "key": "si-deepseek-global",
+      "title": "DeepSeek",
+      "slug": "deepseek",
+      "hex": "5786FE",
+      "source": "https://www.deepseek.com",
+      "shard": 8
+    },
+    {
+      "key": "si-deliveroo-global",
+      "title": "Deliveroo",
+      "slug": "deliveroo",
+      "hex": "00CCBC",
+      "source": "https://deliveroo.com",
+      "shard": 8
+    },
+    {
+      "key": "si-dell-global",
+      "title": "Dell",
+      "slug": "dell",
+      "hex": "007DB8",
+      "source": "https://www.dell.com",
+      "shard": 8
+    },
+    {
+      "key": "si-delphi-global",
+      "title": "Delphi",
+      "slug": "delphi",
+      "hex": "E62431",
+      "source": "https://www.embarcadero.com/news/logo",
+      "shard": 8
+    },
+    {
+      "key": "si-denodeploy-global",
+      "title": "Deno Deploy",
+      "slug": "denodeploy",
+      "hex": "002633",
+      "source": "https://deno.com/logos/deploy/mark.svg",
+      "shard": 8
+    },
+    {
+      "key": "si-denon-global",
+      "title": "Denon",
+      "slug": "denon",
+      "hex": "0B131A",
+      "source": "https://www.denon.com",
+      "shard": 8
+    },
+    {
+      "key": "si-dependabot-global",
+      "title": "Dependabot",
+      "slug": "dependabot",
+      "hex": "025E8C",
+      "source": "https://dependabot.com",
+      "shard": 8
+    },
+    {
+      "key": "si-depositphotos-global",
+      "title": "Depositphotos",
+      "slug": "depositphotos",
+      "hex": "000000",
+      "source": "https://blog.depositphotos.com",
+      "shard": 8
+    },
+    {
+      "key": "si-derspiegel-global",
+      "title": "Der Spiegel",
+      "slug": "derspiegel",
+      "hex": "E64415",
+      "source": "https://www.spiegel.de",
+      "shard": 8
+    },
+    {
+      "key": "si-deutschebahn-global",
+      "title": "Deutsche Bahn",
+      "slug": "deutschebahn",
+      "hex": "F01414",
+      "source": "https://www.bahn.de",
+      "shard": 8
+    },
+    {
+      "key": "si-deutschepost-global",
+      "title": "Deutsche Post",
+      "slug": "deutschepost",
+      "hex": "FFCC00",
+      "source": "https://www.deutschepost.de",
+      "shard": 8
+    },
+    {
+      "key": "si-deutschewelle-global",
+      "title": "Deutsche Welle",
+      "slug": "deutschewelle",
+      "hex": "05B2FC",
+      "source": "https://www.dw.com",
+      "shard": 8
+    },
+    {
+      "key": "si-devdotto-global",
+      "title": "dev.to",
+      "slug": "devdotto",
+      "hex": "0A0A0A",
+      "source": "https://dev.to",
+      "shard": 8
+    },
+    {
+      "key": "si-devexpress-global",
+      "title": "DevExpress",
+      "slug": "devexpress",
+      "hex": "FF7200",
+      "source": "https://www.devexpress.com/aboutus/",
+      "shard": 8
+    },
+    {
+      "key": "si-deviantart-global",
+      "title": "DeviantArt",
+      "slug": "deviantart",
+      "hex": "05CC47",
+      "source": "https://help.deviantart.com/21",
+      "shard": 8
+    },
+    {
+      "key": "si-devrant-global",
+      "title": "devRant",
+      "slug": "devrant",
+      "hex": "F99A66",
+      "source": "https://devrant.com",
+      "shard": 8
+    },
+    {
+      "key": "si-devuan-global",
+      "title": "Devuan",
+      "slug": "devuan",
+      "hex": "004489",
+      "source": "https://git.devuan.org/devuan/documentation/src/commit/f4931e70e17f043c2824d591bba7c7f70ed583b6/art/graphics/logo/devuan-emblem.svg",
+      "shard": 8
+    },
+    {
+      "key": "si-dgraph-global",
+      "title": "Dgraph",
+      "slug": "dgraph",
+      "hex": "E50695",
+      "source": "https://dgraph.io",
+      "shard": 8
+    },
+    {
+      "key": "si-dhl-global",
+      "title": "DHL",
+      "slug": "dhl",
+      "hex": "FFCC00",
+      "source": "https://www.dpdhl-brands.com/dhl/en/guides/design-basics/logo-and-claim.html",
+      "shard": 8
+    },
+    {
+      "key": "si-dialogflow-global",
+      "title": "Dialogflow",
+      "slug": "dialogflow",
+      "hex": "FF9800",
+      "source": "https://dialogflow.cloud.google.com",
+      "shard": 8
+    },
+    {
+      "key": "si-diaspora-global",
+      "title": "Diaspora",
+      "slug": "diaspora",
+      "hex": "000000",
+      "source": "https://wiki.diasporafoundation.org/Branding",
+      "shard": 8
+    },
+    {
+      "key": "si-dictionarydotcom-global",
+      "title": "Dictionary.com",
+      "slug": "dictionarydotcom",
+      "hex": "0049D7",
+      "source": "https://www.dictionary.com",
+      "shard": 8
+    },
+    {
+      "key": "si-digg-global",
+      "title": "Digg",
+      "slug": "digg",
+      "hex": "000000",
+      "source": "https://digg.com",
+      "shard": 9
+    },
+    {
+      "key": "si-digikeyelectronics-global",
+      "title": "Digi-Key Electronics",
+      "slug": "digikeyelectronics",
+      "hex": "CC0000",
+      "source": "https://www.digikey.com",
+      "shard": 9
+    },
+    {
+      "key": "si-digitalocean-global",
+      "title": "DigitalOcean",
+      "slug": "digitalocean",
+      "hex": "0080FF",
+      "source": "https://www.digitalocean.com/press/",
+      "shard": 9
+    },
+    {
+      "key": "si-dinersclub-global",
+      "title": "Diners Club",
+      "slug": "dinersclub",
+      "hex": "004C97",
+      "source": "https://www.dinersclub.com/about-us/press",
+      "shard": 9
+    },
+    {
+      "key": "si-dior-global",
+      "title": "Dior",
+      "slug": "dior",
+      "hex": "000000",
+      "source": "https://www.dior.com",
+      "shard": 9
+    },
+    {
+      "key": "si-directus-global",
+      "title": "Directus",
+      "slug": "directus",
+      "hex": "263238",
+      "source": "https://directus.io",
+      "shard": 9
+    },
+    {
+      "key": "si-discogs-global",
+      "title": "Discogs",
+      "slug": "discogs",
+      "hex": "333333",
+      "source": "https://www.discogs.com/brand",
+      "shard": 9
+    },
+    {
+      "key": "si-discord-global",
+      "title": "Discord",
+      "slug": "discord",
+      "hex": "5865F2",
+      "source": "https://discord.com/branding",
+      "shard": 9
+    },
+    {
+      "key": "si-discourse-global",
+      "title": "Discourse",
+      "slug": "discourse",
+      "hex": "000000",
+      "source": "https://www.discourse.org",
+      "shard": 9
+    },
+    {
+      "key": "si-discover-global",
+      "title": "Discover",
+      "slug": "discover",
+      "hex": "FF6000",
+      "source": "https://www.discovernetwork.com/en-us/business-resources/free-signage-logos",
+      "shard": 9
+    },
+    {
+      "key": "si-disqus-global",
+      "title": "Disqus",
+      "slug": "disqus",
+      "hex": "2E9FFF",
+      "source": "https://disqus.com/brand",
+      "shard": 9
+    },
+    {
+      "key": "si-disroot-global",
+      "title": "Disroot",
+      "slug": "disroot",
+      "hex": "50162D",
+      "source": "https://disroot.org/en",
+      "shard": 9
+    },
+    {
+      "key": "si-distrokid-global",
+      "title": "Distrokid",
+      "slug": "distrokid",
+      "hex": "231F20",
+      "source": "https://distrokid.com/logo",
+      "shard": 9
+    },
+    {
+      "key": "si-django-global",
+      "title": "Django",
+      "slug": "django",
+      "hex": "092E20",
+      "source": "https://www.djangoproject.com/community/logos/",
+      "shard": 9
+    },
+    {
+      "key": "si-dji-global",
+      "title": "DJI",
+      "slug": "dji",
+      "hex": "000000",
+      "source": "https://www.dji.com",
+      "shard": 9
+    },
+    {
+      "key": "si-dm-global",
+      "title": "dm",
+      "slug": "dm",
+      "hex": "002878",
+      "source": "https://www.dm.de",
+      "shard": 9
+    },
+    {
+      "key": "si-dmm-global",
+      "title": "DMM",
+      "slug": "dmm",
+      "hex": "000000",
+      "source": "https://dmm-corp.com/presskit",
+      "shard": 9
+    },
+    {
+      "key": "si-docker-global",
+      "title": "Docker",
+      "slug": "docker",
+      "hex": "2496ED",
+      "source": "https://www.docker.com/company/newsroom/media-resources",
+      "shard": 9
+    },
+    {
+      "key": "si-docsdotrs-global",
+      "title": "Docs.rs",
+      "slug": "docsdotrs",
+      "hex": "000000",
+      "source": "https://docs.rs",
+      "shard": 9
+    },
+    {
+      "key": "si-doctrine-global",
+      "title": "Doctrine",
+      "slug": "doctrine",
+      "hex": "FC6A31",
+      "source": "https://www.doctrine-project.org",
+      "shard": 9
+    },
+    {
+      "key": "si-dodopayments-global",
+      "title": "Dodo Payments",
+      "slug": "dodopayments",
+      "hex": "C6FE1E",
+      "source": "https://dodopayments.com/brand",
+      "shard": 9
+    },
+    {
+      "key": "si-dogecoin-global",
+      "title": "Dogecoin",
+      "slug": "dogecoin",
+      "hex": "C2A633",
+      "source": "https://cryptologos.cc/dogecoin",
+      "shard": 9
+    },
+    {
+      "key": "si-doi-global",
+      "title": "DOI",
+      "slug": "doi",
+      "hex": "FAB70C",
+      "source": "https://www.doi.org/images/logos/header_logo_cropped.svg",
+      "shard": 9
+    },
+    {
+      "key": "si-dolby-global",
+      "title": "Dolby",
+      "slug": "dolby",
+      "hex": "000000",
+      "source": "https://www.dolby.com",
+      "shard": 9
+    },
+    {
+      "key": "si-douban-global",
+      "title": "Douban",
+      "slug": "douban",
+      "hex": "2D963D",
+      "source": "https://www.douban.com/about",
+      "shard": 9
+    },
+    {
+      "key": "si-doubanread-global",
+      "title": "Douban Read",
+      "slug": "doubanread",
+      "hex": "24D2C8",
+      "source": "https://read.douban.com",
+      "shard": 9
+    },
+    {
+      "key": "si-dovetail-global",
+      "title": "Dovetail",
+      "slug": "dovetail",
+      "hex": "190041",
+      "source": "https://dovetail.com/help/press-kit",
+      "shard": 9
+    },
+    {
+      "key": "si-downdetector-global",
+      "title": "Downdetector",
+      "slug": "downdetector",
+      "hex": "FF160A",
+      "source": "https://downdetector.com",
+      "shard": 9
+    },
+    {
+      "key": "si-dpd-global",
+      "title": "DPD",
+      "slug": "dpd",
+      "hex": "DC0032",
+      "source": "https://www.dpd.com",
+      "shard": 9
+    },
+    {
+      "key": "si-dragonframe-global",
+      "title": "Dragonframe",
+      "slug": "dragonframe",
+      "hex": "D4911E",
+      "source": "https://dragonframe.com",
+      "shard": 9
+    },
+    {
+      "key": "si-draugiemdotlv-global",
+      "title": "Draugiem.lv",
+      "slug": "draugiemdotlv",
+      "hex": "FF6600",
+      "source": "https://www.frype.com/applications/dev/docs/logos/",
+      "shard": 9
+    },
+    {
+      "key": "si-dreamstime-global",
+      "title": "Dreamstime",
+      "slug": "dreamstime",
+      "hex": "50A901",
+      "source": "https://www.dreamstime.com",
+      "shard": 9
+    },
+    {
+      "key": "si-dribbble-global",
+      "title": "Dribbble",
+      "slug": "dribbble",
+      "hex": "EA4C89",
+      "source": "https://dribbble.com/branding",
+      "shard": 9
+    },
+    {
+      "key": "si-drizzle-global",
+      "title": "Drizzle",
+      "slug": "drizzle",
+      "hex": "C5F74F",
+      "source": "https://orm.drizzle.team",
+      "shard": 9
+    },
+    {
+      "key": "si-drooble-global",
+      "title": "Drooble",
+      "slug": "drooble",
+      "hex": "19C4BE",
+      "source": "https://blog.drooble.com/press/",
+      "shard": 9
+    },
+    {
+      "key": "si-dropbox-global",
+      "title": "Dropbox",
+      "slug": "dropbox",
+      "hex": "0061FF",
+      "source": "https://www.dropbox.com/branding",
+      "shard": 9
+    },
+    {
+      "key": "si-drupal-global",
+      "title": "Drupal",
+      "slug": "drupal",
+      "hex": "0678BE",
+      "source": "https://www.drupal.org/about/media-kit/logos",
+      "shard": 9
+    },
+    {
+      "key": "si-dsautomobiles-global",
+      "title": "DS Automobiles",
+      "slug": "dsautomobiles",
+      "hex": "1D1717",
+      "source": "https://www.stellantis.com/en/brands/ds",
+      "shard": 9
+    },
+    {
+      "key": "si-dts-global",
+      "title": "DTS",
+      "slug": "dts",
+      "hex": "F98B2B",
+      "source": "https://xperi.com/brands/dts/",
+      "shard": 9
+    },
+    {
+      "key": "si-ducati-global",
+      "title": "Ducati",
+      "slug": "ducati",
+      "hex": "CC0000",
+      "source": "https://brandlogos.net/ducati-logo-vector-svg-92931.html",
+      "shard": 9
+    },
+    {
+      "key": "si-duckdb-global",
+      "title": "DuckDB",
+      "slug": "duckdb",
+      "hex": "FFF000",
+      "source": "https://duckdb.org",
+      "shard": 9
+    },
+    {
+      "key": "si-dungeonsanddragons-global",
+      "title": "Dungeons & Dragons",
+      "slug": "dungeonsanddragons",
+      "hex": "ED1C24",
+      "source": "https://dnd.wizards.com/articles/features/basicrules",
+      "shard": 9
+    },
+    {
+      "key": "si-dunked-global",
+      "title": "Dunked",
+      "slug": "dunked",
+      "hex": "2DA9D7",
+      "source": "https://dunked.com",
+      "shard": 9
+    },
+    {
+      "key": "si-dunzo-global",
+      "title": "Dunzo",
+      "slug": "dunzo",
+      "hex": "00D290",
+      "source": "https://www.dunzo.com",
+      "shard": 9
+    },
+    {
+      "key": "si-duolingo-global",
+      "title": "Duolingo",
+      "slug": "duolingo",
+      "hex": "58CC02",
+      "source": "https://design.duolingo.com",
+      "shard": 9
+    },
+    {
+      "key": "si-duplicati-global",
+      "title": "Duplicati",
+      "slug": "duplicati",
+      "hex": "1E3A8A",
+      "source": "https://duplicati.com",
+      "shard": 9
+    },
+    {
+      "key": "si-dvc-global",
+      "title": "DVC",
+      "slug": "dvc",
+      "hex": "13ADC7",
+      "source": "https://iterative.ai/brand/",
+      "shard": 9
+    },
+    {
+      "key": "si-dwm-global",
+      "title": "dwm",
+      "slug": "dwm",
+      "hex": "1177AA",
+      "source": "https://dwm.suckless.org",
+      "shard": 9
+    },
+    {
+      "key": "si-dynatrace-global",
+      "title": "Dynatrace",
+      "slug": "dynatrace",
+      "hex": "1496FF",
+      "source": "https://www.dynatrace.com/company/press-kit/",
+      "shard": 9
+    },
+    {
+      "key": "si-edotleclerc-global",
+      "title": "E.Leclerc",
+      "slug": "edotleclerc",
+      "hex": "0066CC",
+      "source": "https://www.e.leclerc/assets/images/sue-logo.svg",
+      "shard": 9
+    },
+    {
+      "key": "si-ea-global",
+      "title": "EA",
+      "slug": "ea",
+      "hex": "000000",
+      "source": "https://www.ea.com",
+      "shard": 9
+    },
+    {
+      "key": "si-eagle-global",
+      "title": "Eagle",
+      "slug": "eagle",
+      "hex": "0072EF",
+      "source": "https://en.eagle.cool",
+      "shard": 9
+    },
+    {
+      "key": "si-easyeda-global",
+      "title": "EasyEDA",
+      "slug": "easyeda",
+      "hex": "1765F6",
+      "source": "https://easyeda.com",
+      "shard": 9
+    },
+    {
+      "key": "si-ebox-global",
+      "title": "EBOX",
+      "slug": "ebox",
+      "hex": "BE2323",
+      "source": "https://www.ebox.ca",
+      "shard": 9
+    },
+    {
+      "key": "si-eclipseadoptium-global",
+      "title": "Eclipse Adoptium",
+      "slug": "eclipseadoptium",
+      "hex": "FF1464",
+      "source": "https://www.eclipse.org/org/artwork/",
+      "shard": 9
+    },
+    {
+      "key": "si-eclipseche-global",
+      "title": "Eclipse Che",
+      "slug": "eclipseche",
+      "hex": "525C86",
+      "source": "https://www.eclipse.org/che/",
+      "shard": 9
+    },
+    {
+      "key": "si-eclipseide-global",
+      "title": "Eclipse IDE",
+      "slug": "eclipseide",
+      "hex": "2C2255",
+      "source": "https://www.eclipse.org/artwork/",
+      "shard": 9
+    },
+    {
+      "key": "si-ecosia-global",
+      "title": "Ecosia",
+      "slug": "ecosia",
+      "hex": "008009",
+      "source": "https://www.ecosia.org/imprint",
+      "shard": 9
+    },
+    {
+      "key": "si-ecovacs-global",
+      "title": "Ecovacs",
+      "slug": "ecovacs",
+      "hex": "1E384B",
+      "source": "https://www.ecovacs.com",
+      "shard": 9
+    },
+    {
+      "key": "si-edeka-global",
+      "title": "EDEKA",
+      "slug": "edeka",
+      "hex": "1B66B3",
+      "source": "https://www.edeka.de",
+      "shard": 9
+    },
+    {
+      "key": "si-edgeimpulse-global",
+      "title": "Edge Impulse",
+      "slug": "edgeimpulse",
+      "hex": "3B47C2",
+      "source": "https://edgeimpulse.com/branding",
+      "shard": 9
+    },
+    {
+      "key": "si-editorconfig-global",
+      "title": "EditorConfig",
+      "slug": "editorconfig",
+      "hex": "FEFEFE",
+      "source": "https://editorconfig.org",
+      "shard": 9
+    },
+    {
+      "key": "si-educative-global",
+      "title": "Educative",
+      "slug": "educative",
+      "hex": "4951F5",
+      "source": "https://www.educative.io",
+      "shard": 9
+    },
+    {
+      "key": "si-edx-global",
+      "title": "edX",
+      "slug": "edx",
+      "hex": "02262B",
+      "source": "https://www.edx.org",
+      "shard": 9
+    },
+    {
+      "key": "si-effect-global",
+      "title": "Effect",
+      "slug": "effect",
+      "hex": "FFFFFF",
+      "source": "https://effect.website",
+      "shard": 9
+    },
+    {
+      "key": "si-egghead-global",
+      "title": "egghead",
+      "slug": "egghead",
+      "hex": "FCFBFA",
+      "source": "https://egghead.io",
+      "shard": 9
+    },
+    {
+      "key": "si-egnyte-global",
+      "title": "Egnyte",
+      "slug": "egnyte",
+      "hex": "00968F",
+      "source": "https://www.egnyte.com/presskit.html",
+      "shard": 9
+    },
+    {
+      "key": "si-eight-global",
+      "title": "Eight",
+      "slug": "eight",
+      "hex": "0054FF",
+      "source": "https://8card.net/en",
+      "shard": 9
+    },
+    {
+      "key": "si-eightsleep-global",
+      "title": "Eight Sleep",
+      "slug": "eightsleep",
+      "hex": "262729",
+      "source": "https://www.eightsleep.com/press/",
+      "shard": 9
+    },
+    {
+      "key": "si-elastic-global",
+      "title": "Elastic",
+      "slug": "elastic",
+      "hex": "005571",
+      "source": "https://www.elastic.co/brand",
+      "shard": 9
+    },
+    {
+      "key": "si-elasticcloud-global",
+      "title": "Elastic Cloud",
+      "slug": "elasticcloud",
+      "hex": "005571",
+      "source": "https://www.elastic.co/brand",
+      "shard": 9
+    },
+    {
+      "key": "si-elasticstack-global",
+      "title": "Elastic Stack",
+      "slug": "elasticstack",
+      "hex": "005571",
+      "source": "https://www.elastic.co/brand",
+      "shard": 9
+    },
+    {
+      "key": "si-elasticsearch-global",
+      "title": "Elasticsearch",
+      "slug": "elasticsearch",
+      "hex": "005571",
+      "source": "https://www.elastic.co/brand",
+      "shard": 9
+    },
+    {
+      "key": "si-elavon-global",
+      "title": "Elavon",
+      "slug": "elavon",
+      "hex": "0C2074",
+      "source": "https://www.elavon.com",
+      "shard": 9
+    },
+    {
+      "key": "si-electron-global",
+      "title": "Electron",
+      "slug": "electron",
+      "hex": "47848F",
+      "source": "https://www.electronjs.org",
+      "shard": 9
+    },
+    {
+      "key": "si-electronbuilder-global",
+      "title": "electron-builder",
+      "slug": "electronbuilder",
+      "hex": "000000",
+      "source": "https://www.electron.build",
+      "shard": 10
+    },
+    {
+      "key": "si-elegoo-global",
+      "title": "Elegoo",
+      "slug": "elegoo",
+      "hex": "2C3A83",
+      "source": "https://www.elegoo.com/pages/download",
+      "shard": 10
+    },
+    {
+      "key": "si-element-global",
+      "title": "Element",
+      "slug": "element",
+      "hex": "0DBD8B",
+      "source": "https://element.io",
+      "shard": 10
+    },
+    {
+      "key": "si-elementary-global",
+      "title": "elementary",
+      "slug": "elementary",
+      "hex": "64BAFF",
+      "source": "https://elementary.io/brand",
+      "shard": 10
+    },
+    {
+      "key": "si-elementor-global",
+      "title": "Elementor",
+      "slug": "elementor",
+      "hex": "92003B",
+      "source": "https://elementor.com/logos/",
+      "shard": 10
+    },
+    {
+      "key": "si-elevenlabs-global",
+      "title": "ElevenLabs",
+      "slug": "elevenlabs",
+      "hex": "000000",
+      "source": "https://elevenlabs.io/brand",
+      "shard": 10
+    },
+    {
+      "key": "si-eleventy-global",
+      "title": "Eleventy",
+      "slug": "eleventy",
+      "hex": "222222",
+      "source": "https://www.11ty.dev",
+      "shard": 10
+    },
+    {
+      "key": "si-elgato-global",
+      "title": "Elgato",
+      "slug": "elgato",
+      "hex": "101010",
+      "source": "https://www.elgato.com/en/media-room",
+      "shard": 10
+    },
+    {
+      "key": "si-elsevier-global",
+      "title": "Elsevier",
+      "slug": "elsevier",
+      "hex": "FF6C00",
+      "source": "https://www.elsevier.com",
+      "shard": 10
+    },
+    {
+      "key": "si-embarcadero-global",
+      "title": "Embarcadero",
+      "slug": "embarcadero",
+      "hex": "ED1F35",
+      "source": "https://www.embarcadero.com/news/logo",
+      "shard": 10
+    },
+    {
+      "key": "si-embark-global",
+      "title": "Embark",
+      "slug": "embark",
+      "hex": "000000",
+      "source": "https://www.embark-studios.com/press",
+      "shard": 10
+    },
+    {
+      "key": "si-emberdotjs-global",
+      "title": "Ember.js",
+      "slug": "emberdotjs",
+      "hex": "E04E39",
+      "source": "https://emberjs.com/logos/",
+      "shard": 10
+    },
+    {
+      "key": "si-emby-global",
+      "title": "Emby",
+      "slug": "emby",
+      "hex": "52B54B",
+      "source": "https://emby.media",
+      "shard": 10
+    },
+    {
+      "key": "si-emlakjet-global",
+      "title": "Emlakjet",
+      "slug": "emlakjet",
+      "hex": "0AE524",
+      "source": "https://www.emlakjet.com/kurumsal-materyaller/",
+      "shard": 10
+    },
+    {
+      "key": "si-enpass-global",
+      "title": "Enpass",
+      "slug": "enpass",
+      "hex": "0D47A1",
+      "source": "https://www.enpass.io/press/",
+      "shard": 10
+    },
+    {
+      "key": "si-ens-global",
+      "title": "ENS",
+      "slug": "ens",
+      "hex": "0080BC",
+      "source": "https://ens.domains/brand",
+      "shard": 10
+    },
+    {
+      "key": "si-ente-global",
+      "title": "Ente",
+      "slug": "ente",
+      "hex": "00BC45",
+      "source": "https://ente.io",
+      "shard": 10
+    },
+    {
+      "key": "si-enterprisedb-global",
+      "title": "EnterpriseDB",
+      "slug": "enterprisedb",
+      "hex": "FF3E00",
+      "source": "https://www.enterprisedb.com",
+      "shard": 10
+    },
+    {
+      "key": "si-envato-global",
+      "title": "Envato",
+      "slug": "envato",
+      "hex": "87E64B",
+      "source": "https://envato.com",
+      "shard": 10
+    },
+    {
+      "key": "si-envoyproxy-global",
+      "title": "Envoy Proxy",
+      "slug": "envoyproxy",
+      "hex": "AC6199",
+      "source": "https://d33wubrfki0l68.cloudfront.net/6f16455dae972425b77c7e31642269b375ec250e/3bd11/img/envoy-logo.svg",
+      "shard": 10
+    },
+    {
+      "key": "si-epel-global",
+      "title": "EPEL",
+      "slug": "epel",
+      "hex": "FC0000",
+      "source": "https://fedoraproject.org/wiki/EPEL",
+      "shard": 10
+    },
+    {
+      "key": "si-epicgames-global",
+      "title": "Epic Games",
+      "slug": "epicgames",
+      "hex": "313131",
+      "source": "https://dev.epicgames.com/docs/services/en-US/EpicAccountServices/DesignGuidelines/index.html#epicgamesbrandguidelines",
+      "shard": 10
+    },
+    {
+      "key": "si-epson-global",
+      "title": "Epson",
+      "slug": "epson",
+      "hex": "003399",
+      "source": "https://global.epson.com/IR/library/",
+      "shard": 10
+    },
+    {
+      "key": "si-equinixmetal-global",
+      "title": "Equinix Metal",
+      "slug": "equinixmetal",
+      "hex": "ED2224",
+      "source": "https://metal.equinix.com",
+      "shard": 10
+    },
+    {
+      "key": "si-eraser-global",
+      "title": "Eraser",
+      "slug": "eraser",
+      "hex": "EC2C40",
+      "source": "https://www.eraser.io",
+      "shard": 10
+    },
+    {
+      "key": "si-ericsson-global",
+      "title": "Ericsson",
+      "slug": "ericsson",
+      "hex": "0082F0",
+      "source": "https://www.ericsson.com/en/newsroom/media-kits/logo",
+      "shard": 10
+    },
+    {
+      "key": "si-esea-global",
+      "title": "ESEA",
+      "slug": "esea",
+      "hex": "0E9648",
+      "source": "https://play.esea.net",
+      "shard": 10
+    },
+    {
+      "key": "si-eslgaming-global",
+      "title": "ESLGaming",
+      "slug": "eslgaming",
+      "hex": "FFFF09",
+      "source": "https://brand.eslgaming.com",
+      "shard": 10
+    },
+    {
+      "key": "si-eslint-global",
+      "title": "ESLint",
+      "slug": "eslint",
+      "hex": "4B32C3",
+      "source": "https://eslint.org",
+      "shard": 10
+    },
+    {
+      "key": "si-esotericsoftware-global",
+      "title": "Esoteric Software",
+      "slug": "esotericsoftware",
+      "hex": "3FA9F5",
+      "source": "https://esotericsoftware.com/forum/d/25405-sheildsio-branding",
+      "shard": 10
+    },
+    {
+      "key": "si-espressif-global",
+      "title": "Espressif",
+      "slug": "espressif",
+      "hex": "E7352C",
+      "source": "https://www.espressif.com",
+      "shard": 10
+    },
+    {
+      "key": "si-esri-global",
+      "title": "ESRI",
+      "slug": "esri",
+      "hex": "000000",
+      "source": "https://www.esri.com/en-us/arcgis/products/arcgis-pro/overview",
+      "shard": 10
+    },
+    {
+      "key": "si-etcd-global",
+      "title": "etcd",
+      "slug": "etcd",
+      "hex": "419EDA",
+      "source": "https://cncf-branding.netlify.app/projects/etcd/",
+      "shard": 10
+    },
+    {
+      "key": "si-ethereum-global",
+      "title": "Ethereum",
+      "slug": "ethereum",
+      "hex": "3C3C3D",
+      "source": "https://ethereum.org/en/assets/",
+      "shard": 10
+    },
+    {
+      "key": "si-ethers-global",
+      "title": "Ethers",
+      "slug": "ethers",
+      "hex": "2535A0",
+      "source": "https://docs.ethers.org/v6",
+      "shard": 10
+    },
+    {
+      "key": "si-ethiopianairlines-global",
+      "title": "Ethiopian Airlines",
+      "slug": "ethiopianairlines",
+      "hex": "648B1A",
+      "source": "https://corporate.ethiopianairlines.com/media/Ethiopian-Factsheet",
+      "shard": 10
+    },
+    {
+      "key": "si-etsy-global",
+      "title": "Etsy",
+      "slug": "etsy",
+      "hex": "F16521",
+      "source": "https://www.etsy.com/uk/press",
+      "shard": 10
+    },
+    {
+      "key": "si-europeanunion-global",
+      "title": "European Union",
+      "slug": "europeanunion",
+      "hex": "003399",
+      "source": "https://europa.eu",
+      "shard": 10
+    },
+    {
+      "key": "si-evernote-global",
+      "title": "Evernote",
+      "slug": "evernote",
+      "hex": "00A82D",
+      "source": "https://evernote.com/about-us",
+      "shard": 10
+    },
+    {
+      "key": "si-everydotorg-global",
+      "title": "Every.org",
+      "slug": "everydotorg",
+      "hex": "2BD7B0",
+      "source": "https://www.every.org/brand",
+      "shard": 10
+    },
+    {
+      "key": "si-excalidraw-global",
+      "title": "Excalidraw",
+      "slug": "excalidraw",
+      "hex": "6965DB",
+      "source": "https://excalidraw.com",
+      "shard": 10
+    },
+    {
+      "key": "si-exordo-global",
+      "title": "Exordo",
+      "slug": "exordo",
+      "hex": "DAA449",
+      "source": "https://www.exordo.com",
+      "shard": 10
+    },
+    {
+      "key": "si-exoscale-global",
+      "title": "Exoscale",
+      "slug": "exoscale",
+      "hex": "DA291C",
+      "source": "https://www.exoscale.com/press/",
+      "shard": 10
+    },
+    {
+      "key": "si-expedia-global",
+      "title": "Expedia",
+      "slug": "expedia",
+      "hex": "191E3B",
+      "source": "https://brandfolder.com/portals/brand-expedia",
+      "shard": 10
+    },
+    {
+      "key": "si-expensify-global",
+      "title": "Expensify",
+      "slug": "expensify",
+      "hex": "0185FF",
+      "source": "https://use.expensify.com/press-kit",
+      "shard": 10
+    },
+    {
+      "key": "si-expertsexchange-global",
+      "title": "Experts Exchange",
+      "slug": "expertsexchange",
+      "hex": "00AAE7",
+      "source": "https://www.experts-exchange.com",
+      "shard": 10
+    },
+    {
+      "key": "si-expo-global",
+      "title": "Expo",
+      "slug": "expo",
+      "hex": "1C2024",
+      "source": "https://expo.dev/brand/",
+      "shard": 10
+    },
+    {
+      "key": "si-expressdotcom-global",
+      "title": "Express.com",
+      "slug": "expressdotcom",
+      "hex": "000000",
+      "source": "https://www.express.com",
+      "shard": 10
+    },
+    {
+      "key": "si-expressvpn-global",
+      "title": "ExpressVPN",
+      "slug": "expressvpn",
+      "hex": "DA3940",
+      "source": "https://www.expressvpn.com/press",
+      "shard": 10
+    },
+    {
+      "key": "si-eyeem-global",
+      "title": "EyeEm",
+      "slug": "eyeem",
+      "hex": "000000",
+      "source": "https://www.eyeem.com",
+      "shard": 10
+    },
+    {
+      "key": "si-fdroid-global",
+      "title": "F-Droid",
+      "slug": "fdroid",
+      "hex": "1976D2",
+      "source": "https://f-droid.org",
+      "shard": 10
+    },
+    {
+      "key": "si-f1-global",
+      "title": "F1",
+      "slug": "f1",
+      "hex": "E10600",
+      "source": "https://www.formula1.com",
+      "shard": 10
+    },
+    {
+      "key": "si-f5-global",
+      "title": "F5",
+      "slug": "f5",
+      "hex": "E4002B",
+      "source": "https://www.f5.com/company/news/press-kit",
+      "shard": 10
+    },
+    {
+      "key": "si-facebook-global",
+      "title": "Facebook",
+      "slug": "facebook",
+      "hex": "0866FF",
+      "source": "https://about.meta.com/brand/resources/facebook/logo",
+      "shard": 10
+    },
+    {
+      "key": "si-facebookgaming-global",
+      "title": "Facebook Gaming",
+      "slug": "facebookgaming",
+      "hex": "005FED",
+      "source": "https://www.facebook.com/fbgaminghome/",
+      "shard": 10
+    },
+    {
+      "key": "si-facebooklive-global",
+      "title": "Facebook Live",
+      "slug": "facebooklive",
+      "hex": "ED4242",
+      "source": "https://en.facebookbrand.com",
+      "shard": 10
+    },
+    {
+      "key": "si-faceit-global",
+      "title": "FACEIT",
+      "slug": "faceit",
+      "hex": "FF5500",
+      "source": "https://corporate.faceit.com/branding/",
+      "shard": 10
+    },
+    {
+      "key": "si-facepunch-global",
+      "title": "Facepunch",
+      "slug": "facepunch",
+      "hex": "EC1C24",
+      "source": "https://sbox.facepunch.com/news",
+      "shard": 10
+    },
+    {
+      "key": "si-fairphone-global",
+      "title": "Fairphone",
+      "slug": "fairphone",
+      "hex": "4495D1",
+      "source": "https://www.fairphone.com",
+      "shard": 10
+    },
+    {
+      "key": "si-falco-global",
+      "title": "Falco",
+      "slug": "falco",
+      "hex": "00AEC7",
+      "source": "https://falco.org/community/falco-brand",
+      "shard": 10
+    },
+    {
+      "key": "si-falcon-global",
+      "title": "Falcon",
+      "slug": "falcon",
+      "hex": "F0AD4E",
+      "source": "https://falconframework.org",
+      "shard": 10
+    },
+    {
+      "key": "si-fampay-global",
+      "title": "FamPay",
+      "slug": "fampay",
+      "hex": "FFAD00",
+      "source": "https://fampay.in",
+      "shard": 10
+    },
+    {
+      "key": "si-fandango-global",
+      "title": "Fandango",
+      "slug": "fandango",
+      "hex": "FF7300",
+      "source": "https://www.fandango.com",
+      "shard": 10
+    },
+    {
+      "key": "si-fandom-global",
+      "title": "Fandom",
+      "slug": "fandom",
+      "hex": "FA005A",
+      "source": "https://fandomdesignsystem.com",
+      "shard": 10
+    },
+    {
+      "key": "si-fanfou-global",
+      "title": "Fanfou",
+      "slug": "fanfou",
+      "hex": "00CCFF",
+      "source": "https://fanfou.com",
+      "shard": 10
+    },
+    {
+      "key": "si-fantom-global",
+      "title": "Fantom",
+      "slug": "fantom",
+      "hex": "0928FF",
+      "source": "https://fantom.foundation",
+      "shard": 10
+    },
+    {
+      "key": "si-farcaster-global",
+      "title": "Farcaster",
+      "slug": "farcaster",
+      "hex": "855DCD",
+      "source": "https://www.farcaster.xyz",
+      "shard": 10
+    },
+    {
+      "key": "si-fareharbor-global",
+      "title": "FareHarbor",
+      "slug": "fareharbor",
+      "hex": "0A6ECE",
+      "source": "https://help.fareharbor.com/about/logo",
+      "shard": 10
+    },
+    {
+      "key": "si-farfetch-global",
+      "title": "FARFETCH",
+      "slug": "farfetch",
+      "hex": "000000",
+      "source": "https://www.farfetch.com",
+      "shard": 10
+    },
+    {
+      "key": "si-fastly-global",
+      "title": "Fastly",
+      "slug": "fastly",
+      "hex": "FF282D",
+      "source": "https://assets.fastly.com/style-guide/docs/",
+      "shard": 10
+    },
+    {
+      "key": "si-fathom-global",
+      "title": "Fathom",
+      "slug": "fathom",
+      "hex": "9187FF",
+      "source": "https://usefathom.com/brand",
+      "shard": 10
+    },
+    {
+      "key": "si-fauna-global",
+      "title": "Fauna",
+      "slug": "fauna",
+      "hex": "3A1AB6",
+      "source": "https://fauna.com",
+      "shard": 10
+    },
+    {
+      "key": "si-favro-global",
+      "title": "Favro",
+      "slug": "favro",
+      "hex": "512DA8",
+      "source": "https://favro.com/login",
+      "shard": 10
+    },
+    {
+      "key": "si-fawry-global",
+      "title": "Fawry",
+      "slug": "fawry",
+      "hex": "FFD300",
+      "source": "https://www.fawry.com/financials-and-earning-releases",
+      "shard": 10
+    },
+    {
+      "key": "si-fcc-global",
+      "title": "FCC",
+      "slug": "fcc",
+      "hex": "1C3664",
+      "source": "https://www.fcc.gov/logos",
+      "shard": 10
+    }
+  ]
+}
