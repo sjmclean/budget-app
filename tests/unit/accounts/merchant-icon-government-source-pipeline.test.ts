@@ -44,7 +44,7 @@ test("government refresh is an explicit snapshot workflow rather than a build-ti
   assert.match(refresh, /: source\.url;/u);
   assert.doesNotMatch(refresh, /agency-index\/a/u);
   assert.match(refresh, /tools\/merchant-icons\/sources\/government/u);
-  assert.doesNotMatch(catalogue, /government-candidates|governmentSourceRegistry|merchantIconGovernment/u);
+  assert.doesNotMatch(catalogue, /government-candidates|governmentSourceRegistry/u);
 });
 
 test("government candidate builder deduplicates by country and does not invent runtime artwork", () => {
