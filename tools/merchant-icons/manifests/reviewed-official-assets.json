@@ -1878,6 +1878,66 @@
       "assetPath": "official/dun-laoghaire-rathdown-county-council-ie.ico",
       "source": "https://www.dlrcoco.ie",
       "assetSource": "https://www.dlrcoco.ie/themes/custom/dlrd9/favicon.ico"
+    },
+    {
+      "key": "gov-internal-revenue-service-us",
+      "assetPath": "official/government/gov-internal-revenue-service-us.ico",
+      "source": "https://www.irs.gov",
+      "assetSource": "https://www.irs.gov/themes/custom/pup_base/favicon.ico"
+    },
+    {
+      "key": "gov-social-security-administration-us",
+      "assetPath": "official/government/gov-social-security-administration-us.png",
+      "source": "https://www.ssa.gov",
+      "assetSource": "https://www.ssa.gov/themes/custom/ssa_core/apple-touch-icon.png"
+    },
+    {
+      "key": "gov-immigration-and-customs-enforcement-us",
+      "assetPath": "official/government/gov-immigration-and-customs-enforcement-us.ico",
+      "source": "https://www.ice.gov",
+      "assetSource": "https://www.ice.gov/profiles/iced8_gov/themes/whitehouse_base_subtheme/favicon.ico"
+    },
+    {
+      "key": "gov-federal-election-commission-us",
+      "assetPath": "official/government/gov-federal-election-commission-us.png",
+      "source": "https://www.fec.gov",
+      "assetSource": "https://www.fec.gov/static/img/favicon/favicon-32x32.png"
+    },
+    {
+      "key": "gov-transportation-security-administration-us",
+      "assetPath": "official/government/gov-transportation-security-administration-us.ico",
+      "source": "https://www.tsa.gov",
+      "assetSource": "https://www.tsa.gov/profiles/tsad8_gov/themes/custom/tsa_uswds/favicon.ico"
+    },
+    {
+      "key": "gov-revenue-nsw-nsw-au",
+      "assetPath": "official/government/gov-revenue-nsw-nsw-au.png",
+      "source": "https://www.revenue.nsw.gov.au",
+      "assetSource": "https://www.revenue.nsw.gov.au/favicon.png"
+    },
+    {
+      "key": "gov-nsw-electoral-commission-nsw-au",
+      "assetPath": "official/government/gov-nsw-electoral-commission-nsw-au.png",
+      "source": "https://elections.nsw.gov.au",
+      "assetSource": "https://elections.nsw.gov.au/apple-touch-icon.png"
+    },
+    {
+      "key": "gov-office-of-the-work-health-and-safety-commissioner-worksafe-act-act-au",
+      "assetPath": "official/government/gov-office-of-the-work-health-and-safety-commissioner-worksafe-act-act-au.png",
+      "source": "https://www.worksafe.act.gov.au",
+      "assetSource": "https://www.worksafe.act.gov.au/__data/assets/image/0004/1635475/favicon.png"
+    },
+    {
+      "key": "gov-transport-canberra-act-au",
+      "assetPath": "official/government/gov-transport-canberra-act-au.ico",
+      "source": "https://www.transport.act.gov.au",
+      "assetSource": "https://www.transport.act.gov.au/__data/assets/file/0009/1174446/favicon.ico"
+    },
+    {
+      "key": "gov-western-australian-electoral-commission-wa-au",
+      "assetPath": "official/government/gov-western-australian-electoral-commission-wa-au.ico",
+      "source": "https://www.elections.wa.gov.au",
+      "assetSource": "https://www.elections.wa.gov.au/themes/custom/waectheme/favicon.ico"
     }
   ]
 }
