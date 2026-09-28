@@ -16,6 +16,7 @@ interface Candidate {
   readonly sourceUrl: string;
   readonly authority: string;
   readonly jurisdiction?: string;
+  readonly website?: string;
 }
 
 const root = process.cwd();
@@ -99,6 +100,7 @@ function makeCandidate(
   name: string,
   aliases: readonly string[] = [],
   jurisdiction?: string,
+  website?: string,
 ): Candidate | undefined {
   const cleanName = decodeHtml(name);
   if (!cleanName || cleanName.length < 2 || cleanName.length > 180) return undefined;
@@ -116,6 +118,7 @@ function makeCandidate(
     sourceUrl: source.url,
     authority: source.authority,
     ...(cleanJurisdiction ? { jurisdiction: cleanJurisdiction } : {}),
+    ...(website?.startsWith("http://") || website?.startsWith("https://") ? { website } : {}),
   };
 }
 
@@ -134,6 +137,7 @@ function parseGb(source: GovernmentSourceDefinition, text: string): Candidate[] 
   const payload = JSON.parse(text) as {
     readonly results?: readonly {
       readonly title?: string;
+      readonly web_url?: string | null;
       readonly details?: {
         readonly abbreviation?: string | null;
         readonly govuk_status?: string | null;
@@ -143,58 +147,67 @@ function parseGb(source: GovernmentSourceDefinition, text: string): Candidate[] 
   if (!Array.isArray(payload.results)) throw new TypeError("GOV.UK snapshot is missing results.");
   return payload.results
     .filter(({ details }) => details?.govuk_status !== "closed")
-    .map(({ title, details }) => makeCandidate(
+    .map(({ title, details, web_url }) => makeCandidate(
       source,
       title ?? "",
       details?.abbreviation?.trim() ? [details.abbreviation.trim()] : [],
+      undefined,
+      web_url ?? undefined,
     ))
     .filter((candidate): candidate is Candidate => Boolean(candidate));
 }
 
 function parseNz(source: GovernmentSourceDefinition, text: string): Candidate[] {
-  const matches = [...text.matchAll(/<a\b[^>]*href=["'][^"']*\/organisations\/[^"']+["'][^>]*>([\s\S]*?)<\/a>/giu)];
+  const matches = [...text.matchAll(/<a\b[^>]*href=["']([^"']*\/organisations\/[^"']+)["'][^>]*>([\s\S]*?)<\/a>/giu)];
   const noise = new Set(["skip to main content", "home", "contact", "about"]);
   return matches
-    .map((match) => decodeHtml(match[1] ?? ""))
-    .filter((name) => name && !noise.has(canonical(name)))
-    .map((name) => makeCandidate(source, name))
+    .map((match) => ({ href: match[1] ?? "", name: decodeHtml(match[2] ?? "") }))
+    .filter(({ name }) => name && !noise.has(canonical(name)))
+    .map(({ name, href }) => makeCandidate(source, name, [], undefined, new URL(href, source.url).toString()))
     .filter((candidate): candidate is Candidate => Boolean(candidate));
 }
 
 function parseUs(source: GovernmentSourceDefinition, text: string): Candidate[] {
-  const buttons = [...text.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/giu)]
-    .map((match) => decodeHtml(match[1] ?? ""));
-  const headings = [...text.matchAll(/<h[23]\b[^>]*>([\s\S]*?)<\/h[23]>/giu)]
-    .map((match) => decodeHtml(match[1] ?? ""));
+  const blocks = [...text.matchAll(/<h[23]\b[^>]*>([\s\S]*?)<\/h[23]>([\s\S]*?)(?=<h[23]\b|$)/giu)];
   const noise = new Set([
     "about us", "close", "contact us", "help", "menu", "search", "search agencies",
     "a-z index", "for federal agencies", "for the public", "government benefits",
   ]);
-  const unique = new Map<string, string>();
-  for (const name of [...buttons, ...headings]) {
+  const unique = new Map<string, Candidate>();
+
+  for (const match of blocks) {
+    const name = decodeHtml(match[1] ?? "");
     const identity = canonical(name);
     if (!identity || noise.has(identity) || /^[a-z]$/u.test(identity) || name.length > 180) continue;
-    if (!unique.has(identity)) unique.set(identity, name);
-  }
-  return [...unique.values()]
-    .map((name) => {
-      const abbreviation = name.match(/\(([A-Z][A-Z0-9&.-]{1,12})\)\s*$/u)?.[1];
-      const displayName = abbreviation ? name.replace(/\s*\([A-Z][A-Z0-9&.-]{1,12}\)\s*$/u, "") : name;
-      return makeCandidate(source, displayName, abbreviation ? [abbreviation] : []);
-    })
-    .filter((candidate): candidate is Candidate => Boolean(candidate));
-}
 
+    const body = match[2] ?? "";
+    const websiteSection = body.match(/Website:\s*[\s\S]*?<a\b[^>]*href=["']([^"']+)["']/iu);
+    const rawWebsite = websiteSection?.[1];
+    const website = rawWebsite ? new URL(rawWebsite, source.url).toString() : undefined;
+    const abbreviation = name.match(/\(([A-Z][A-Z0-9&.-]{1,12})\)\s*$/u)?.[1];
+    const displayName = abbreviation ? name.replace(/\s*\([A-Z][A-Z0-9&.-]{1,12}\)\s*$/u, "") : name;
+    const candidate = makeCandidate(source, displayName, abbreviation ? [abbreviation] : [], undefined, website);
+    if (!candidate) continue;
+
+    const previous = unique.get(identity);
+    if (!previous || (!previous.website && candidate.website)) unique.set(identity, candidate);
+  }
+
+  return [...unique.values()];
+}
 function parseAuStateDirectory(source: GovernmentSourceDefinition, text: string): Candidate[] {
   const jurisdiction = source.jurisdiction;
   if (!jurisdiction) throw new TypeError(`Australian state directory ${source.id} is missing its jurisdiction.`);
 
   const headingNames = [...text.matchAll(/<h[234]\b[^>]*>([\s\S]*?)<\/h[234]>/giu)]
-    .map((match) => decodeHtml(match[1] ?? ""));
-  const linkNames = [...text.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/giu)]
-    .map((match) => decodeHtml(match[1] ?? ""));
+    .map((match) => ({ name: decodeHtml(match[1] ?? ""), website: undefined as string | undefined }));
+  const linkNames = [...text.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/giu)]
+    .map((match) => ({
+      name: decodeHtml(match[2] ?? ""),
+      website: new URL(match[1] ?? "", source.url).toString(),
+    }));
   const tableNames = [...text.matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/giu)]
-    .map((match) => decodeHtml(match[1] ?? ""));
+    .map((match) => ({ name: decodeHtml(match[1] ?? ""), website: undefined as string | undefined }));
   const names = [...headingNames, ...linkNames, ...tableNames];
   const noise = new Set([
     "about us", "accessibility", "contact", "contact us", "copyright", "departments and agencies",
@@ -203,18 +216,18 @@ function parseAuStateDirectory(source: GovernmentSourceDefinition, text: string)
   ]);
   const likelyOrganisation = /\b(?:access|agency|appeals|assembly|authority|board|bureau|cabinet|commission|commissioner|council|court|department|directorate|education|electoral|environment|fair trading|fire|health|housing|infrastructure|justice|land|licensing|office|ombudsman|planning|police|public sector|births|deaths|marriages|registry|revenue|service|transport|treasury|tribunal|worksafe)\b/iu;
 
-  const unique = new Map<string, string>();
-  for (const name of names) {
+  const unique = new Map<string, Candidate>();
+  for (const { name, website } of names) {
     const identity = canonical(name);
     if (!identity || noise.has(identity) || name.length > 140 || !likelyOrganisation.test(name)) continue;
-    if (!unique.has(identity)) unique.set(identity, name);
+    const candidate = makeCandidate(source, name, [], jurisdiction, website);
+    if (!candidate) continue;
+    const previous = unique.get(identity);
+    if (!previous || (!previous.website && candidate.website)) unique.set(identity, candidate);
   }
 
-  return [...unique.values()]
-    .map((name) => makeCandidate(source, name, [], jurisdiction))
-    .filter((candidate): candidate is Candidate => Boolean(candidate));
+  return [...unique.values()];
 }
-
 function parseAuLocal(source: GovernmentSourceDefinition, text: string): Candidate[] {
   const payload = JSON.parse(text) as {
     readonly features?: readonly { readonly attributes?: { readonly lga_name?: string; readonly state?: string } }[];

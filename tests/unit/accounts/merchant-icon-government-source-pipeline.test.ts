@@ -59,6 +59,9 @@ test("government candidate builder deduplicates by country and does not invent r
   assert.match(builder, /Social Security Administration.*SSA/su);
   assert.match(builder, /parseGbLocal/u);
   assert.match(builder, /parseUsGovernmentUnits/u);
+  assert.match(builder, /readonly website\?: string/u);
+  assert.match(builder, /web_url/u);
+  assert.match(builder, /Website:/u);
   assert.match(builder, /execFileSync\("unzip"/u);
   assert.match(builder, /\.xlsx\$\/iu/u);
   assert.match(builder, /xl\/sharedStrings\.xml/u);

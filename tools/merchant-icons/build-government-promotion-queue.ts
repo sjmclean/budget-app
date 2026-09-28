@@ -9,6 +9,7 @@ interface Candidate {
   readonly aliases: readonly string[];
   readonly sourceId: string;
   readonly jurisdiction?: string;
+  readonly website?: string;
 }
 
 interface Manifest {
