@@ -1,4 +1,7 @@
 import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { GOVERNMENT_SOURCE_REGISTRY, type GovernmentSourceDefinition } from "./governmentSourceRegistry.js";
@@ -198,30 +201,125 @@ function parseGbLocal(source: GovernmentSourceDefinition, text: string): Candida
     .filter((candidate): candidate is Candidate => Boolean(candidate));
 }
 
-function parseUsGovernmentUnits(source: GovernmentSourceDefinition, archivePath: string): Candidate[] {
-  let members = "";
-  try {
-    members = execFileSync("unzip", ["-Z1", archivePath], { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 });
-  } catch {
-    throw new Error("The US Census government-units source requires the 'unzip' command to build candidates.");
-  }
-  const member = members.split(/\r?\n/u).find((name) => /\.(csv|txt)$/iu.test(name));
-  if (!member) throw new TypeError("US Census government-units archive does not contain a CSV/TXT data file.");
-  const text = execFileSync("unzip", ["-p", archivePath, member], {
-    encoding: "utf8",
-    maxBuffer: 128 * 1024 * 1024,
+function decodeXml(value: string): string {
+  return value
+    .replace(/&lt;/gu, "<")
+    .replace(/&gt;/gu, ">")
+    .replace(/&quot;/gu, '"')
+    .replace(/&apos;/gu, "'")
+    .replace(/&amp;/gu, "&");
+}
+
+function spreadsheetColumnIndex(reference: string): number {
+  const letters = reference.match(/^[A-Z]+/u)?.[0] ?? "";
+  let value = 0;
+  for (const letter of letters) value = value * 26 + (letter.charCodeAt(0) - 64);
+  return Math.max(0, value - 1);
+}
+
+function parseSharedStrings(xml: string): string[] {
+  return [...xml.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/gu)].map((match) =>
+    [...(match[1] ?? "").matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/gu)]
+      .map((text) => decodeXml(text[1] ?? ""))
+      .join(""),
+  );
+}
+
+function parseWorksheetRows(xml: string, sharedStrings: readonly string[]): string[][] {
+  return [...xml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/gu)].map((rowMatch) => {
+    const row: string[] = [];
+    for (const cellMatch of (rowMatch[1] ?? "").matchAll(/<c\b([^>]*)>([\s\S]*?)<\/c>/gu)) {
+      const attributes = cellMatch[1] ?? "";
+      const body = cellMatch[2] ?? "";
+      const reference = attributes.match(/\br=["']([^"']+)["']/u)?.[1] ?? "";
+      const type = attributes.match(/\bt=["']([^"']+)["']/u)?.[1] ?? "";
+      const index = spreadsheetColumnIndex(reference);
+      const inline = body.match(/<t\b[^>]*>([\s\S]*?)<\/t>/u)?.[1];
+      const scalar = body.match(/<v\b[^>]*>([\s\S]*?)<\/v>/u)?.[1] ?? "";
+      row[index] = type === "s"
+        ? (sharedStrings[Number(scalar)] ?? "")
+        : type === "inlineStr"
+          ? decodeXml(inline ?? "")
+          : decodeXml(scalar);
+    }
+    return row;
   });
-  const rows = parseCsv(text);
-  if (rows.length < 2) throw new TypeError("US Census government-units file does not contain data rows.");
-  const headers = rows[0].map((value) => canonical(value));
-  const nameIndex = headers.findIndex((value) => ["name", "government name", "govt name", "gov name"].includes(value));
-  const stateIndex = headers.findIndex((value) => ["state", "state code", "state fips", "state fips code"].includes(value));
-  if (nameIndex < 0) {
-    throw new TypeError(`US Census government-units file has no recognised name column. Headers: ${rows[0].join(", ")}`);
+}
+
+function parseUsGovernmentUnits(source: GovernmentSourceDefinition, archivePath: string): Candidate[] {
+  const members = execFileSync("unzip", ["-Z1", archivePath], { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 });
+  const workbookMember = members.split(/\r?\n/u).find((name) => /\.xlsx$/iu.test(name));
+  if (!workbookMember) throw new TypeError("US Census government-units archive does not contain an XLSX workbook.");
+
+  const temporaryDirectory = mkdtempSync(join(tmpdir(), "budget-app-government-"));
+  const workbookPath = join(temporaryDirectory, "government-units.xlsx");
+  try {
+    const workbookBytes = execFileSync("unzip", ["-p", archivePath, workbookMember], {
+      encoding: "buffer",
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    writeFileSync(workbookPath, workbookBytes);
+
+    const workbookMembers = execFileSync("unzip", ["-Z1", workbookPath], {
+      encoding: "utf8",
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    const sheetMember = workbookMembers
+      .split(/\r?\n/u)
+      .find((name) => /^xl\/worksheets\/sheet\d+\.xml$/u.test(name));
+    if (!sheetMember) throw new TypeError("US Census government-units workbook has no worksheet XML.");
+
+    let sharedStrings: string[] = [];
+    if (workbookMembers.split(/\r?\n/u).includes("xl/sharedStrings.xml")) {
+      const sharedXml = execFileSync("unzip", ["-p", workbookPath, "xl/sharedStrings.xml"], {
+        encoding: "utf8",
+        maxBuffer: 64 * 1024 * 1024,
+      });
+      sharedStrings = parseSharedStrings(sharedXml);
+    }
+
+    const worksheetXml = execFileSync("unzip", ["-p", workbookPath, sheetMember], {
+      encoding: "utf8",
+      maxBuffer: 128 * 1024 * 1024,
+    });
+    const rows = parseWorksheetRows(worksheetXml, sharedStrings);
+    if (rows.length < 2) throw new TypeError("US Census government-units workbook does not contain data rows.");
+
+    const headerCandidates = [
+      "government name", "government unit name", "govt name", "gov name",
+      "government_name", "govt_name", "name",
+    ];
+    let headerRowIndex = -1;
+    let nameIndex = -1;
+    let stateIndex = -1;
+    for (let rowIndex = 0; rowIndex < Math.min(rows.length, 25); rowIndex += 1) {
+      const headers = rows[rowIndex].map((value) => canonical(value ?? ""));
+      const candidateNameIndex = headers.findIndex((value) => headerCandidates.includes(value));
+      if (candidateNameIndex < 0) continue;
+      headerRowIndex = rowIndex;
+      nameIndex = candidateNameIndex;
+      stateIndex = headers.findIndex((value) =>
+        ["state", "state code", "state fips", "state fips code", "state_code", "state_fips"].includes(value),
+      );
+      break;
+    }
+
+    if (headerRowIndex < 0 || nameIndex < 0) {
+      const preview = rows.slice(0, 8).map((row) => row.join(" | ")).join("\n");
+      throw new TypeError(`US Census government-units workbook has no recognised name column. First rows:\n${preview}`);
+    }
+
+    return rows.slice(headerRowIndex + 1)
+      .map((row) => makeCandidate(
+        source,
+        row[nameIndex] ?? "",
+        [],
+        stateIndex >= 0 ? row[stateIndex] : undefined,
+      ))
+      .filter((candidate): candidate is Candidate => Boolean(candidate));
+  } finally {
+    rmSync(temporaryDirectory, { recursive: true, force: true });
   }
-  return rows.slice(1)
-    .map((row) => makeCandidate(source, row[nameIndex] ?? "", [], stateIndex >= 0 ? row[stateIndex] : undefined))
-    .filter((candidate): candidate is Candidate => Boolean(candidate));
 }
 
 const parserById: Readonly<Record<string, (source: GovernmentSourceDefinition, text: string) => Candidate[]>> = {
