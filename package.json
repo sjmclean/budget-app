@@ -36,7 +36,7 @@
     "benchmark:p0-6:projection:large": "P0_6_BENCHMARK_TRANSACTIONS=250000 P0_6_BENCHMARK_ITERATIONS=3 P0_6_BENCHMARK_OUTPUT=test-results/p0-6-projection-benchmark-large.json tsx tools/performance/p0-6-projection-benchmark.ts",
     "benchmark:local-first-sync": "tsx tools/performance/local-first-sync-benchmark.ts",
     "benchmark:local-first-sync:large": "LOCAL_FIRST_SYNC_OPERATIONS=100000 LOCAL_FIRST_SYNC_OUTPUT=test-results/local-first-sync-performance-large.json tsx tools/performance/local-first-sync-benchmark.ts",
-    "merchant-icons:check": "tsx tools/merchant-icons/validate-catalogue.ts",
+    "merchant-icons:check": "tsx tools/merchant-icons/validate-catalogue.ts && tsx tools/merchant-icons/generate-simple-icons-expansion.ts --check",
     "merchant-icons:review": "tsx tools/merchant-icons/generate-review-contact-sheets.ts",
     "merchant-icons:import": "tsx tools/merchant-icons/import-catalogue-batch.ts",
     "merchant-icons:generate-simple": "tsx tools/merchant-icons/generate-simple-icons-expansion.ts",
