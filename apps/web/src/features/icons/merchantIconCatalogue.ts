@@ -2,6 +2,7 @@ import { IMPORTED_MERCHANT_ICON_BATCH } from "./merchantIconImportedBatch.js";
 import { MAJOR_MERCHANT_ICON_EXPANSION } from "./merchantIconMajorExpansion.js";
 import { FUEL_MERCHANT_ICON_EXPANSION, MERCHANT_ICON_ENTRY_OVERRIDES } from "./merchantIconFuelExpansion.js";
 import { PRIORITY_MERCHANT_ICON_EXPANSION } from "./merchantIconPriorityExpansion.js";
+import { SIMPLE_BRAND_ICON_EXPANSION } from "./merchantIconSimpleBrands.js";
 
 export type MerchantIconAsset =
   | { readonly kind: "image"; readonly assetPath: string }
@@ -66,6 +67,7 @@ export const MERCHANT_ICON_CATALOGUE: readonly MerchantIconCatalogueEntry[] = [
   })),
   ...MAJOR_MERCHANT_ICON_EXPANSION.map(applyMerchantIconOverride),
   ...PRIORITY_MERCHANT_ICON_EXPANSION,
+  ...SIMPLE_BRAND_ICON_EXPANSION,
   ...FUEL_MERCHANT_ICON_EXPANSION,
 ];
 
