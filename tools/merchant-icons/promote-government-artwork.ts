@@ -79,33 +79,49 @@ function validateBytes(assetPath: string, bytes: Uint8Array): void {
   if (!valid) throw new TypeError(`Downloaded artwork does not match supported asset type: ${assetPath}`);
 }
 
+const promoted: ApprovalEntry[] = [];
+const failures: { readonly key: string; readonly reason: string }[] = [];
+
 for (const approval of approvals.entries) {
   const candidate = artworkByKey.get(approval.key);
-  if (!candidate) throw new TypeError(`Approved government key was not present in artwork probe: ${approval.key}`);
+  if (!candidate) {
+    failures.push({ key: approval.key, reason: "not present in artwork probe" });
+    continue;
+  }
   if (candidate.status !== "candidate-agency-specific") {
-    throw new TypeError(`Approved government key is not agency-specific: ${approval.key} (${candidate.status})`);
+    failures.push({ key: approval.key, reason: `probe status is ${candidate.status}` });
+    continue;
   }
   if (candidate.assetSource !== approval.assetSource) {
-    throw new TypeError(`Artwork source changed for ${approval.key}; review required before promotion.`);
+    failures.push({ key: approval.key, reason: "artwork source changed; review required" });
+    continue;
   }
 
-  const response = await fetch(approval.assetSource, {
-    headers: { "user-agent": "Mozilla/5.0", accept: "image/*,*/*;q=0.8" },
-    redirect: "follow",
-  });
-  if (!response.ok) throw new Error(`Artwork download failed for ${approval.key}: HTTP ${response.status}`);
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  if (bytes.length === 0 || bytes.length > 2_000_000) {
-    throw new TypeError(`Artwork size is outside allowed bounds for ${approval.key}: ${bytes.length} bytes`);
+  try {
+    const response = await fetch(approval.assetSource, {
+      headers: { "user-agent": "Mozilla/5.0", accept: "image/*,*/*;q=0.8" },
+      redirect: "follow",
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.length === 0 || bytes.length > 2_000_000) {
+      throw new TypeError(`size ${bytes.length} bytes is outside allowed bounds`);
+    }
+    validateBytes(approval.assetPath, bytes);
+    const destination = resolve(publicRoot, approval.assetPath);
+    await mkdir(dirname(destination), { recursive: true });
+    await writeFile(destination, bytes);
+    promoted.push(approval);
+    console.log(`PROMOTE ${approval.key}`);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    failures.push({ key: approval.key, reason });
+    console.warn(`SKIP    ${approval.key}: ${reason}`);
   }
-  validateBytes(approval.assetPath, bytes);
-  const destination = resolve(publicRoot, approval.assetPath);
-  await mkdir(dirname(destination), { recursive: true });
-  await writeFile(destination, bytes);
 }
 
 const officialByKey = new Map(official.entries.map((entry) => [entry.key, entry] as const));
-for (const approval of approvals.entries) {
+for (const approval of promoted) {
   officialByKey.set(approval.key, {
     key: approval.key,
     assetPath: approval.assetPath,
@@ -116,7 +132,7 @@ for (const approval of approvals.entries) {
 official.entries = [...officialByKey.values()].sort((left, right) => left.key.localeCompare(right.key));
 await writeFile(officialPath, JSON.stringify(official, null, 2) + "\n");
 
-const runtimeEntries = approvals.entries.map((entry) => `  {
+const runtimeEntries = promoted.map((entry) => `  {
     key: ${JSON.stringify(entry.key)},
     name: ${JSON.stringify(entry.name)},
     regions: ${JSON.stringify(entry.regions)},
@@ -133,4 +149,9 @@ ${runtimeEntries}
 ] as const;
 `);
 
-console.log(`Promoted ${approvals.entries.length} reviewed government artwork entries.`);
+console.log(`Promoted ${promoted.length} of ${approvals.entries.length} reviewed government artwork entries.`);
+if (failures.length > 0) {
+  console.warn("Government artwork promotion incomplete:");
+  for (const failure of failures) console.warn(`- ${failure.key}: ${failure.reason}`);
+  process.exitCode = 1;
+}
