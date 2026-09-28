@@ -38,7 +38,9 @@
     "benchmark:local-first-sync:large": "LOCAL_FIRST_SYNC_OPERATIONS=100000 LOCAL_FIRST_SYNC_OUTPUT=test-results/local-first-sync-performance-large.json tsx tools/performance/local-first-sync-benchmark.ts",
     "merchant-icons:check": "tsx tools/merchant-icons/validate-catalogue.ts",
     "merchant-icons:review": "tsx tools/merchant-icons/generate-review-contact-sheets.ts",
-    "merchant-icons:import": "tsx tools/merchant-icons/import-catalogue-batch.ts"
+    "merchant-icons:import": "tsx tools/merchant-icons/import-catalogue-batch.ts",
+    "merchant-icons:generate-simple": "tsx tools/merchant-icons/generate-simple-icons-expansion.ts",
+    "merchant-icons:check-simple": "tsx tools/merchant-icons/generate-simple-icons-expansion.ts --check"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
