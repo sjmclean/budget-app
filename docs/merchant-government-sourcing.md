@@ -9,9 +9,10 @@ Government directories can contain thousands of valid organisations, boards, age
 ## Initial authoritative source families
 
 - Australia: Australian Government Organisations Register (Department of Finance / data.gov.au)
+- Australia states and territories: official NSW, Victoria, Queensland, Western Australia, South Australia, Tasmania, ACT and Northern Territory agency/directory pages
 - New Zealand: New Zealand Government A-Z
 - United Kingdom: GOV.UK Organisations API
-- United States: USAGov agency index
+- United States: the complete alphabetic USAGov federal agency index (A-Z)
 - Australia local/regional: national Local Government Area service from the Department of Infrastructure / Geoscape Australia
 - United Kingdom local: Planning Data local-authority dataset
 - United States state/local: 2026 Census Bureau Government Units Listing

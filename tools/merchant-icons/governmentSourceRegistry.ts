@@ -1,4 +1,4 @@
-export type GovernmentSourceKind = "csv" | "html" | "json" | "paginated-json" | "zip-csv";
+export type GovernmentSourceKind = "alphabetic-html" | "csv" | "html" | "json" | "paginated-json" | "zip-csv";
 
 export interface GovernmentSourceDefinition {
   readonly id: string;
@@ -8,6 +8,7 @@ export interface GovernmentSourceDefinition {
   readonly url: string;
   readonly snapshotFile: string;
   readonly authority: string;
+  readonly jurisdiction?: string;
 }
 
 export const GOVERNMENT_SOURCE_REGISTRY: readonly GovernmentSourceDefinition[] = [
@@ -42,10 +43,90 @@ export const GOVERNMENT_SOURCE_REGISTRY: readonly GovernmentSourceDefinition[] =
     id: "us-usagov-agencies",
     country: "US",
     level: "federal",
-    kind: "html",
+    kind: "alphabetic-html",
     url: "https://www.usa.gov/agency-index",
     snapshotFile: "us-usagov-agencies.html",
     authority: "USAGov",
+  },
+  {
+    id: "au-nsw-government-directory",
+    country: "AU",
+    level: "state-local",
+    kind: "html",
+    url: "https://www.nsw.gov.au/departments-and-agencies",
+    snapshotFile: "au-nsw-government-directory.html",
+    authority: "NSW Government",
+    jurisdiction: "NSW",
+  },
+  {
+    id: "au-vic-government-directory",
+    country: "AU",
+    level: "state-local",
+    kind: "html",
+    url: "https://www.vic.gov.au/ministers-departments-and-agencies",
+    snapshotFile: "au-vic-government-directory.html",
+    authority: "Victorian Government",
+    jurisdiction: "VIC",
+  },
+  {
+    id: "au-qld-government-directory",
+    country: "AU",
+    level: "state-local",
+    kind: "html",
+    url: "https://www.qld.gov.au/government/premier-ministers-departments/ministers-departments",
+    snapshotFile: "au-qld-government-directory.html",
+    authority: "Queensland Government",
+    jurisdiction: "QLD",
+  },
+  {
+    id: "au-wa-government-directory",
+    country: "AU",
+    level: "state-local",
+    kind: "html",
+    url: "https://www.wa.gov.au/agency",
+    snapshotFile: "au-wa-government-directory.html",
+    authority: "Western Australian Government",
+    jurisdiction: "WA",
+  },
+  {
+    id: "au-sa-government-directory",
+    country: "AU",
+    level: "state-local",
+    kind: "html",
+    url: "https://www.sa.gov.au/topics/about-sa/government/contact-government",
+    snapshotFile: "au-sa-government-directory.html",
+    authority: "South Australian Government",
+    jurisdiction: "SA",
+  },
+  {
+    id: "au-tas-government-directory",
+    country: "AU",
+    level: "state-local",
+    kind: "html",
+    url: "https://www.dpac.tas.gov.au/government-information/rti/government-information-gateway",
+    snapshotFile: "au-tas-government-directory.html",
+    authority: "Tasmanian Government Department of Premier and Cabinet",
+    jurisdiction: "TAS",
+  },
+  {
+    id: "au-act-government-directory",
+    country: "AU",
+    level: "state-local",
+    kind: "html",
+    url: "https://www.act.gov.au/directorates-and-agencies",
+    snapshotFile: "au-act-government-directory.html",
+    authority: "ACT Government",
+    jurisdiction: "ACT",
+  },
+  {
+    id: "au-nt-government-directory",
+    country: "AU",
+    level: "state-local",
+    kind: "html",
+    url: "https://nt.gov.au/about-government/government-agencies",
+    snapshotFile: "au-nt-government-directory.html",
+    authority: "Northern Territory Government",
+    jurisdiction: "NT",
   },
   {
     id: "au-local-government-areas",

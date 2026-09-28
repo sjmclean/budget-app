@@ -162,22 +162,52 @@ function parseNz(source: GovernmentSourceDefinition, text: string): Candidate[] 
 }
 
 function parseUs(source: GovernmentSourceDefinition, text: string): Candidate[] {
-  const headings = [...text.matchAll(/<h[23]\b[^>]*>([\s\S]*?)<\/h[23]>/giu)]
+  const buttons = [...text.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/giu)]
     .map((match) => decodeHtml(match[1] ?? ""));
   const noise = new Set([
     "about us", "close", "contact us", "help", "menu", "search", "search agencies",
     "a-z index", "for federal agencies", "for the public", "government benefits",
   ]);
-  return headings
-    .filter((name) => {
-      const identity = canonical(name);
-      return identity && !noise.has(identity) && !/^[a-z]$/u.test(identity);
-    })
+  const unique = new Map<string, string>();
+  for (const name of buttons) {
+    const identity = canonical(name);
+    if (!identity || noise.has(identity) || /^[a-z]$/u.test(identity) || name.length > 180) continue;
+    if (!unique.has(identity)) unique.set(identity, name);
+  }
+  return [...unique.values()]
     .map((name) => {
       const abbreviation = name.match(/\(([A-Z][A-Z0-9&.-]{1,12})\)\s*$/u)?.[1];
       const displayName = abbreviation ? name.replace(/\s*\([A-Z][A-Z0-9&.-]{1,12}\)\s*$/u, "") : name;
       return makeCandidate(source, displayName, abbreviation ? [abbreviation] : []);
     })
+    .filter((candidate): candidate is Candidate => Boolean(candidate));
+}
+
+function parseAuStateDirectory(source: GovernmentSourceDefinition, text: string): Candidate[] {
+  const jurisdiction = source.jurisdiction;
+  if (!jurisdiction) throw new TypeError(`Australian state directory ${source.id} is missing its jurisdiction.`);
+
+  const headingNames = [...text.matchAll(/<h[234]\b[^>]*>([\s\S]*?)<\/h[234]>/giu)]
+    .map((match) => decodeHtml(match[1] ?? ""));
+  const linkNames = [...text.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/giu)]
+    .map((match) => decodeHtml(match[1] ?? ""));
+  const names = [...headingNames, ...linkNames];
+  const noise = new Set([
+    "about us", "accessibility", "contact", "contact us", "copyright", "departments and agencies",
+    "find an agency", "government", "home", "menu", "ministers", "privacy", "search",
+    "skip to content", "skip to main content", "website",
+  ]);
+  const likelyOrganisation = /\b(?:access|agency|appeals|assembly|authority|board|bureau|cabinet|commission|commissioner|council|court|department|directorate|education|electoral|environment|fair trading|fire|health|housing|infrastructure|justice|land|licensing|office|ombudsman|planning|police|public sector|registry|revenue|service|transport|treasury|tribunal|worksafe)\b/iu;
+
+  const unique = new Map<string, string>();
+  for (const name of names) {
+    const identity = canonical(name);
+    if (!identity || noise.has(identity) || name.length > 140 || !likelyOrganisation.test(name)) continue;
+    if (!unique.has(identity)) unique.set(identity, name);
+  }
+
+  return [...unique.values()]
+    .map((name) => makeCandidate(source, name, [], jurisdiction))
     .filter((candidate): candidate is Candidate => Boolean(candidate));
 }
 
@@ -328,6 +358,14 @@ const parserById: Readonly<Record<string, (source: GovernmentSourceDefinition, t
   "nz-government-a-z": parseNz,
   "gb-govuk-organisations": parseGb,
   "us-usagov-agencies": parseUs,
+  "au-nsw-government-directory": parseAuStateDirectory,
+  "au-vic-government-directory": parseAuStateDirectory,
+  "au-qld-government-directory": parseAuStateDirectory,
+  "au-wa-government-directory": parseAuStateDirectory,
+  "au-sa-government-directory": parseAuStateDirectory,
+  "au-tas-government-directory": parseAuStateDirectory,
+  "au-act-government-directory": parseAuStateDirectory,
+  "au-nt-government-directory": parseAuStateDirectory,
   "au-local-government-areas": parseAuLocal,
   "gb-local-authorities": parseGbLocal,
 };

@@ -21,6 +21,23 @@ await mkdir(snapshotDirectory, { recursive: true });
 
 for (const source of GOVERNMENT_SOURCE_REGISTRY) {
   const path = resolve(snapshotDirectory, source.snapshotFile);
+  if (source.kind === "alphabetic-html") {
+    const letters = "abcdefghijklmnopqrstuvwxyz".split("");
+    const pages: string[] = [];
+    for (const letter of letters) {
+      const url = `${source.url}/${letter}`;
+      try {
+        pages.push(await getText(url));
+      } catch (error) {
+        if (letter === "q" || letter === "x" || letter === "y" || letter === "z") continue;
+        throw error;
+      }
+    }
+    const body = pages.join("\n<!-- budget-app source page boundary -->\n");
+    await writeFile(path, body);
+    console.log(`Snapshotted ${source.id}: ${pages.length} alphabetic pages, ${body.length.toLocaleString()} bytes.`);
+    continue;
+  }
   if (source.kind === "zip-csv") {
     const response = await fetch(source.url, {
       headers: { "user-agent": "budget-app merchant catalogue source snapshotter" },
