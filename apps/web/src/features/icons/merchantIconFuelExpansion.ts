@@ -31,7 +31,7 @@ export const MERCHANT_ICON_ENTRY_OVERRIDES: Readonly<Record<string, Partial<Merc
   "coles-express-au": { category: "fuel" },
   "united-petroleum-au": { category: "fuel" },
   "oom-energy-au": {
-    category: "utilities",
+    category: "fuel",
     asset: { kind: "image", assetPath: "user-supplied/oom-energy-au.svg" },
   },
   "peter-alexander-au": {
