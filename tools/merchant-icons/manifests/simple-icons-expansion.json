@@ -410,7 +410,7 @@
       "slug": "aftership",
       "hex": "FF6B2B",
       "source": "https://www.aftership.com",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-aib-global",
@@ -418,7 +418,7 @@
       "slug": "aib",
       "hex": "7F2B7B",
       "source": "https://aib.ie",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-airchina-global",
@@ -426,7 +426,7 @@
       "slug": "airchina",
       "hex": "E30E17",
       "source": "https://www.airchina.com.cn/en/investor_relations",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-airserbia-global",
@@ -434,7 +434,7 @@
       "slug": "airserbia",
       "hex": "0E203F",
       "source": "https://www.airserbia.com",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-airtransat-global",
@@ -442,7 +442,7 @@
       "slug": "airtransat",
       "hex": "172B54",
       "source": "https://www.airtransat.com",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-airbnb-global",
@@ -450,7 +450,7 @@
       "slug": "airbnb",
       "hex": "FF5A5F",
       "source": "https://www.airbnb.com",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-airbus-global",
@@ -458,7 +458,7 @@
       "slug": "airbus",
       "hex": "00205B",
       "source": "https://brand.airbus.com/en/asset-library/airbus-logo",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-airbyte-global",
@@ -466,7 +466,7 @@
       "slug": "airbyte",
       "hex": "615EFF",
       "source": "https://airbyte.com",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-aircall-global",
@@ -474,7 +474,7 @@
       "slug": "aircall",
       "hex": "00B388",
       "source": "https://aircall.io",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-airplayaudio-global",
@@ -482,7 +482,7 @@
       "slug": "airplayaudio",
       "hex": "000000",
       "source": "https://developer.apple.com/design/human-interface-guidelines/airplay/overview/icons",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-airplayvideo-global",
@@ -490,7 +490,7 @@
       "slug": "airplayvideo",
       "hex": "000000",
       "source": "https://developer.apple.com/design/human-interface-guidelines/airplay/overview/icons/",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-airtable-global",
@@ -498,7 +498,7 @@
       "slug": "airtable",
       "hex": "18BFFF",
       "source": "https://airtable.com/newsroom",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-airtel-global",
@@ -506,7 +506,7 @@
       "slug": "airtel",
       "hex": "E40000",
       "source": "https://www.airtel.in/logo-tune",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-akamai-global",
@@ -514,7 +514,7 @@
       "slug": "akamai",
       "hex": "0096D6",
       "source": "https://www.akamai.com",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-akasaair-global",
@@ -522,7 +522,7 @@
       "slug": "akasaair",
       "hex": "FF6300",
       "source": "https://www.akasaair.com",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-akaunting-global",
@@ -530,7 +530,7 @@
       "slug": "akaunting",
       "hex": "6DA252",
       "source": "https://akaunting.com/logo",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-akiflow-global",
@@ -538,7 +538,7 @@
       "slug": "akiflow",
       "hex": "AF38F9",
       "source": "https://www.akiflow.com",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-alamy-global",
@@ -546,7 +546,7 @@
       "slug": "alamy",
       "hex": "00FF7B",
       "source": "https://www.alamy.com",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-albertheijn-global",
@@ -554,7 +554,7 @@
       "slug": "albertheijn",
       "hex": "04ACE6",
       "source": "https://www.ah.nl",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-albumoftheyear-global",
@@ -562,7 +562,7 @@
       "slug": "albumoftheyear",
       "hex": "222222",
       "source": "https://albumoftheyear.org",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-alchemy-global",
@@ -570,7 +570,7 @@
       "slug": "alchemy",
       "hex": "0C0C0E",
       "source": "https://www.alchemy.com",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-aldisud-global",
@@ -578,7 +578,7 @@
       "slug": "aldisud",
       "hex": "00005F",
       "source": "https://www.aldi-sued.de",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-alfred-global",
@@ -586,7 +586,7 @@
       "slug": "alfred",
       "hex": "5C1F87",
       "source": "https://www.alfredapp.com",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-algolia-global",
@@ -594,7 +594,7 @@
       "slug": "algolia",
       "hex": "003DFF",
       "source": "https://algolia.frontify.com/d/1AZwVNcFZiu7/style-guide#/basics/algolia-logo",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-algorand-global",
@@ -602,7 +602,7 @@
       "slug": "algorand",
       "hex": "000000",
       "source": "https://www.algorand.com/about/media-kit",
-      "shard": 1
+      "shard": 2
     },
     {
       "key": "si-alibabacloud-global",
@@ -810,7 +810,7 @@
       "slug": "anichart",
       "hex": "41B1EA",
       "source": "https://anichart.net",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-anilist-global",
@@ -818,7 +818,7 @@
       "slug": "anilist",
       "hex": "02A9FF",
       "source": "https://anilist.co",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-animalplanet-global",
@@ -826,7 +826,7 @@
       "slug": "animalplanet",
       "hex": "0073FF",
       "source": "https://www.animalplanet.com",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-ankermake-global",
@@ -834,7 +834,7 @@
       "slug": "ankermake",
       "hex": "88F387",
       "source": "https://www.ankermake.com",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-ansible-global",
@@ -842,7 +842,7 @@
       "slug": "ansible",
       "hex": "EE0000",
       "source": "https://www.ansible.com/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-answer-global",
@@ -850,7 +850,7 @@
       "slug": "answer",
       "hex": "0033FF",
       "source": "https://answer.dev",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-ansys-global",
@@ -858,7 +858,7 @@
       "slug": "ansys",
       "hex": "FFB71B",
       "source": "https://www.ansys.com/about-ansys/brand",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-antdesign-global",
@@ -866,7 +866,7 @@
       "slug": "antdesign",
       "hex": "0170FE",
       "source": "https://ant.design",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-anta-global",
@@ -874,7 +874,7 @@
       "slug": "anta",
       "hex": "D70010",
       "source": "https://www.anta.com",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-antena3-global",
@@ -882,7 +882,7 @@
       "slug": "antena3",
       "hex": "FF7328",
       "source": "https://www.antena3.com",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-anthropic-global",
@@ -890,7 +890,7 @@
       "slug": "anthropic",
       "hex": "191919",
       "source": "https://www.anthropic.com",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-antv-global",
@@ -898,7 +898,7 @@
       "slug": "antv",
       "hex": "8B5DFF",
       "source": "https://antv.vision",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-anycubic-global",
@@ -906,7 +906,7 @@
       "slug": "anycubic",
       "hex": "476695",
       "source": "https://store.anycubic.com/pages/firmware-software",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-anydesk-global",
@@ -914,7 +914,7 @@
       "slug": "anydesk",
       "hex": "EF443B",
       "source": "https://anydesk.com",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apache-global",
@@ -922,7 +922,7 @@
       "slug": "apache",
       "hex": "D22128",
       "source": "https://www.apache.org/foundation/press/kit",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apacheairflow-global",
@@ -930,7 +930,7 @@
       "slug": "apacheairflow",
       "hex": "017CEE",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apacheant-global",
@@ -938,7 +938,7 @@
       "slug": "apacheant",
       "hex": "A81C7D",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachearrow-global",
@@ -946,7 +946,7 @@
       "slug": "apachearrow",
       "hex": "000000",
       "source": "https://arrow.apache.org/visual_identity",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apacheavro-global",
@@ -954,7 +954,7 @@
       "slug": "apacheavro",
       "hex": "30638E",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachecassandra-global",
@@ -962,7 +962,7 @@
       "slug": "apachecassandra",
       "hex": "1287B1",
       "source": "https://www.apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachecloudstack-global",
@@ -970,7 +970,7 @@
       "slug": "apachecloudstack",
       "hex": "2AA5DC",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachecordova-global",
@@ -978,7 +978,7 @@
       "slug": "apachecordova",
       "hex": "E8E8E8",
       "source": "https://cordova.apache.org/artwork",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachecouchdb-global",
@@ -986,7 +986,7 @@
       "slug": "apachecouchdb",
       "hex": "E42528",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachedolphinscheduler-global",
@@ -994,7 +994,7 @@
       "slug": "apachedolphinscheduler",
       "hex": "85CDF0",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachedoris-global",
@@ -1002,7 +1002,7 @@
       "slug": "apachedoris",
       "hex": "444FD9",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachedruid-global",
@@ -1010,7 +1010,7 @@
       "slug": "apachedruid",
       "hex": "29F1FB",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apacheecharts-global",
@@ -1018,7 +1018,7 @@
       "slug": "apacheecharts",
       "hex": "AA344D",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apacheflink-global",
@@ -1026,7 +1026,7 @@
       "slug": "apacheflink",
       "hex": "E6526F",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachefreemarker-global",
@@ -1034,7 +1034,7 @@
       "slug": "apachefreemarker",
       "hex": "326CAC",
       "source": "https://www.apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachegroovy-global",
@@ -1042,7 +1042,7 @@
       "slug": "apachegroovy",
       "hex": "4298B8",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apacheguacamole-global",
@@ -1050,7 +1050,7 @@
       "slug": "apacheguacamole",
       "hex": "578B34",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachehadoop-global",
@@ -1058,7 +1058,7 @@
       "slug": "apachehadoop",
       "hex": "66CCFF",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachehbase-global",
@@ -1066,7 +1066,7 @@
       "slug": "apachehbase",
       "hex": "BE160C",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachehive-global",
@@ -1074,7 +1074,7 @@
       "slug": "apachehive",
       "hex": "FDEE21",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachejmeter-global",
@@ -1082,7 +1082,7 @@
       "slug": "apachejmeter",
       "hex": "D22128",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachekafka-global",
@@ -1090,7 +1090,7 @@
       "slug": "apachekafka",
       "hex": "231F20",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachekylin-global",
@@ -1098,7 +1098,7 @@
       "slug": "apachekylin",
       "hex": "F09D13",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachelucene-global",
@@ -1106,7 +1106,7 @@
       "slug": "apachelucene",
       "hex": "019B8F",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachemaven-global",
@@ -1114,7 +1114,7 @@
       "slug": "apachemaven",
       "hex": "C71A36",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachenetbeanside-global",
@@ -1122,7 +1122,7 @@
       "slug": "apachenetbeanside",
       "hex": "1B6AC6",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachenifi-global",
@@ -1130,7 +1130,7 @@
       "slug": "apachenifi",
       "hex": "728E9B",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apacheopenoffice-global",
@@ -1138,7 +1138,7 @@
       "slug": "apacheopenoffice",
       "hex": "0E85CD",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apacheparquet-global",
@@ -1146,7 +1146,7 @@
       "slug": "apacheparquet",
       "hex": "50ABF1",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachepdfbox-global",
@@ -1154,7 +1154,7 @@
       "slug": "apachepdfbox",
       "hex": "34A5DA",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachepulsar-global",
@@ -1162,7 +1162,7 @@
       "slug": "apachepulsar",
       "hex": "188FFF",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apacherocketmq-global",
@@ -1170,7 +1170,7 @@
       "slug": "apacherocketmq",
       "hex": "D77310",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachesolr-global",
@@ -1178,7 +1178,7 @@
       "slug": "apachesolr",
       "hex": "D9411E",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachespark-global",
@@ -1186,7 +1186,7 @@
       "slug": "apachespark",
       "hex": "E25A1C",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachestorm-global",
@@ -1194,7 +1194,7 @@
       "slug": "apachestorm",
       "hex": "225593",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachesuperset-global",
@@ -1202,7 +1202,7 @@
       "slug": "apachesuperset",
       "hex": "20A6C9",
       "source": "https://apache.org/logos",
-      "shard": 2
+      "shard": 3
     },
     {
       "key": "si-apachetomcat-global",
@@ -1210,7 +1210,7 @@
       "slug": "apachetomcat",
       "hex": "F8DC75",
       "source": "https://apache.org/logos",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-aparat-global",
@@ -1218,7 +1218,7 @@
       "slug": "aparat",
       "hex": "ED145B",
       "source": "https://www.aparat.com/logo",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-apifox-global",
@@ -1226,7 +1226,7 @@
       "slug": "apifox",
       "hex": "F44A53",
       "source": "https://apifox.com",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-apmterminals-global",
@@ -1234,7 +1234,7 @@
       "slug": "apmterminals",
       "hex": "FF6441",
       "source": "https://www.apmterminals.com",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-apollographql-global",
@@ -1242,7 +1242,7 @@
       "slug": "apollographql",
       "hex": "311C87",
       "source": "https://www.apollographql.com",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-appstore-global",
@@ -1250,7 +1250,7 @@
       "slug": "appstore",
       "hex": "0D96F6",
       "source": "https://developer.apple.com/app-store",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-appgallery-global",
@@ -1258,7 +1258,7 @@
       "slug": "appgallery",
       "hex": "FF0000",
       "source": "https://appgallery.huawei.com",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-appian-global",
@@ -1266,7 +1266,7 @@
       "slug": "appian",
       "hex": "2322F0",
       "source": "https://appian.com",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-appimage-global",
@@ -1274,7 +1274,7 @@
       "slug": "appimage",
       "hex": "739FB9",
       "source": "https://appimage.org",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-applenews-global",
@@ -1282,7 +1282,7 @@
       "slug": "applenews",
       "hex": "FD415E",
       "source": "https://www.apple.com/apple-news",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-applepay-global",
@@ -1290,7 +1290,7 @@
       "slug": "applepay",
       "hex": "000000",
       "source": "https://developer.apple.com/apple-pay/marketing",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-applepodcasts-global",
@@ -1298,7 +1298,7 @@
       "slug": "applepodcasts",
       "hex": "9933CC",
       "source": "https://www.apple.com/itunes/marketing-on-podcasts/identity-guidelines.html#apple-podcasts-icon",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-appsignal-global",
@@ -1306,7 +1306,7 @@
       "slug": "appsignal",
       "hex": "21375A",
       "source": "https://appsignal.com",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-appsmith-global",
@@ -1314,7 +1314,7 @@
       "slug": "appsmith",
       "hex": "2A2F3D",
       "source": "https://www.appsmith.com",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-appveyor-global",
@@ -1322,7 +1322,7 @@
       "slug": "appveyor",
       "hex": "00B3E0",
       "source": "https://www.appveyor.com",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-appwrite-global",
@@ -1330,7 +1330,7 @@
       "slug": "appwrite",
       "hex": "FD366E",
       "source": "https://appwrite.io/assets",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-aqua-global",
@@ -1338,7 +1338,7 @@
       "slug": "aqua",
       "hex": "1904DA",
       "source": "https://www.aquasec.com/brand",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-arangodb-global",
@@ -1346,7 +1346,7 @@
       "slug": "arangodb",
       "hex": "DDDF72",
       "source": "https://www.arangodb.com/resources/logos",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-arc-global",
@@ -1354,7 +1354,7 @@
       "slug": "arc",
       "hex": "FCBFBD",
       "source": "https://arc.net",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-arcgis-global",
@@ -1362,7 +1362,7 @@
       "slug": "arcgis",
       "hex": "2C7AC3",
       "source": "https://www.esri.com/en-us/arcgis/products/arcgis-pro/overview",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-archlinux-global",
@@ -1370,7 +1370,7 @@
       "slug": "archlinux",
       "hex": "1793D1",
       "source": "https://www.archlinux.org/art",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-archicad-global",
@@ -1378,7 +1378,7 @@
       "slug": "archicad",
       "hex": "2D50A5",
       "source": "https://graphisoft.com/contact-us/press-relations#/documents/archicad-logo-98604",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-archiveofourown-global",
@@ -1386,7 +1386,7 @@
       "slug": "archiveofourown",
       "hex": "990000",
       "source": "https://archiveofourown.org",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-arduino-global",
@@ -1394,7 +1394,7 @@
       "slug": "arduino",
       "hex": "00878F",
       "source": "https://www.arduino.cc",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-argos-global",
@@ -1402,7 +1402,7 @@
       "slug": "argos",
       "hex": "DA291C",
       "source": "https://www.argos.co.uk",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-arkecosystem-global",
@@ -1410,7 +1410,7 @@
       "slug": "arkecosystem",
       "hex": "C9292C",
       "source": "https://ark.io",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-arlo-global",
@@ -1418,7 +1418,7 @@
       "slug": "arlo",
       "hex": "49B48A",
       "source": "https://www.arlo.com",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-arm-global",
@@ -1426,7 +1426,7 @@
       "slug": "arm",
       "hex": "0091BD",
       "source": "https://www.arm.com",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-armkeil-global",
@@ -1434,7 +1434,7 @@
       "slug": "armkeil",
       "hex": "394049",
       "source": "https://www.keil.arm.com",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-arstechnica-global",
@@ -1442,7 +1442,7 @@
       "slug": "arstechnica",
       "hex": "FF4E00",
       "source": "https://arstechnica.com",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-artixlinux-global",
@@ -1450,7 +1450,7 @@
       "slug": "artixlinux",
       "hex": "10A0CC",
       "source": "https://gitea.artixlinux.org/artix/artwork/src/commit/256432e3d06b3e9024bfd6912768e80281ea3746/icons/logo-gray.svg",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-artstation-global",
@@ -1458,7 +1458,7 @@
       "slug": "artstation",
       "hex": "13AFF0",
       "source": "https://www.artstation.com/about/logo",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-arxiv-global",
@@ -1466,7 +1466,7 @@
       "slug": "arxiv",
       "hex": "B31B1B",
       "source": "https://arxiv.org",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-asana-global",
@@ -1474,7 +1474,7 @@
       "slug": "asana",
       "hex": "F06A6A",
       "source": "https://asana.com/brand",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-asda-global",
@@ -1482,7 +1482,7 @@
       "slug": "asda",
       "hex": "68A51C",
       "source": "https://www.asda.com",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-aseprite-global",
@@ -1490,7 +1490,7 @@
       "slug": "aseprite",
       "hex": "7D929E",
       "source": "https://www.aseprite.org",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-assemblyscript-global",
@@ -1498,7 +1498,7 @@
       "slug": "assemblyscript",
       "hex": "007ACC",
       "source": "https://www.assemblyscript.org",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-astonmartin-global",
@@ -1506,7 +1506,7 @@
       "slug": "astonmartin",
       "hex": "00665E",
       "source": "https://www.astonmartin.com",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-astra-global",
@@ -1514,7 +1514,7 @@
       "slug": "astra",
       "hex": "5C2EDE",
       "source": "https://wpastra.com/brand-assets",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-astral-global",
@@ -1522,7 +1522,7 @@
       "slug": "astral",
       "hex": "261230",
       "source": "https://brandpad.io/astral",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-astro-global",
@@ -1530,7 +1530,7 @@
       "slug": "astro",
       "hex": "BC52EE",
       "source": "https://astro.build/press",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-asus-global",
@@ -1538,7 +1538,7 @@
       "slug": "asus",
       "hex": "000000",
       "source": "https://www.asus.com",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-atari-global",
@@ -1546,7 +1546,7 @@
       "slug": "atari",
       "hex": "E4202E",
       "source": "https://atarivcs.com",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-atlasos-global",
@@ -1554,7 +1554,7 @@
       "slug": "atlasos",
       "hex": "1A91FF",
       "source": "https://docs.atlasos.net/branding",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-atlassian-global",
@@ -1562,7 +1562,7 @@
       "slug": "atlassian",
       "hex": "0052CC",
       "source": "https://atlassian.design/resources/logo-library",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-atomgit-global",
@@ -1570,7 +1570,7 @@
       "slug": "atomgit",
       "hex": "DA203E",
       "source": "https://cdn-static.atomgit.com/doc/logo.svg",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-auchan-global",
@@ -1578,7 +1578,7 @@
       "slug": "auchan",
       "hex": "D6180B",
       "source": "https://www.auchan.fr",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-audi-global",
@@ -1586,7 +1586,7 @@
       "slug": "audi",
       "hex": "BB0A30",
       "source": "https://www.audi.com/ci/en/intro/basics/rings.html",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-audioboom-global",
@@ -1594,7 +1594,7 @@
       "slug": "audioboom",
       "hex": "007CE2",
       "source": "https://audioboom.com/about/brand-guidelines",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-audiomack-global",
@@ -1602,7 +1602,7 @@
       "slug": "audiomack",
       "hex": "FFA200",
       "source": "https://styleguide.audiomack.com",
-      "shard": 3
+      "shard": 4
     },
     {
       "key": "si-aurelia-global",
@@ -1610,7 +1610,7 @@
       "slug": "aurelia",
       "hex": "ED2B88",
       "source": "https://aurelia.io",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-autentique-global",
@@ -1618,7 +1618,7 @@
       "slug": "autentique",
       "hex": "3379F2",
       "source": "https://www.autentique.com.br",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-auth0-global",
@@ -1626,7 +1626,7 @@
       "slug": "auth0",
       "hex": "EB5424",
       "source": "https://auth0.com",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-autocad-global",
@@ -1634,7 +1634,7 @@
       "slug": "autocad",
       "hex": "E51050",
       "source": "https://www.autodesk.com/blogs/autocad",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-autodesk-global",
@@ -1642,7 +1642,7 @@
       "slug": "autodesk",
       "hex": "000000",
       "source": "https://brand.autodesk.com/brand-system/logo",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-autodeskmaya-global",
@@ -1650,7 +1650,7 @@
       "slug": "autodeskmaya",
       "hex": "37A5CC",
       "source": "https://area.autodesk.com/learn/courses/maya-intro",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-autodeskrevit-global",
@@ -1658,7 +1658,7 @@
       "slug": "autodeskrevit",
       "hex": "186BFF",
       "source": "https://www.autodesk.com/products/revit",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-autohotkey-global",
@@ -1666,7 +1666,7 @@
       "slug": "autohotkey",
       "hex": "334455",
       "source": "https://www.autohotkey.com",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-autoit-global",
@@ -1674,7 +1674,7 @@
       "slug": "autoit",
       "hex": "5D83AC",
       "source": "https://www.autoitscript.com",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-automattic-global",
@@ -1682,7 +1682,7 @@
       "slug": "automattic",
       "hex": "3499CD",
       "source": "https://automattic.com/press/brand-materials",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-autozone-global",
@@ -1690,7 +1690,7 @@
       "slug": "autozone",
       "hex": "D52B1E",
       "source": "https://www.autozone.com",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-avaloniaui-global",
@@ -1698,7 +1698,7 @@
       "slug": "avaloniaui",
       "hex": "165BFF",
       "source": "https://avaloniaui.net",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-avast-global",
@@ -1706,7 +1706,7 @@
       "slug": "avast",
       "hex": "FF7800",
       "source": "https://press.avast.com/media-materials#logos-and-brand-guidelines",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-avira-global",
@@ -1714,7 +1714,7 @@
       "slug": "avira",
       "hex": "E02027",
       "source": "https://www.avira.com/en/media-library",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-avm-global",
@@ -1722,7 +1722,7 @@
       "slug": "avm",
       "hex": "E2001A",
       "source": "https://en.fritz.com/about-avm/press/press-media",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-await-global",
@@ -1730,7 +1730,7 @@
       "slug": "await",
       "hex": "7858F5",
       "source": "https://awaitwidget.com",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-awesomewm-global",
@@ -1738,7 +1738,7 @@
       "slug": "awesomewm",
       "hex": "535D6C",
       "source": "https://awesomewm.org",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-awwwards-global",
@@ -1746,7 +1746,7 @@
       "slug": "awwwards",
       "hex": "222222",
       "source": "https://www.awwwards.com",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-axisbank-global",
@@ -1754,7 +1754,7 @@
       "slug": "axisbank",
       "hex": "971A4D",
       "source": "https://www.axisbank.com/shareholders-corner/shareholders-information/annual-reports",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-bandrautomation-global",
@@ -1762,7 +1762,7 @@
       "slug": "bandrautomation",
       "hex": "FF8800",
       "source": "https://www.br-automation.com",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-b4x-global",
@@ -1770,7 +1770,7 @@
       "slug": "b4x",
       "hex": "14AECB",
       "source": "https://www.b4x.com/android/forum/threads/b4x-svg-icon-for-simpleicons-library.163853/#post-1004900",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-babelio-global",
@@ -1778,7 +1778,7 @@
       "slug": "babelio",
       "hex": "FBB91E",
       "source": "https://www.babelio.com",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-backblaze-global",
@@ -1786,7 +1786,7 @@
       "slug": "backblaze",
       "hex": "E21E29",
       "source": "https://www.backblaze.com/company/news.html",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-backbone-global",
@@ -1794,7 +1794,7 @@
       "slug": "backbone",
       "hex": "000000",
       "source": "https://backbone.com/press",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-backendless-global",
@@ -1802,7 +1802,7 @@
       "slug": "backendless",
       "hex": "1D77BD",
       "source": "https://backendless.com",
-      "shard": 3
+      "shard": 5
     },
     {
       "key": "si-badoo-global",
@@ -1810,7 +1810,7 @@
       "slug": "badoo",
       "hex": "783BF9",
       "source": "https://badoo.com",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-baidu-global",
@@ -1818,7 +1818,7 @@
       "slug": "baidu",
       "hex": "2932E1",
       "source": "https://www.baidu.com",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-bakalari-global",
@@ -1826,7 +1826,7 @@
       "slug": "bakalari",
       "hex": "00A2E2",
       "source": "https://konference.bakalari.cz",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-bamboo-global",
@@ -1834,7 +1834,7 @@
       "slug": "bamboo",
       "hex": "0052CC",
       "source": "https://www.atlassian.design/guidelines/marketing/resources/logo-files",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-bambulab-global",
@@ -1842,7 +1842,7 @@
       "slug": "bambulab",
       "hex": "00AE42",
       "source": "https://bambulab.com",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-bandcamp-global",
@@ -1850,7 +1850,7 @@
       "slug": "bandcamp",
       "hex": "408294",
       "source": "https://bandcamp.com/buttons",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-bandlab-global",
@@ -1858,7 +1858,7 @@
       "slug": "bandlab",
       "hex": "F12C18",
       "source": "https://www.bandlab.com",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-bandsintown-global",
@@ -1866,7 +1866,7 @@
       "slug": "bandsintown",
       "hex": "00CEC8",
       "source": "https://www.company.bandsintown.com/brand-assets",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-baremetrics-global",
@@ -1874,7 +1874,7 @@
       "slug": "baremetrics",
       "hex": "6078FF",
       "source": "https://baremetrics.com",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-barmenia-global",
@@ -1882,7 +1882,7 @@
       "slug": "barmenia",
       "hex": "009FE3",
       "source": "https://barmenia.de",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-baseui-global",
@@ -1890,7 +1890,7 @@
       "slug": "baseui",
       "hex": "EDEDED",
       "source": "https://base-ui.com",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-basecamp-global",
@@ -1898,7 +1898,7 @@
       "slug": "basecamp",
       "hex": "1D2D35",
       "source": "https://basecamp.com/about/press",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-baserow-global",
@@ -1906,7 +1906,7 @@
       "slug": "baserow",
       "hex": "5190EF",
       "source": "https://baserow.io",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-basicattentiontoken-global",
@@ -1914,7 +1914,7 @@
       "slug": "basicattentiontoken",
       "hex": "80247B",
       "source": "https://brave.com/media-assets",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-bata-global",
@@ -1922,7 +1922,7 @@
       "slug": "bata",
       "hex": "DD282E",
       "source": "https://www.bata.com",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-battledotnet-global",
@@ -1930,7 +1930,7 @@
       "slug": "battledotnet",
       "hex": "4381C3",
       "source": "https://battle.net",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-bazel-global",
@@ -1938,7 +1938,7 @@
       "slug": "bazel",
       "hex": "43A047",
       "source": "https://bazel.build",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-beatport-global",
@@ -1946,7 +1946,7 @@
       "slug": "beatport",
       "hex": "01FF95",
       "source": "https://www.beatport.com",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-beats-global",
@@ -1954,7 +1954,7 @@
       "slug": "beats",
       "hex": "005571",
       "source": "https://www.elastic.co/beats",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-beatsbydre-global",
@@ -1962,7 +1962,7 @@
       "slug": "beatsbydre",
       "hex": "E01F3D",
       "source": "https://www.beatsbydre.com",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-beatstars-global",
@@ -1970,7 +1970,7 @@
       "slug": "beatstars",
       "hex": "EB0000",
       "source": "https://beatstars.world/brand-guidelines",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-beekeeperstudio-global",
@@ -1978,7 +1978,7 @@
       "slug": "beekeeperstudio",
       "hex": "FAD83B",
       "source": "https://www.beekeeperstudio.io/press",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-behance-global",
@@ -1986,7 +1986,7 @@
       "slug": "behance",
       "hex": "1769FF",
       "source": "https://www.behance.net",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-bem-global",
@@ -1994,7 +1994,7 @@
       "slug": "bem",
       "hex": "000000",
       "source": "https://en.bem.info",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-bento-global",
@@ -2002,7 +2002,7 @@
       "slug": "bento",
       "hex": "768CFF",
       "source": "https://bento.me",
-      "shard": 4
+      "shard": 5
     },
     {
       "key": "si-bentobox-global",
@@ -2010,7 +2010,7 @@
       "slug": "bentobox",
       "hex": "F15541",
       "source": "https://www.getbento.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bereal-global",
@@ -2018,7 +2018,7 @@
       "slug": "bereal",
       "hex": "000000",
       "source": "https://bereal.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-betfair-global",
@@ -2026,7 +2026,7 @@
       "slug": "betfair",
       "hex": "FFB80B",
       "source": "https://www.betfair.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-betterstack-global",
@@ -2034,7 +2034,7 @@
       "slug": "betterstack",
       "hex": "000000",
       "source": "https://betterstack.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bigcartel-global",
@@ -2042,7 +2042,7 @@
       "slug": "bigcartel",
       "hex": "222222",
       "source": "https://www.bigcartel.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bigbasket-global",
@@ -2050,7 +2050,7 @@
       "slug": "bigbasket",
       "hex": "A5CD39",
       "source": "https://www.bigbasket.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bigcommerce-global",
@@ -2058,7 +2058,7 @@
       "slug": "bigcommerce",
       "hex": "121118",
       "source": "https://www.bigcommerce.co.uk/press",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bilibili-global",
@@ -2066,7 +2066,7 @@
       "slug": "bilibili",
       "hex": "00A1D6",
       "source": "https://www.bilibili.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-billboard-global",
@@ -2074,7 +2074,7 @@
       "slug": "billboard",
       "hex": "000000",
       "source": "https://www.billboard.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-binance-global",
@@ -2082,7 +2082,7 @@
       "slug": "binance",
       "hex": "F0B90B",
       "source": "https://binance.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-biolink-global",
@@ -2090,7 +2090,7 @@
       "slug": "biolink",
       "hex": "000000",
       "source": "https://bio.link",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bisecthosting-global",
@@ -2098,7 +2098,7 @@
       "slug": "bisecthosting",
       "hex": "0D1129",
       "source": "https://www.bisecthosting.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bit-global",
@@ -2106,7 +2106,7 @@
       "slug": "bit",
       "hex": "592EC1",
       "source": "https://bit.dev",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bitbucket-global",
@@ -2114,7 +2114,7 @@
       "slug": "bitbucket",
       "hex": "0052CC",
       "source": "https://atlassian.design/resources/logo-library",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bitcoin-global",
@@ -2122,7 +2122,7 @@
       "slug": "bitcoin",
       "hex": "F7931A",
       "source": "https://bitcoin.org",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bitcoincash-global",
@@ -2130,7 +2130,7 @@
       "slug": "bitcoincash",
       "hex": "0AC18E",
       "source": "https://www.bitcoincash.org/graphics",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bitcoinsv-global",
@@ -2138,7 +2138,7 @@
       "slug": "bitcoinsv",
       "hex": "EAB300",
       "source": "https://bitcoinsv.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bitdefender-global",
@@ -2146,7 +2146,7 @@
       "slug": "bitdefender",
       "hex": "ED1C24",
       "source": "https://brand.bitdefender.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bitly-global",
@@ -2154,7 +2154,7 @@
       "slug": "bitly",
       "hex": "EE6123",
       "source": "https://bitly.com/pages/press",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bitrise-global",
@@ -2162,7 +2162,7 @@
       "slug": "bitrise",
       "hex": "683D87",
       "source": "https://www.bitrise.io/presskit",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bitsy-global",
@@ -2170,7 +2170,7 @@
       "slug": "bitsy",
       "hex": "6767B2",
       "source": "https://www.bitsy.org/image/cat.svg",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bittorrent-global",
@@ -2178,7 +2178,7 @@
       "slug": "bittorrent",
       "hex": "050505",
       "source": "https://www.bittorrent.com/products",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bitwarden-global",
@@ -2186,7 +2186,7 @@
       "slug": "bitwarden",
       "hex": "175DDC",
       "source": "https://bitwarden.com/brand",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bitwig-global",
@@ -2194,7 +2194,7 @@
       "slug": "bitwig",
       "hex": "FF5A00",
       "source": "https://www.bitwig.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-black-global",
@@ -2202,7 +2202,7 @@
       "slug": "black",
       "hex": "000000",
       "source": "https://black.readthedocs.io",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-blackberry-global",
@@ -2210,7 +2210,7 @@
       "slug": "blackberry",
       "hex": "000000",
       "source": "https://www.blackberry.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-blackmagicdesign-global",
@@ -2218,7 +2218,7 @@
       "slug": "blackmagicdesign",
       "hex": "FFA200",
       "source": "https://www.blackmagicdesign.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-blazemeter-global",
@@ -2226,7 +2226,7 @@
       "slug": "blazemeter",
       "hex": "CA2133",
       "source": "https://www.blazemeter.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-blender-global",
@@ -2234,7 +2234,7 @@
       "slug": "blender",
       "hex": "E87D0D",
       "source": "https://www.blender.org/about/logo",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-blibli-global",
@@ -2242,7 +2242,7 @@
       "slug": "blibli",
       "hex": "0072FF",
       "source": "https://www.blibli.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-blockbench-global",
@@ -2250,7 +2250,7 @@
       "slug": "blockbench",
       "hex": "1E93D9",
       "source": "https://www.blockbench.net/wiki/blockbench/logos",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-blockchaindotcom-global",
@@ -2258,7 +2258,7 @@
       "slug": "blockchaindotcom",
       "hex": "121D33",
       "source": "https://www.blockchain.com/en/press",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-blogger-global",
@@ -2266,7 +2266,7 @@
       "slug": "blogger",
       "hex": "FF5722",
       "source": "https://www.blogger.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bloglovin-global",
@@ -2274,7 +2274,7 @@
       "slug": "bloglovin",
       "hex": "000000",
       "source": "https://www.bloglovin.com/widgets",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-blueprint-global",
@@ -2282,7 +2282,7 @@
       "slug": "blueprint",
       "hex": "137CBD",
       "source": "https://blueprintjs.com/docs",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bluesky-global",
@@ -2290,7 +2290,7 @@
       "slug": "bluesky",
       "hex": "1185FE",
       "source": "https://bsky.social/about/blog/press-faq",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bluesound-global",
@@ -2298,7 +2298,7 @@
       "slug": "bluesound",
       "hex": "0F131E",
       "source": "https://www.bluesound.com/products/node-x",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bluetooth-global",
@@ -2306,7 +2306,7 @@
       "slug": "bluetooth",
       "hex": "0082FC",
       "source": "https://www.bluetooth.com/develop-with-bluetooth/marketing-branding",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bmcsoftware-global",
@@ -2314,7 +2314,7 @@
       "slug": "bmcsoftware",
       "hex": "FE5000",
       "source": "https://www.bmc.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bmw-global",
@@ -2322,7 +2322,7 @@
       "slug": "bmw",
       "hex": "0066B1",
       "source": "https://bmw.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bnbchain-global",
@@ -2330,7 +2330,7 @@
       "slug": "bnbchain",
       "hex": "F0B90B",
       "source": "https://www.bnbchain.org",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-boardgamegeek-global",
@@ -2338,7 +2338,7 @@
       "slug": "boardgamegeek",
       "hex": "FF5100",
       "source": "https://boardgamegeek.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-boat-global",
@@ -2346,7 +2346,7 @@
       "slug": "boat",
       "hex": "E20722",
       "source": "https://www.boat-lifestyle.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-boehringeringelheim-global",
@@ -2354,7 +2354,7 @@
       "slug": "boehringeringelheim",
       "hex": "00E47C",
       "source": "https://www.boehringer-ingelheim.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bohemiainteractive-global",
@@ -2362,7 +2362,7 @@
       "slug": "bohemiainteractive",
       "hex": "6BA539",
       "source": "https://www.bohemia.net/press",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bombardier-global",
@@ -2370,7 +2370,7 @@
       "slug": "bombardier",
       "hex": "000000",
       "source": "https://bombardier.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bookalope-global",
@@ -2378,7 +2378,7 @@
       "slug": "bookalope",
       "hex": "DC2829",
       "source": "https://bookalope.net",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bookbub-global",
@@ -2386,7 +2386,7 @@
       "slug": "bookbub",
       "hex": "F44336",
       "source": "https://insights.bookbub.com/bookbub-follow-bookmark-buttons-for-authors-websites",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bookingdotcom-global",
@@ -2394,7 +2394,7 @@
       "slug": "bookingdotcom",
       "hex": "003A9A",
       "source": "https://www.bookingholdings.com/media-room",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bookmeter-global",
@@ -2402,7 +2402,7 @@
       "slug": "bookmeter",
       "hex": "64BC4B",
       "source": "https://bookmeter.com",
-      "shard": 4
+      "shard": 6
     },
     {
       "key": "si-bookmyshow-global",
@@ -2410,7 +2410,7 @@
       "slug": "bookmyshow",
       "hex": "C4242B",
       "source": "https://in.bookmyshow.com",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-bookstack-global",
@@ -2418,7 +2418,7 @@
       "slug": "bookstack",
       "hex": "0288D1",
       "source": "https://www.bookstackapp.com",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-boost-global",
@@ -2426,7 +2426,7 @@
       "slug": "boost",
       "hex": "F7901E",
       "source": "https://www.boostmobile.com",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-boosty-global",
@@ -2434,7 +2434,7 @@
       "slug": "boosty",
       "hex": "F15F2C",
       "source": "https://boosty.to/app/brand",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-boots-global",
@@ -2442,7 +2442,7 @@
       "slug": "boots",
       "hex": "05054B",
       "source": "https://www.boots-uk.com",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-bootstrap-global",
@@ -2450,7 +2450,7 @@
       "slug": "bootstrap",
       "hex": "7952B3",
       "source": "https://getbootstrap.com/docs/5.3/about/brand",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-borgbackup-global",
@@ -2458,7 +2458,7 @@
       "slug": "borgbackup",
       "hex": "00DD00",
       "source": "https://www.borgbackup.org",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-bosch-global",
@@ -2466,7 +2466,7 @@
       "slug": "bosch",
       "hex": "EA0016",
       "source": "https://www.bosch.de",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-bose-global",
@@ -2474,7 +2474,7 @@
       "slug": "bose",
       "hex": "000000",
       "source": "https://www.bose.com",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-botblecms-global",
@@ -2482,7 +2482,7 @@
       "slug": "botblecms",
       "hex": "205081",
       "source": "https://botble.com",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-boulanger-global",
@@ -2490,7 +2490,7 @@
       "slug": "boulanger",
       "hex": "FD5300",
       "source": "https://www.boulanger.com",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-bower-global",
@@ -2498,7 +2498,7 @@
       "slug": "bower",
       "hex": "EF5734",
       "source": "https://bower.io/docs/about/#brand",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-box-global",
@@ -2506,7 +2506,7 @@
       "slug": "box",
       "hex": "0061D5",
       "source": "https://www.box.com/en-gb/about-us/press",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-boxysvg-global",
@@ -2514,7 +2514,7 @@
       "slug": "boxysvg",
       "hex": "3584E3",
       "source": "https://boxy-svg.com/ideas/7/app-icon-redesign#comment-1953",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-braintree-global",
@@ -2522,7 +2522,7 @@
       "slug": "braintree",
       "hex": "000000",
       "source": "https://www.braintreepayments.com/press",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-brandfetch-global",
@@ -2530,7 +2530,7 @@
       "slug": "brandfetch",
       "hex": "0084FF",
       "source": "https://brandfetch.com/brandfetch.com",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-brandfolder-global",
@@ -2538,7 +2538,7 @@
       "slug": "brandfolder",
       "hex": "40D1F5",
       "source": "https://brandfolder.com/brandfolder",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-brave-global",
@@ -2546,7 +2546,7 @@
       "slug": "brave",
       "hex": "FB542B",
       "source": "https://brave.com/brave-branding-assets",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-breaker-global",
@@ -2554,7 +2554,7 @@
       "slug": "breaker",
       "hex": "003DAD",
       "source": "https://www.breaker.audio/i/brand",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-brenntag-global",
@@ -2562,7 +2562,7 @@
       "slug": "brenntag",
       "hex": "1A0033",
       "source": "https://www.brenntag.com",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-brevo-global",
@@ -2570,7 +2570,7 @@
       "slug": "brevo",
       "hex": "0B996E",
       "source": "https://www.brevo.com",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-brex-global",
@@ -2578,7 +2578,7 @@
       "slug": "brex",
       "hex": "212121",
       "source": "https://www.brex.com/journal/press",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-bricks-global",
@@ -2586,7 +2586,7 @@
       "slug": "bricks",
       "hex": "FFD54D",
       "source": "https://bricksbuilder.io",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-broadcom-global",
@@ -2594,7 +2594,7 @@
       "slug": "broadcom",
       "hex": "E31837",
       "source": "https://www.broadcom.com/support",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-bruno-global",
@@ -2602,7 +2602,7 @@
       "slug": "bruno",
       "hex": "F4AA41",
       "source": "https://www.usebruno.com",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-bsd-global",
@@ -2610,7 +2610,7 @@
       "slug": "bsd",
       "hex": "AB2B28",
       "source": "https://freebsdfoundation.org/about-us/about-the-foundation/project",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-buddy-global",
@@ -2618,7 +2618,7 @@
       "slug": "buddy",
       "hex": "1A86FD",
       "source": "https://buddy.works/about",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-buffer-global",
@@ -2626,7 +2626,7 @@
       "slug": "buffer",
       "hex": "231F20",
       "source": "https://buffer.com",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-bugatti-global",
@@ -2634,7 +2634,7 @@
       "slug": "bugatti",
       "hex": "000000",
       "source": "https://newsroom.bugatti.com",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-bugcrowd-global",
@@ -2642,7 +2642,7 @@
       "slug": "bugcrowd",
       "hex": "F26822",
       "source": "https://www.bugcrowd.com/about/press-kit",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-buhl-global",
@@ -2650,7 +2650,7 @@
       "slug": "buhl",
       "hex": "023E84",
       "source": "https://buhl.de",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-buildkite-global",
@@ -2658,7 +2658,7 @@
       "slug": "buildkite",
       "hex": "14CC80",
       "source": "https://buildkite.com/brand-assets",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-builtbybit-global",
@@ -2666,7 +2666,7 @@
       "slug": "builtbybit",
       "hex": "2D87C3",
       "source": "https://builtbybit.com/wiki/branding",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-bukalapak-global",
@@ -2674,7 +2674,7 @@
       "slug": "bukalapak",
       "hex": "E31E52",
       "source": "https://www.bukalapak.com",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-bulma-global",
@@ -2682,7 +2682,7 @@
       "slug": "bulma",
       "hex": "00D1B2",
       "source": "https://bulma.io/brand",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-bun-global",
@@ -2690,7 +2690,7 @@
       "slug": "bun",
       "hex": "000000",
       "source": "https://bun.sh/press-kit",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-bungie-global",
@@ -2698,7 +2698,7 @@
       "slug": "bungie",
       "hex": "0075BB",
       "source": "https://www.bungie.net/7/en/Destiny",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-bunnydotnet-global",
@@ -2706,7 +2706,7 @@
       "slug": "bunnydotnet",
       "hex": "FFAA49",
       "source": "https://bunny.net",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-bunq-global",
@@ -2714,7 +2714,7 @@
       "slug": "bunq",
       "hex": "3394D7",
       "source": "https://press.bunq.com/media_kits",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-burgerking-global",
@@ -2722,7 +2722,7 @@
       "slug": "burgerking",
       "hex": "D62300",
       "source": "https://www.bk.com",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-burpsuite-global",
@@ -2730,7 +2730,7 @@
       "slug": "burpsuite",
       "hex": "FF6633",
       "source": "https://portswigger.net",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-burton-global",
@@ -2738,7 +2738,7 @@
       "slug": "burton",
       "hex": "000000",
       "source": "https://brand.burton.com/logo",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-buymeacoffee-global",
@@ -2746,7 +2746,7 @@
       "slug": "buymeacoffee",
       "hex": "FFDD00",
       "source": "https://www.buymeacoffee.com/brand",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-buysellads-global",
@@ -2754,7 +2754,7 @@
       "slug": "buysellads",
       "hex": "EB4714",
       "source": "https://docs.buysellads.com",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-buzzfeed-global",
@@ -2762,7 +2762,7 @@
       "slug": "buzzfeed",
       "hex": "EE3322",
       "source": "https://www.buzzfeed.com/press/assets",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-bvg-global",
@@ -2770,7 +2770,7 @@
       "slug": "bvg",
       "hex": "F0D722",
       "source": "https://www.bvg.de",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-byjus-global",
@@ -2778,7 +2778,7 @@
       "slug": "byjus",
       "hex": "813588",
       "source": "https://byjus.com/byjus-the-learning-app",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-bytedance-global",
@@ -2786,7 +2786,7 @@
       "slug": "bytedance",
       "hex": "3C8CFF",
       "source": "https://www.bytedance.com",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-cplusplusbuilder-global",
@@ -2794,7 +2794,7 @@
       "slug": "cplusplusbuilder",
       "hex": "E62431",
       "source": "https://www.embarcadero.com/news/logo",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-cachet-global",
@@ -2802,7 +2802,7 @@
       "slug": "cachet",
       "hex": "7ED321",
       "source": "https://cachethq.io/press",
-      "shard": 5
+      "shard": 7
     },
     {
       "key": "si-caddy-global",
@@ -2810,7 +2810,7 @@
       "slug": "caddy",
       "hex": "1F88C0",
       "source": "https://caddyserver.com",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-cadillac-global",
@@ -2818,7 +2818,7 @@
       "slug": "cadillac",
       "hex": "000000",
       "source": "https://www.cadillac.com",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-cakephp-global",
@@ -2826,7 +2826,7 @@
       "slug": "cakephp",
       "hex": "D33C43",
       "source": "https://cakephp.org/logos",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-caldotcom-global",
@@ -2834,7 +2834,7 @@
       "slug": "caldotcom",
       "hex": "292929",
       "source": "https://design.cal.com/assets/logos",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-calendly-global",
@@ -2842,7 +2842,7 @@
       "slug": "calendly",
       "hex": "006BFF",
       "source": "https://calendly.com/newsroom",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-campaignmonitor-global",
@@ -2850,7 +2850,7 @@
       "slug": "campaignmonitor",
       "hex": "111324",
       "source": "https://www.campaignmonitor.com/company/brand/",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-camunda-global",
@@ -2858,7 +2858,7 @@
       "slug": "camunda",
       "hex": "FC5D0D",
       "source": "https://camunda.com/brand",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-canonical-global",
@@ -2866,7 +2866,7 @@
       "slug": "canonical",
       "hex": "E95420",
       "source": "https://design.ubuntu.com/resources",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-canvas-global",
@@ -2874,7 +2874,7 @@
       "slug": "canvas",
       "hex": "E72429",
       "source": "https://www.instructure.com/about/brand-guide/media-resources",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-carthrottle-global",
@@ -2882,7 +2882,7 @@
       "slug": "carthrottle",
       "hex": "FF9C42",
       "source": "https://www.carthrottle.com",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-cardano-global",
@@ -2890,7 +2890,7 @@
       "slug": "cardano",
       "hex": "0133AD",
       "source": "https://cardano.org/brand-assets/",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-carlsberggroup-global",
@@ -2898,7 +2898,7 @@
       "slug": "carlsberggroup",
       "hex": "00321E",
       "source": "https://www.carlsberggroup.com/who-we-are/about-the-carlsberg-group/design-guide",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-carrd-global",
@@ -2906,7 +2906,7 @@
       "slug": "carrd",
       "hex": "596CAF",
       "source": "https://carrd.co/docs/general/brand-assets",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-carto-global",
@@ -2914,7 +2914,7 @@
       "slug": "carto",
       "hex": "EB1510",
       "source": "https://carto.com/brand/",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-cashapp-global",
@@ -2922,7 +2922,7 @@
       "slug": "cashapp",
       "hex": "00C244",
       "source": "https://cash.app/press",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-castbox-global",
@@ -2930,7 +2930,7 @@
       "slug": "castbox",
       "hex": "F55B23",
       "source": "https://castbox.fm/newsroom/",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-castorama-global",
@@ -2938,7 +2938,7 @@
       "slug": "castorama",
       "hex": "0078D7",
       "source": "https://www.castorama.fr",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-castro-global",
@@ -2946,7 +2946,7 @@
       "slug": "castro",
       "hex": "00B265",
       "source": "https://supertop.co/castro/press/",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-cbc-global",
@@ -2954,7 +2954,7 @@
       "slug": "cbc",
       "hex": "E60505",
       "source": "https://www.cbc.ca",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-cbs-global",
@@ -2962,7 +2962,7 @@
       "slug": "cbs",
       "hex": "033963",
       "source": "https://www.cbs.com",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-ccc-global",
@@ -2970,7 +2970,7 @@
       "slug": "ccc",
       "hex": "000000",
       "source": "https://www.cqc.com.cn/www/chinese/c/2018-03-20/553293.shtml",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-ccleaner-global",
@@ -2978,7 +2978,7 @@
       "slug": "ccleaner",
       "hex": "CB2D29",
       "source": "https://www.ccleaner.com",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-cdprojekt-global",
@@ -2986,7 +2986,7 @@
       "slug": "cdprojekt",
       "hex": "DC0D15",
       "source": "https://www.cdprojekt.com/en/media/logotypes/",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-ce-global",
@@ -2994,7 +2994,7 @@
       "slug": "ce",
       "hex": "000000",
       "source": "https://single-market-economy.ec.europa.eu/single-market/ce-marking_en",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-celestron-global",
@@ -3002,7 +3002,7 @@
       "slug": "celestron",
       "hex": "F47216",
       "source": "https://www.celestron.com",
-      "shard": 5
+      "shard": 8
     },
     {
       "key": "si-centos-global",
@@ -3010,7 +3010,7 @@
       "slug": "centos",
       "hex": "262577",
       "source": "https://wiki.centos.org/ArtWork/Brand/Logo",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-cesium-global",
@@ -3018,7 +3018,7 @@
       "slug": "cesium",
       "hex": "6CADDF",
       "source": "https://cesium.com/press/",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-chainguard-global",
@@ -3026,7 +3026,7 @@
       "slug": "chainguard",
       "hex": "4445E7",
       "source": "https://www.chainguard.dev",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-chainlink-global",
@@ -3034,7 +3034,7 @@
       "slug": "chainlink",
       "hex": "375BD2",
       "source": "https://chain.link/brand-assets",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-changedetection-global",
@@ -3042,7 +3042,7 @@
       "slug": "changedetection",
       "hex": "3056D3",
       "source": "https://changedetection.io",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-channel4-global",
@@ -3050,7 +3050,7 @@
       "slug": "channel4",
       "hex": "AAFF89",
       "source": "https://mediaassets.channel4.com/guidelines/guide/34286b7b-ea25-404d-a43b-e912fc85b0e0/page/8a2dd59a-51df-4f47-aa37-c235a761455e",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-charles-global",
@@ -3058,7 +3058,7 @@
       "slug": "charles",
       "hex": "F3F5F5",
       "source": "https://www.charlesproxy.com",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-chartdotjs-global",
@@ -3066,7 +3066,7 @@
       "slug": "chartdotjs",
       "hex": "FF6384",
       "source": "https://www.chartjs.org",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-chartmogul-global",
@@ -3074,7 +3074,7 @@
       "slug": "chartmogul",
       "hex": "13324B",
       "source": "https://chartmogul.com/company/",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-chatbot-global",
@@ -3082,7 +3082,7 @@
       "slug": "chatbot",
       "hex": "0066FF",
       "source": "https://chatbot.design",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-chatwoot-global",
@@ -3090,7 +3090,7 @@
       "slug": "chatwoot",
       "hex": "1F93FF",
       "source": "https://www.chatwoot.com",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-checkio-global",
@@ -3098,7 +3098,7 @@
       "slug": "checkio",
       "hex": "008DB6",
       "source": "https://py.checkio.org/blog/",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-checkmarx-global",
@@ -3106,7 +3106,7 @@
       "slug": "checkmarx",
       "hex": "54B848",
       "source": "https://www.checkmarx.com/resources/datasheets/",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-checkmk-global",
@@ -3114,7 +3114,7 @@
       "slug": "checkmk",
       "hex": "15D1A0",
       "source": "https://checkmk.com",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-chedraui-global",
@@ -3122,7 +3122,7 @@
       "slug": "chedraui",
       "hex": "E0832F",
       "source": "https://www.chedraui.com.mx",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-chef-global",
@@ -3130,7 +3130,7 @@
       "slug": "chef",
       "hex": "F09820",
       "source": "https://www.chef.io",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-chemex-global",
@@ -3138,7 +3138,7 @@
       "slug": "chemex",
       "hex": "4D2B1A",
       "source": "https://vtlogo.com/chemex-coffeemaker-vector-logo-svg/",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-chessdotcom-global",
@@ -3146,7 +3146,7 @@
       "slug": "chessdotcom",
       "hex": "81B64C",
       "source": "https://www.chess.com/article/view/chess-com-brand-resources",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-chevrolet-global",
@@ -3154,7 +3154,7 @@
       "slug": "chevrolet",
       "hex": "CD9834",
       "source": "https://www.chevrolet.com/content/dam/chevrolet/na/us/english/index/shopping-tools/download-catalog/02-pdf/2019-chevrolet-corvette-catalog.pdf",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-chianetwork-global",
@@ -3162,7 +3162,7 @@
       "slug": "chianetwork",
       "hex": "5ECE71",
       "source": "https://www.chia.net/branding/",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-chinaeasternairlines-global",
@@ -3170,7 +3170,7 @@
       "slug": "chinaeasternairlines",
       "hex": "1A2477",
       "source": "https://uk.ceair.com/newCMS/uk/en/content/en_Footer/Support/201904/t20190404_5763.html",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-chinasouthernairlines-global",
@@ -3178,7 +3178,7 @@
       "slug": "chinasouthernairlines",
       "hex": "008BCB",
       "source": "https://www.csair.com/en/about/investor/yejibaogao/2020/",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-chocolatey-global",
@@ -3186,7 +3186,7 @@
       "slug": "chocolatey",
       "hex": "80B5E3",
       "source": "https://chocolatey.org/media-kit",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-chromatic-global",
@@ -3194,7 +3194,7 @@
       "slug": "chromatic",
       "hex": "FC521F",
       "source": "https://www.chromatic.com",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-chromewebstore-global",
@@ -3202,7 +3202,7 @@
       "slug": "chromewebstore",
       "hex": "4285F4",
       "source": "https://chromewebstore.google.com",
-      "shard": 6
+      "shard": 8
     },
     {
       "key": "si-chrysler-global",
@@ -3210,7 +3210,7 @@
       "slug": "chrysler",
       "hex": "000000",
       "source": "https://www.stellantis.com/en/brands/chrysler",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-chupachups-global",
@@ -3218,7 +3218,7 @@
       "slug": "chupachups",
       "hex": "CF103E",
       "source": "https://www.chupachups.co.uk",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cinema4d-global",
@@ -3226,7 +3226,7 @@
       "slug": "cinema4d",
       "hex": "011A6A",
       "source": "https://www.maxon.net/en/about-maxon/branding",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cinnamon-global",
@@ -3234,7 +3234,7 @@
       "slug": "cinnamon",
       "hex": "DC682E",
       "source": "https://projects.linuxmint.com/cinnamon",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cinny-global",
@@ -3242,7 +3242,7 @@
       "slug": "cinny",
       "hex": "000000",
       "source": "https://cinny.in/assets/cinny.svg",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-circle-global",
@@ -3250,7 +3250,7 @@
       "slug": "circle",
       "hex": "8669AE",
       "source": "https://www.circle.com",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-circleci-global",
@@ -3258,7 +3258,7 @@
       "slug": "circleci",
       "hex": "343434",
       "source": "https://circleci.com/press",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-circuitverse-global",
@@ -3266,7 +3266,7 @@
       "slug": "circuitverse",
       "hex": "42B883",
       "source": "https://circuitverse.org",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cirrusci-global",
@@ -3274,7 +3274,7 @@
       "slug": "cirrusci",
       "hex": "4051B5",
       "source": "https://cirrus-ci.org",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cisco-global",
@@ -3282,7 +3282,7 @@
       "slug": "cisco",
       "hex": "1BA0D7",
       "source": "https://www.cisco.com",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-citrix-global",
@@ -3290,7 +3290,7 @@
       "slug": "citrix",
       "hex": "452170",
       "source": "https://brand.citrix.com",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-citroen-global",
@@ -3298,7 +3298,7 @@
       "slug": "citroen",
       "hex": "DA291C",
       "source": "https://www.stellantis.com/en/brands/citroen",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-civicrm-global",
@@ -3306,7 +3306,7 @@
       "slug": "civicrm",
       "hex": "81C459",
       "source": "https://civicrm.org/trademark",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-civo-global",
@@ -3314,7 +3314,7 @@
       "slug": "civo",
       "hex": "239DFF",
       "source": "https://www.civo.com/brand-assets",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-clarifai-global",
@@ -3322,7 +3322,7 @@
       "slug": "clarifai",
       "hex": "1955FF",
       "source": "https://www.clarifai.com",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-claris-global",
@@ -3330,7 +3330,7 @@
       "slug": "claris",
       "hex": "000000",
       "source": "https://www.claris.com",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-clarivate-global",
@@ -3338,7 +3338,7 @@
       "slug": "clarivate",
       "hex": "93FF9E",
       "source": "https://clarivate.com",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-claude-global",
@@ -3346,7 +3346,7 @@
       "slug": "claude",
       "hex": "D97757",
       "source": "https://claude.ai",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-claudecode-global",
@@ -3354,7 +3354,7 @@
       "slug": "claudecode",
       "hex": "D97757",
       "source": "https://code.claude.com",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-clerk-global",
@@ -3362,7 +3362,7 @@
       "slug": "clerk",
       "hex": "6C47FF",
       "source": "https://clerk.com",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-clevercloud-global",
@@ -3370,7 +3370,7 @@
       "slug": "clevercloud",
       "hex": "171C36",
       "source": "https://www.clever-cloud.com",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-clickup-global",
@@ -3378,7 +3378,7 @@
       "slug": "clickup",
       "hex": "7B68EE",
       "source": "https://clickup.com/brand",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cline-global",
@@ -3386,7 +3386,7 @@
       "slug": "cline",
       "hex": "18181B",
       "source": "https://cline.bot/assets/branding/logos/cline-wordmark-black.svg",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-clion-global",
@@ -3394,7 +3394,7 @@
       "slug": "clion",
       "hex": "000000",
       "source": "https://www.jetbrains.com/company/brand/logos/",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-clockify-global",
@@ -3402,7 +3402,7 @@
       "slug": "clockify",
       "hex": "03A9F4",
       "source": "https://clockify.me/brand-assets",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cloud66-global",
@@ -3410,7 +3410,7 @@
       "slug": "cloud66",
       "hex": "3C72B9",
       "source": "https://www.cloud66.com",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cloudfoundry-global",
@@ -3418,7 +3418,7 @@
       "slug": "cloudfoundry",
       "hex": "0C9ED5",
       "source": "https://www.cloudfoundry.org",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cloudnativebuild-global",
@@ -3426,7 +3426,7 @@
       "slug": "cloudnativebuild",
       "hex": "F76945",
       "source": "https://docs.cnb.cool/en/logo.html",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cloudbees-global",
@@ -3434,7 +3434,7 @@
       "slug": "cloudbees",
       "hex": "1997B5",
       "source": "https://www.cloudbees.com",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cloudcannon-global",
@@ -3442,7 +3442,7 @@
       "slug": "cloudcannon",
       "hex": "407AFC",
       "source": "https://cloudcannon.com",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cloudera-global",
@@ -3450,7 +3450,7 @@
       "slug": "cloudera",
       "hex": "F96702",
       "source": "https://www.cloudera.com",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cloudflare-global",
@@ -3458,7 +3458,7 @@
       "slug": "cloudflare",
       "hex": "F38020",
       "source": "https://www.cloudflare.com/logo/",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cloudflarepages-global",
@@ -3466,7 +3466,7 @@
       "slug": "cloudflarepages",
       "hex": "F38020",
       "source": "https://pages.cloudflare.com",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cloudflareworkers-global",
@@ -3474,7 +3474,7 @@
       "slug": "cloudflareworkers",
       "hex": "F38020",
       "source": "https://www.cloudflare.com/developer-platform/products/",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cloudinary-global",
@@ -3482,7 +3482,7 @@
       "slug": "cloudinary",
       "hex": "3448C5",
       "source": "https://cloudinary.com",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cloudron-global",
@@ -3490,7 +3490,7 @@
       "slug": "cloudron",
       "hex": "03A9F4",
       "source": "https://www.cloudron.io/brand-assets.html",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cloudsmith-global",
@@ -3498,7 +3498,7 @@
       "slug": "cloudsmith",
       "hex": "2A6FE1",
       "source": "https://cloudsmith.com/company/brand/",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cloudways-global",
@@ -3506,7 +3506,7 @@
       "slug": "cloudways",
       "hex": "2C39BD",
       "source": "https://www.cloudways.com/en/media-kit.php",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-clubforce-global",
@@ -3514,7 +3514,7 @@
       "slug": "clubforce",
       "hex": "191176",
       "source": "https://clubforce.com/media-centre",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-clubhouse-global",
@@ -3522,7 +3522,7 @@
       "slug": "clubhouse",
       "hex": "FFE450",
       "source": "https://www.clubhouse.com/press",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-clyp-global",
@@ -3530,7 +3530,7 @@
       "slug": "clyp",
       "hex": "3CBDB1",
       "source": "https://clyp.it",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cmake-global",
@@ -3538,7 +3538,7 @@
       "slug": "cmake",
       "hex": "064F8C",
       "source": "https://www.kitware.com/platforms/",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cnet-global",
@@ -3546,7 +3546,7 @@
       "slug": "cnet",
       "hex": "E71D1D",
       "source": "https://www.cnet.com",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cnn-global",
@@ -3554,7 +3554,7 @@
       "slug": "cnn",
       "hex": "CC0000",
       "source": "https://edition.cnn.com",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-coop-global",
@@ -3562,7 +3562,7 @@
       "slug": "coop",
       "hex": "00B1E7",
       "source": "https://www.co-operative.coop/media/assets",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cobalt-global",
@@ -3570,7 +3570,7 @@
       "slug": "cobalt",
       "hex": "FFFFFF",
       "source": "https://cobalt.tools",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cockroachlabs-global",
@@ -3578,7 +3578,7 @@
       "slug": "cockroachlabs",
       "hex": "6933FF",
       "source": "https://www.cockroachlabs.com",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-cocos-global",
@@ -3586,7 +3586,7 @@
       "slug": "cocos",
       "hex": "55C2E1",
       "source": "https://www.cocos.com/en/",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-coda-global",
@@ -3594,7 +3594,7 @@
       "slug": "coda",
       "hex": "F46A54",
       "source": "https://coda.io",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-codacy-global",
@@ -3602,7 +3602,7 @@
       "slug": "codacy",
       "hex": "222F29",
       "source": "https://www.codacy.com/blog/",
-      "shard": 6
+      "shard": 9
     },
     {
       "key": "si-codeclimate-global",
@@ -3610,7 +3610,7 @@
       "slug": "codeclimate",
       "hex": "000000",
       "source": "https://codeclimate.com/github/codeclimate/python-test-reporter/badges/",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codeblocks-global",
@@ -3618,7 +3618,7 @@
       "slug": "codeblocks",
       "hex": "41AD48",
       "source": "https://wiki.codeblocks.org/index.php/Main_Page",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codeberg-global",
@@ -3626,7 +3626,7 @@
       "slug": "codeberg",
       "hex": "2185D0",
       "source": "https://codeberg.org/Codeberg/Design/src/commit/ac514aa9aaa2457d4af3c3e13df3ab136d22a49a/logo/special/codeberg-logo_special_fake-transaprency.svg",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codebuddy-global",
@@ -3634,7 +3634,7 @@
       "slug": "codebuddy",
       "hex": "6C4DFF",
       "source": "https://www.codebuddy.cn",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codecademy-global",
@@ -3642,7 +3642,7 @@
       "slug": "codecademy",
       "hex": "1F4056",
       "source": "https://www.codecademy.com",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codechef-global",
@@ -3650,7 +3650,7 @@
       "slug": "codechef",
       "hex": "5B4638",
       "source": "https://www.codechef.com",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codecov-global",
@@ -3658,7 +3658,7 @@
       "slug": "codecov",
       "hex": "F01F7A",
       "source": "https://codecov.io",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codefactor-global",
@@ -3666,7 +3666,7 @@
       "slug": "codefactor",
       "hex": "F44A6A",
       "source": "https://www.codefactor.io",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codeforces-global",
@@ -3674,7 +3674,7 @@
       "slug": "codeforces",
       "hex": "1F8ACB",
       "source": "https://codeforces.com",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codefresh-global",
@@ -3682,7 +3682,7 @@
       "slug": "codefresh",
       "hex": "08B1AB",
       "source": "https://codefresh.io",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codeigniter-global",
@@ -3690,7 +3690,7 @@
       "slug": "codeigniter",
       "hex": "EF4223",
       "source": "https://www.codeigniter.com/help/legal",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codemagic-global",
@@ -3698,7 +3698,7 @@
       "slug": "codemagic",
       "hex": "F45E3F",
       "source": "https://codemagic.io",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codementor-global",
@@ -3706,7 +3706,7 @@
       "slug": "codementor",
       "hex": "003648",
       "source": "https://www.codementor.io",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codenewbie-global",
@@ -3714,7 +3714,7 @@
       "slug": "codenewbie",
       "hex": "9013FE",
       "source": "https://community.codenewbie.org",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codeproject-global",
@@ -3722,7 +3722,7 @@
       "slug": "codeproject",
       "hex": "FF9900",
       "source": "https://www.codeproject.com",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-coder-global",
@@ -3730,7 +3730,7 @@
       "slug": "coder",
       "hex": "090B0B",
       "source": "https://coder.com/brand#3-logos",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-coderabbit-global",
@@ -3738,7 +3738,7 @@
       "slug": "coderabbit",
       "hex": "FF570A",
       "source": "https://www.coderabbit.ai/brand",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codersrank-global",
@@ -3746,7 +3746,7 @@
       "slug": "codersrank",
       "hex": "67A4AC",
       "source": "https://codersrank.io",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codesandbox-global",
@@ -3754,7 +3754,7 @@
       "slug": "codesandbox",
       "hex": "151515",
       "source": "https://codesandbox.io/CodeSandbox-Press-Kit.zip",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codeship-global",
@@ -3762,7 +3762,7 @@
       "slug": "codeship",
       "hex": "004466",
       "source": "https://app.codeship.com",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codesignal-global",
@@ -3770,7 +3770,7 @@
       "slug": "codesignal",
       "hex": "1062FB",
       "source": "https://codesignal.com",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codestream-global",
@@ -3778,7 +3778,7 @@
       "slug": "codestream",
       "hex": "008C99",
       "source": "https://www.codestream.com",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codingninjas-global",
@@ -3786,7 +3786,7 @@
       "slug": "codingninjas",
       "hex": "DD6620",
       "source": "https://www.codingninjas.com/press-release",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codingame-global",
@@ -3794,7 +3794,7 @@
       "slug": "codingame",
       "hex": "F2BB13",
       "source": "https://www.codingame.com/work/press/press-kit/",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-codio-global",
@@ -3802,7 +3802,7 @@
       "slug": "codio",
       "hex": "4574E0",
       "source": "https://codio.com",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-coffeescript-global",
@@ -3810,7 +3810,7 @@
       "slug": "coffeescript",
       "hex": "2F2625",
       "source": "https://coffeescript.org",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-coggle-global",
@@ -3818,7 +3818,7 @@
       "slug": "coggle",
       "hex": "9ED56B",
       "source": "https://coggle.it/press",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-coinbase-global",
@@ -3826,7 +3826,7 @@
       "slug": "coinbase",
       "hex": "0052FF",
       "source": "https://www.coinbase.com/press",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-coinmarketcap-global",
@@ -3834,7 +3834,7 @@
       "slug": "coinmarketcap",
       "hex": "17181B",
       "source": "https://www.coinmarketcap.com",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-collaboraonline-global",
@@ -3842,7 +3842,7 @@
       "slug": "collaboraonline",
       "hex": "5C2983",
       "source": "https://www.collaboraonline.com/branding-guidelines",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-comicfury-global",
@@ -3850,7 +3850,7 @@
       "slug": "comicfury",
       "hex": "79BD42",
       "source": "https://comicfury.com/images/gator-icon-black.png",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-comma-global",
@@ -3858,7 +3858,7 @@
       "slug": "comma",
       "hex": "51FF00",
       "source": "https://comma.ai",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-commodore-global",
@@ -3866,7 +3866,7 @@
       "slug": "commodore",
       "hex": "1E2A4E",
       "source": "https://commodore.inc",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-composer-global",
@@ -3874,7 +3874,7 @@
       "slug": "composer",
       "hex": "885630",
       "source": "https://getcomposer.org",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-comptia-global",
@@ -3882,7 +3882,7 @@
       "slug": "comptia",
       "hex": "C8202F",
       "source": "https://www.comptia.org",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-comsol-global",
@@ -3890,7 +3890,7 @@
       "slug": "comsol",
       "hex": "368CCB",
       "source": "https://cdn.comsol.com/company/comsol-brand-guide-November2019.pdf",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-conan-global",
@@ -3898,7 +3898,7 @@
       "slug": "conan",
       "hex": "6699CB",
       "source": "https://conan.io",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-concourse-global",
@@ -3906,7 +3906,7 @@
       "slug": "concourse",
       "hex": "3398DC",
       "source": "https://concourse-ci.org",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-conekta-global",
@@ -3914,7 +3914,7 @@
       "slug": "conekta",
       "hex": "0A1837",
       "source": "https://www.conekta.com",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-confluence-global",
@@ -3922,7 +3922,7 @@
       "slug": "confluence",
       "hex": "172B4D",
       "source": "https://www.atlassian.com/company/news/press-kit",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-construct3-global",
@@ -3930,7 +3930,7 @@
       "slug": "construct3",
       "hex": "00FFDA",
       "source": "https://www.construct.net",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-consul-global",
@@ -3938,7 +3938,7 @@
       "slug": "consul",
       "hex": "F24C53",
       "source": "https://www.hashicorp.com/brand",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-contabo-global",
@@ -3946,7 +3946,7 @@
       "slug": "contabo",
       "hex": "00AAEB",
       "source": "https://contabo.com",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-containerd-global",
@@ -3954,7 +3954,7 @@
       "slug": "containerd",
       "hex": "575757",
       "source": "https://cncf-branding.netlify.app/projects/containerd/",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-contao-global",
@@ -3962,7 +3962,7 @@
       "slug": "contao",
       "hex": "F47C00",
       "source": "https://contao.org",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-contentful-global",
@@ -3970,7 +3970,7 @@
       "slug": "contentful",
       "hex": "2478CC",
       "source": "https://press.contentful.com/media_kits",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-contentstack-global",
@@ -3978,7 +3978,7 @@
       "slug": "contentstack",
       "hex": "E74C3D",
       "source": "https://www.contentstack.com",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-continente-global",
@@ -3986,7 +3986,7 @@
       "slug": "continente",
       "hex": "E31E24",
       "source": "https://www.continente.pt",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-contributorcovenant-global",
@@ -3994,7 +3994,7 @@
       "slug": "contributorcovenant",
       "hex": "5E0D73",
       "source": "https://www.contributor-covenant.org",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-conventionalcommits-global",
@@ -4002,7 +4002,7 @@
       "slug": "conventionalcommits",
       "hex": "FE5196",
       "source": "https://www.conventionalcommits.org",
-      "shard": 7
+      "shard": 10
     },
     {
       "key": "si-convertio-global",
@@ -4010,7 +4010,7 @@
       "slug": "convertio",
       "hex": "FF3333",
       "source": "https://convertio.co",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-convex-global",
@@ -4018,7 +4018,7 @@
       "slug": "convex",
       "hex": "EE342F",
       "source": "https://www.convex.dev/brand",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-coolermaster-global",
@@ -4026,7 +4026,7 @@
       "slug": "coolermaster",
       "hex": "1E1E28",
       "source": "https://www.coolermaster.com/branding",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-coppel-global",
@@ -4034,7 +4034,7 @@
       "slug": "coppel",
       "hex": "0266AE",
       "source": "https://www.coppel.com",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-cora-global",
@@ -4042,7 +4042,7 @@
       "slug": "cora",
       "hex": "E61845",
       "source": "https://www.cora.fr",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-coreboot-global",
@@ -4050,7 +4050,7 @@
       "slug": "coreboot",
       "hex": "000000",
       "source": "https://coreboot.org/assets/images/banner.svg",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-coreldraw-global",
@@ -4058,7 +4058,7 @@
       "slug": "coreldraw",
       "hex": "000000",
       "source": "https://www.coreldraw.com/en/learn/webinars/ebook-embroidery",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-coronaengine-global",
@@ -4066,7 +4066,7 @@
       "slug": "coronaengine",
       "hex": "F96F29",
       "source": "https://coronalabs.com",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-coronarenderer-global",
@@ -4074,7 +4074,7 @@
       "slug": "coronarenderer",
       "hex": "E6502A",
       "source": "https://corona-renderer.com/about",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-corsair-global",
@@ -4082,7 +4082,7 @@
       "slug": "corsair",
       "hex": "231F20",
       "source": "https://www.corsair.com/newsroom/company-logos",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-couchbase-global",
@@ -4090,7 +4090,7 @@
       "slug": "couchbase",
       "hex": "EA2328",
       "source": "https://www.couchbase.com",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-counterstrike-global",
@@ -4098,7 +4098,7 @@
       "slug": "counterstrike",
       "hex": "000000",
       "source": "https://www.counter-strike.net",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-countingworkspro-global",
@@ -4106,7 +4106,7 @@
       "slug": "countingworkspro",
       "hex": "2E3084",
       "source": "https://www.countingworks.com/blog",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-coursera-global",
@@ -4114,7 +4114,7 @@
       "slug": "coursera",
       "hex": "0056D2",
       "source": "https://about.coursera.org/press",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-coveralls-global",
@@ -4122,7 +4122,7 @@
       "slug": "coveralls",
       "hex": "3F5767",
       "source": "https://coveralls.io",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-coze-global",
@@ -4130,7 +4130,7 @@
       "slug": "coze",
       "hex": "4D53E8",
       "source": "https://www.coze.com/home",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-cpanel-global",
@@ -4138,7 +4138,7 @@
       "slug": "cpanel",
       "hex": "FF6C2C",
       "source": "https://cpanel.net/company/cpanel-brand-guide/",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-craftcms-global",
@@ -4146,7 +4146,7 @@
       "slug": "craftcms",
       "hex": "E5422B",
       "source": "https://craftcms.com/brand-resources",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-craftsman-global",
@@ -4154,7 +4154,7 @@
       "slug": "craftsman",
       "hex": "D6001C",
       "source": "https://www.craftsman.com",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-crayon-global",
@@ -4162,7 +4162,7 @@
       "slug": "crayon",
       "hex": "FF6A4C",
       "source": "https://www.crayon.com",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-creality-global",
@@ -4170,7 +4170,7 @@
       "slug": "creality",
       "hex": "000000",
       "source": "https://www.creality.com",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-creativecommons-global",
@@ -4178,7 +4178,7 @@
       "slug": "creativecommons",
       "hex": "ED592F",
       "source": "https://creativecommons.org/mission/downloads",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-creativetechnology-global",
@@ -4186,7 +4186,7 @@
       "slug": "creativetechnology",
       "hex": "000000",
       "source": "https://creative.com",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-credly-global",
@@ -4194,7 +4194,7 @@
       "slug": "credly",
       "hex": "FF6B00",
       "source": "https://cdn.credly.com/assets/structure/logo-78b59f8114817c758ca965ed8f1a58a76a39b6fd70d031f771a9bbc581fcde65.svg",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-crehana-global",
@@ -4202,7 +4202,7 @@
       "slug": "crehana",
       "hex": "4B22F4",
       "source": "https://www.crehana.com",
-      "shard": 7
+      "shard": 11
     },
     {
       "key": "si-crewunited-global",
@@ -4210,7 +4210,7 @@
       "slug": "crewunited",
       "hex": "000000",
       "source": "https://www.crew-united.com",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-criticalrole-global",
@@ -4218,7 +4218,7 @@
       "slug": "criticalrole",
       "hex": "000000",
       "source": "https://critrole.com",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-crowdin-global",
@@ -4226,7 +4226,7 @@
       "slug": "crowdin",
       "hex": "2E3340",
       "source": "https://support.crowdin.com/using-logo/",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-crowdsource-global",
@@ -4234,7 +4234,7 @@
       "slug": "crowdsource",
       "hex": "4285F4",
       "source": "https://crowdsource.google.com/about/",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-crunchbase-global",
@@ -4242,7 +4242,7 @@
       "slug": "crunchbase",
       "hex": "0288D1",
       "source": "https://crunchbase.com",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-cryengine-global",
@@ -4250,7 +4250,7 @@
       "slug": "cryengine",
       "hex": "000000",
       "source": "https://www.cryengine.com/brand",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-cryptpad-global",
@@ -4258,7 +4258,7 @@
       "slug": "cryptpad",
       "hex": "0087FF",
       "source": "https://cryptpad.org",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-crystal-global",
@@ -4266,7 +4266,7 @@
       "slug": "crystal",
       "hex": "000000",
       "source": "https://crystal-lang.org/media/",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-csdn-global",
@@ -4274,7 +4274,7 @@
       "slug": "csdn",
       "hex": "FC5531",
       "source": "https://www.csdn.net/company/index.html",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-cssdesignawards-global",
@@ -4282,7 +4282,7 @@
       "slug": "cssdesignawards",
       "hex": "280FEE",
       "source": "https://www.cssdesignawards.com",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-csswizardry-global",
@@ -4290,7 +4290,7 @@
       "slug": "csswizardry",
       "hex": "F43059",
       "source": "https://csswizardry.com",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-cucumber-global",
@@ -4298,7 +4298,7 @@
       "slug": "cucumber",
       "hex": "23D96C",
       "source": "https://cucumber.io",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-cultura-global",
@@ -4306,7 +4306,7 @@
       "slug": "cultura",
       "hex": "1D2C54",
       "source": "https://www.cultura.com",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-curl-global",
@@ -4314,7 +4314,7 @@
       "slug": "curl",
       "hex": "073551",
       "source": "https://curl.haxx.se/logo/",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-curseforge-global",
@@ -4322,7 +4322,7 @@
       "slug": "curseforge",
       "hex": "F16436",
       "source": "https://www.curseforge.com",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-cursor-global",
@@ -4330,7 +4330,7 @@
       "slug": "cursor",
       "hex": "000000",
       "source": "https://cursor.com/brand",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-customink-global",
@@ -4338,7 +4338,7 @@
       "slug": "customink",
       "hex": "FA3C00",
       "source": "https://www.customink.com",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-cyberdefenders-global",
@@ -4346,7 +4346,7 @@
       "slug": "cyberdefenders",
       "hex": "335EEA",
       "source": "https://cyberdefenders.org",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-cycling74-global",
@@ -4354,7 +4354,7 @@
       "slug": "cycling74",
       "hex": "111111",
       "source": "https://cycling74.com",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-cypress-global",
@@ -4362,7 +4362,7 @@
       "slug": "cypress",
       "hex": "69D3A7",
       "source": "https://www.cypress.io/press-kit",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-dwavesystems-global",
@@ -4370,7 +4370,7 @@
       "slug": "dwavesystems",
       "hex": "008CD7",
       "source": "https://www.dwavesys.com",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-daf-global",
@@ -4378,7 +4378,7 @@
       "slug": "daf",
       "hex": "00529B",
       "source": "https://www.daf.com/en",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-dailydotdev-global",
@@ -4386,7 +4386,7 @@
       "slug": "dailydotdev",
       "hex": "CE3DF3",
       "source": "https://brand.daily.dev/d/4gCtbahXkzKk/guidelines",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-dailymotion-global",
@@ -4394,7 +4394,7 @@
       "slug": "dailymotion",
       "hex": "0A0A0A",
       "source": "https://careers.dailymotion.com",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-daisyui-global",
@@ -4402,7 +4402,7 @@
       "slug": "daisyui",
       "hex": "FFC63A",
       "source": "https://daisyui.com/brand",
-      "shard": 8
+      "shard": 11
     },
     {
       "key": "si-darty-global",
@@ -4410,7 +4410,7 @@
       "slug": "darty",
       "hex": "EB1B23",
       "source": "https://www.darty.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-dash-global",
@@ -4418,7 +4418,7 @@
       "slug": "dash",
       "hex": "008DE4",
       "source": "https://www.dash.org/brand-assets/",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-dash0-global",
@@ -4426,7 +4426,7 @@
       "slug": "dash0",
       "hex": "EA3D3B",
       "source": "https://www.dash0.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-dashlane-global",
@@ -4434,7 +4434,7 @@
       "slug": "dashlane",
       "hex": "0E353D",
       "source": "https://brandfolder.com/dashlane/brandkitpartners",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-dassaultsystemes-global",
@@ -4442,7 +4442,7 @@
       "slug": "dassaultsystemes",
       "hex": "005386",
       "source": "https://www.3ds.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-datadotai-global",
@@ -4450,7 +4450,7 @@
       "slug": "datadotai",
       "hex": "000000",
       "source": "https://www.data.ai/en/about/press/",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-databricks-global",
@@ -4458,7 +4458,7 @@
       "slug": "databricks",
       "hex": "FF3621",
       "source": "https://www.databricks.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-datacamp-global",
@@ -4466,7 +4466,7 @@
       "slug": "datacamp",
       "hex": "03EF62",
       "source": "https://www.datacamp.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-datadog-global",
@@ -4474,7 +4474,7 @@
       "slug": "datadog",
       "hex": "632CA6",
       "source": "https://www.datadoghq.com/about/resources",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-datagrip-global",
@@ -4482,7 +4482,7 @@
       "slug": "datagrip",
       "hex": "000000",
       "source": "https://www.jetbrains.com/company/brand/logos/",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-dataiku-global",
@@ -4490,7 +4490,7 @@
       "slug": "dataiku",
       "hex": "2AB1AC",
       "source": "https://www.dataiku.com/company/media-kit/",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-datastax-global",
@@ -4498,7 +4498,7 @@
       "slug": "datastax",
       "hex": "000000",
       "source": "https://docs.datastax.com/en/astra/astra-db-vector",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-datefns-global",
@@ -4506,7 +4506,7 @@
       "slug": "datefns",
       "hex": "770C56",
       "source": "https://date-fns.org",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-datocms-global",
@@ -4514,7 +4514,7 @@
       "slug": "datocms",
       "hex": "FF7751",
       "source": "https://www.datocms.com/company/brand-assets",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-datto-global",
@@ -4522,7 +4522,7 @@
       "slug": "datto",
       "hex": "199ED9",
       "source": "https://www.datto.com/brand/logos",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-davinciresolve-global",
@@ -4530,7 +4530,7 @@
       "slug": "davinciresolve",
       "hex": "233A51",
       "source": "https://www.blackmagicdesign.com/media/images/davinci-resolve-logo-square",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-dazhongdianping-global",
@@ -4538,7 +4538,7 @@
       "slug": "dazhongdianping",
       "hex": "FF6633",
       "source": "https://www.meituan.com/media",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-dbeaver-global",
@@ -4546,7 +4546,7 @@
       "slug": "dbeaver",
       "hex": "382923",
       "source": "https://dbeaver.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-dblp-global",
@@ -4554,7 +4554,7 @@
       "slug": "dblp",
       "hex": "004F9F",
       "source": "https://dblp.org",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-dcentertainment-global",
@@ -4562,7 +4562,7 @@
       "slug": "dcentertainment",
       "hex": "0078F0",
       "source": "https://www.readdc.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-delonghi-global",
@@ -4570,7 +4570,7 @@
       "slug": "delonghi",
       "hex": "072240",
       "source": "https://www.delonghi.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-debian-global",
@@ -4578,7 +4578,7 @@
       "slug": "debian",
       "hex": "A81D33",
       "source": "https://www.debian.org/logos",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-debridlink-global",
@@ -4586,7 +4586,7 @@
       "slug": "debridlink",
       "hex": "264E70",
       "source": "https://debrid-link.com/brand",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-deepcool-global",
@@ -4594,7 +4594,7 @@
       "slug": "deepcool",
       "hex": "068584",
       "source": "https://www.deepcool.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-deepgram-global",
@@ -4602,7 +4602,7 @@
       "slug": "deepgram",
       "hex": "13EF93",
       "source": "https://deepgram.com/company/newsroom",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-deepl-global",
@@ -4610,7 +4610,7 @@
       "slug": "deepl",
       "hex": "0F2B46",
       "source": "https://www.deepl.com/press.html",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-deepmind-global",
@@ -4618,7 +4618,7 @@
       "slug": "deepmind",
       "hex": "4285F4",
       "source": "https://deepmind.google",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-deepnote-global",
@@ -4626,7 +4626,7 @@
       "slug": "deepnote",
       "hex": "3793EF",
       "source": "https://deepnote.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-deepseek-global",
@@ -4634,7 +4634,7 @@
       "slug": "deepseek",
       "hex": "5786FE",
       "source": "https://www.deepseek.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-deliveroo-global",
@@ -4642,7 +4642,7 @@
       "slug": "deliveroo",
       "hex": "00CCBC",
       "source": "https://deliveroo.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-dell-global",
@@ -4650,7 +4650,7 @@
       "slug": "dell",
       "hex": "007DB8",
       "source": "https://www.dell.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-delphi-global",
@@ -4658,7 +4658,7 @@
       "slug": "delphi",
       "hex": "E62431",
       "source": "https://www.embarcadero.com/news/logo",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-denodeploy-global",
@@ -4666,7 +4666,7 @@
       "slug": "denodeploy",
       "hex": "002633",
       "source": "https://deno.com/logos/deploy/mark.svg",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-denon-global",
@@ -4674,7 +4674,7 @@
       "slug": "denon",
       "hex": "0B131A",
       "source": "https://www.denon.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-dependabot-global",
@@ -4682,7 +4682,7 @@
       "slug": "dependabot",
       "hex": "025E8C",
       "source": "https://dependabot.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-depositphotos-global",
@@ -4690,7 +4690,7 @@
       "slug": "depositphotos",
       "hex": "000000",
       "source": "https://blog.depositphotos.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-derspiegel-global",
@@ -4698,7 +4698,7 @@
       "slug": "derspiegel",
       "hex": "E64415",
       "source": "https://www.spiegel.de",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-deutschebahn-global",
@@ -4706,7 +4706,7 @@
       "slug": "deutschebahn",
       "hex": "F01414",
       "source": "https://www.bahn.de",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-deutschepost-global",
@@ -4714,7 +4714,7 @@
       "slug": "deutschepost",
       "hex": "FFCC00",
       "source": "https://www.deutschepost.de",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-deutschewelle-global",
@@ -4722,7 +4722,7 @@
       "slug": "deutschewelle",
       "hex": "05B2FC",
       "source": "https://www.dw.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-devdotto-global",
@@ -4730,7 +4730,7 @@
       "slug": "devdotto",
       "hex": "0A0A0A",
       "source": "https://dev.to",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-devexpress-global",
@@ -4738,7 +4738,7 @@
       "slug": "devexpress",
       "hex": "FF7200",
       "source": "https://www.devexpress.com/aboutus/",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-deviantart-global",
@@ -4746,7 +4746,7 @@
       "slug": "deviantart",
       "hex": "05CC47",
       "source": "https://help.deviantart.com/21",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-devrant-global",
@@ -4754,7 +4754,7 @@
       "slug": "devrant",
       "hex": "F99A66",
       "source": "https://devrant.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-devuan-global",
@@ -4762,7 +4762,7 @@
       "slug": "devuan",
       "hex": "004489",
       "source": "https://git.devuan.org/devuan/documentation/src/commit/f4931e70e17f043c2824d591bba7c7f70ed583b6/art/graphics/logo/devuan-emblem.svg",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-dgraph-global",
@@ -4770,7 +4770,7 @@
       "slug": "dgraph",
       "hex": "E50695",
       "source": "https://dgraph.io",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-dhl-global",
@@ -4778,7 +4778,7 @@
       "slug": "dhl",
       "hex": "FFCC00",
       "source": "https://www.dpdhl-brands.com/dhl/en/guides/design-basics/logo-and-claim.html",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-dialogflow-global",
@@ -4786,7 +4786,7 @@
       "slug": "dialogflow",
       "hex": "FF9800",
       "source": "https://dialogflow.cloud.google.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-diaspora-global",
@@ -4794,7 +4794,7 @@
       "slug": "diaspora",
       "hex": "000000",
       "source": "https://wiki.diasporafoundation.org/Branding",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-dictionarydotcom-global",
@@ -4802,7 +4802,7 @@
       "slug": "dictionarydotcom",
       "hex": "0049D7",
       "source": "https://www.dictionary.com",
-      "shard": 8
+      "shard": 12
     },
     {
       "key": "si-digg-global",
@@ -4810,7 +4810,7 @@
       "slug": "digg",
       "hex": "000000",
       "source": "https://digg.com",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-digikeyelectronics-global",
@@ -4818,7 +4818,7 @@
       "slug": "digikeyelectronics",
       "hex": "CC0000",
       "source": "https://www.digikey.com",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-digitalocean-global",
@@ -4826,7 +4826,7 @@
       "slug": "digitalocean",
       "hex": "0080FF",
       "source": "https://www.digitalocean.com/press/",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dinersclub-global",
@@ -4834,7 +4834,7 @@
       "slug": "dinersclub",
       "hex": "004C97",
       "source": "https://www.dinersclub.com/about-us/press",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dior-global",
@@ -4842,7 +4842,7 @@
       "slug": "dior",
       "hex": "000000",
       "source": "https://www.dior.com",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-directus-global",
@@ -4850,7 +4850,7 @@
       "slug": "directus",
       "hex": "263238",
       "source": "https://directus.io",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-discogs-global",
@@ -4858,7 +4858,7 @@
       "slug": "discogs",
       "hex": "333333",
       "source": "https://www.discogs.com/brand",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-discord-global",
@@ -4866,7 +4866,7 @@
       "slug": "discord",
       "hex": "5865F2",
       "source": "https://discord.com/branding",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-discourse-global",
@@ -4874,7 +4874,7 @@
       "slug": "discourse",
       "hex": "000000",
       "source": "https://www.discourse.org",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-discover-global",
@@ -4882,7 +4882,7 @@
       "slug": "discover",
       "hex": "FF6000",
       "source": "https://www.discovernetwork.com/en-us/business-resources/free-signage-logos",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-disqus-global",
@@ -4890,7 +4890,7 @@
       "slug": "disqus",
       "hex": "2E9FFF",
       "source": "https://disqus.com/brand",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-disroot-global",
@@ -4898,7 +4898,7 @@
       "slug": "disroot",
       "hex": "50162D",
       "source": "https://disroot.org/en",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-distrokid-global",
@@ -4906,7 +4906,7 @@
       "slug": "distrokid",
       "hex": "231F20",
       "source": "https://distrokid.com/logo",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-django-global",
@@ -4914,7 +4914,7 @@
       "slug": "django",
       "hex": "092E20",
       "source": "https://www.djangoproject.com/community/logos/",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dji-global",
@@ -4922,7 +4922,7 @@
       "slug": "dji",
       "hex": "000000",
       "source": "https://www.dji.com",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dm-global",
@@ -4930,7 +4930,7 @@
       "slug": "dm",
       "hex": "002878",
       "source": "https://www.dm.de",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dmm-global",
@@ -4938,7 +4938,7 @@
       "slug": "dmm",
       "hex": "000000",
       "source": "https://dmm-corp.com/presskit",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-docker-global",
@@ -4946,7 +4946,7 @@
       "slug": "docker",
       "hex": "2496ED",
       "source": "https://www.docker.com/company/newsroom/media-resources",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-docsdotrs-global",
@@ -4954,7 +4954,7 @@
       "slug": "docsdotrs",
       "hex": "000000",
       "source": "https://docs.rs",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-doctrine-global",
@@ -4962,7 +4962,7 @@
       "slug": "doctrine",
       "hex": "FC6A31",
       "source": "https://www.doctrine-project.org",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dodopayments-global",
@@ -4970,7 +4970,7 @@
       "slug": "dodopayments",
       "hex": "C6FE1E",
       "source": "https://dodopayments.com/brand",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dogecoin-global",
@@ -4978,7 +4978,7 @@
       "slug": "dogecoin",
       "hex": "C2A633",
       "source": "https://cryptologos.cc/dogecoin",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-doi-global",
@@ -4986,7 +4986,7 @@
       "slug": "doi",
       "hex": "FAB70C",
       "source": "https://www.doi.org/images/logos/header_logo_cropped.svg",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dolby-global",
@@ -4994,7 +4994,7 @@
       "slug": "dolby",
       "hex": "000000",
       "source": "https://www.dolby.com",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-douban-global",
@@ -5002,7 +5002,7 @@
       "slug": "douban",
       "hex": "2D963D",
       "source": "https://www.douban.com/about",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-doubanread-global",
@@ -5010,7 +5010,7 @@
       "slug": "doubanread",
       "hex": "24D2C8",
       "source": "https://read.douban.com",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dovetail-global",
@@ -5018,7 +5018,7 @@
       "slug": "dovetail",
       "hex": "190041",
       "source": "https://dovetail.com/help/press-kit",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-downdetector-global",
@@ -5026,7 +5026,7 @@
       "slug": "downdetector",
       "hex": "FF160A",
       "source": "https://downdetector.com",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dpd-global",
@@ -5034,7 +5034,7 @@
       "slug": "dpd",
       "hex": "DC0032",
       "source": "https://www.dpd.com",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dragonframe-global",
@@ -5042,7 +5042,7 @@
       "slug": "dragonframe",
       "hex": "D4911E",
       "source": "https://dragonframe.com",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-draugiemdotlv-global",
@@ -5050,7 +5050,7 @@
       "slug": "draugiemdotlv",
       "hex": "FF6600",
       "source": "https://www.frype.com/applications/dev/docs/logos/",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dreamstime-global",
@@ -5058,7 +5058,7 @@
       "slug": "dreamstime",
       "hex": "50A901",
       "source": "https://www.dreamstime.com",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dribbble-global",
@@ -5066,7 +5066,7 @@
       "slug": "dribbble",
       "hex": "EA4C89",
       "source": "https://dribbble.com/branding",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-drizzle-global",
@@ -5074,7 +5074,7 @@
       "slug": "drizzle",
       "hex": "C5F74F",
       "source": "https://orm.drizzle.team",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-drooble-global",
@@ -5082,7 +5082,7 @@
       "slug": "drooble",
       "hex": "19C4BE",
       "source": "https://blog.drooble.com/press/",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dropbox-global",
@@ -5090,7 +5090,7 @@
       "slug": "dropbox",
       "hex": "0061FF",
       "source": "https://www.dropbox.com/branding",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-drupal-global",
@@ -5098,7 +5098,7 @@
       "slug": "drupal",
       "hex": "0678BE",
       "source": "https://www.drupal.org/about/media-kit/logos",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dsautomobiles-global",
@@ -5106,7 +5106,7 @@
       "slug": "dsautomobiles",
       "hex": "1D1717",
       "source": "https://www.stellantis.com/en/brands/ds",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dts-global",
@@ -5114,7 +5114,7 @@
       "slug": "dts",
       "hex": "F98B2B",
       "source": "https://xperi.com/brands/dts/",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-ducati-global",
@@ -5122,7 +5122,7 @@
       "slug": "ducati",
       "hex": "CC0000",
       "source": "https://brandlogos.net/ducati-logo-vector-svg-92931.html",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-duckdb-global",
@@ -5130,7 +5130,7 @@
       "slug": "duckdb",
       "hex": "FFF000",
       "source": "https://duckdb.org",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dungeonsanddragons-global",
@@ -5138,7 +5138,7 @@
       "slug": "dungeonsanddragons",
       "hex": "ED1C24",
       "source": "https://dnd.wizards.com/articles/features/basicrules",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dunked-global",
@@ -5146,7 +5146,7 @@
       "slug": "dunked",
       "hex": "2DA9D7",
       "source": "https://dunked.com",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dunzo-global",
@@ -5154,7 +5154,7 @@
       "slug": "dunzo",
       "hex": "00D290",
       "source": "https://www.dunzo.com",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-duolingo-global",
@@ -5162,7 +5162,7 @@
       "slug": "duolingo",
       "hex": "58CC02",
       "source": "https://design.duolingo.com",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-duplicati-global",
@@ -5170,7 +5170,7 @@
       "slug": "duplicati",
       "hex": "1E3A8A",
       "source": "https://duplicati.com",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dvc-global",
@@ -5178,7 +5178,7 @@
       "slug": "dvc",
       "hex": "13ADC7",
       "source": "https://iterative.ai/brand/",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dwm-global",
@@ -5186,7 +5186,7 @@
       "slug": "dwm",
       "hex": "1177AA",
       "source": "https://dwm.suckless.org",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-dynatrace-global",
@@ -5194,7 +5194,7 @@
       "slug": "dynatrace",
       "hex": "1496FF",
       "source": "https://www.dynatrace.com/company/press-kit/",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-edotleclerc-global",
@@ -5202,7 +5202,7 @@
       "slug": "edotleclerc",
       "hex": "0066CC",
       "source": "https://www.e.leclerc/assets/images/sue-logo.svg",
-      "shard": 9
+      "shard": 13
     },
     {
       "key": "si-ea-global",
@@ -5210,7 +5210,7 @@
       "slug": "ea",
       "hex": "000000",
       "source": "https://www.ea.com",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-eagle-global",
@@ -5218,7 +5218,7 @@
       "slug": "eagle",
       "hex": "0072EF",
       "source": "https://en.eagle.cool",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-easyeda-global",
@@ -5226,7 +5226,7 @@
       "slug": "easyeda",
       "hex": "1765F6",
       "source": "https://easyeda.com",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-ebox-global",
@@ -5234,7 +5234,7 @@
       "slug": "ebox",
       "hex": "BE2323",
       "source": "https://www.ebox.ca",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-eclipseadoptium-global",
@@ -5242,7 +5242,7 @@
       "slug": "eclipseadoptium",
       "hex": "FF1464",
       "source": "https://www.eclipse.org/org/artwork/",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-eclipseche-global",
@@ -5250,7 +5250,7 @@
       "slug": "eclipseche",
       "hex": "525C86",
       "source": "https://www.eclipse.org/che/",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-eclipseide-global",
@@ -5258,7 +5258,7 @@
       "slug": "eclipseide",
       "hex": "2C2255",
       "source": "https://www.eclipse.org/artwork/",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-ecosia-global",
@@ -5266,7 +5266,7 @@
       "slug": "ecosia",
       "hex": "008009",
       "source": "https://www.ecosia.org/imprint",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-ecovacs-global",
@@ -5274,7 +5274,7 @@
       "slug": "ecovacs",
       "hex": "1E384B",
       "source": "https://www.ecovacs.com",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-edeka-global",
@@ -5282,7 +5282,7 @@
       "slug": "edeka",
       "hex": "1B66B3",
       "source": "https://www.edeka.de",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-edgeimpulse-global",
@@ -5290,7 +5290,7 @@
       "slug": "edgeimpulse",
       "hex": "3B47C2",
       "source": "https://edgeimpulse.com/branding",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-editorconfig-global",
@@ -5298,7 +5298,7 @@
       "slug": "editorconfig",
       "hex": "FEFEFE",
       "source": "https://editorconfig.org",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-educative-global",
@@ -5306,7 +5306,7 @@
       "slug": "educative",
       "hex": "4951F5",
       "source": "https://www.educative.io",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-edx-global",
@@ -5314,7 +5314,7 @@
       "slug": "edx",
       "hex": "02262B",
       "source": "https://www.edx.org",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-effect-global",
@@ -5322,7 +5322,7 @@
       "slug": "effect",
       "hex": "FFFFFF",
       "source": "https://effect.website",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-egghead-global",
@@ -5330,7 +5330,7 @@
       "slug": "egghead",
       "hex": "FCFBFA",
       "source": "https://egghead.io",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-egnyte-global",
@@ -5338,7 +5338,7 @@
       "slug": "egnyte",
       "hex": "00968F",
       "source": "https://www.egnyte.com/presskit.html",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-eight-global",
@@ -5346,7 +5346,7 @@
       "slug": "eight",
       "hex": "0054FF",
       "source": "https://8card.net/en",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-eightsleep-global",
@@ -5354,7 +5354,7 @@
       "slug": "eightsleep",
       "hex": "262729",
       "source": "https://www.eightsleep.com/press/",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-elastic-global",
@@ -5362,7 +5362,7 @@
       "slug": "elastic",
       "hex": "005571",
       "source": "https://www.elastic.co/brand",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-elasticcloud-global",
@@ -5370,7 +5370,7 @@
       "slug": "elasticcloud",
       "hex": "005571",
       "source": "https://www.elastic.co/brand",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-elasticstack-global",
@@ -5378,7 +5378,7 @@
       "slug": "elasticstack",
       "hex": "005571",
       "source": "https://www.elastic.co/brand",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-elasticsearch-global",
@@ -5386,7 +5386,7 @@
       "slug": "elasticsearch",
       "hex": "005571",
       "source": "https://www.elastic.co/brand",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-elavon-global",
@@ -5394,7 +5394,7 @@
       "slug": "elavon",
       "hex": "0C2074",
       "source": "https://www.elavon.com",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-electron-global",
@@ -5402,7 +5402,7 @@
       "slug": "electron",
       "hex": "47848F",
       "source": "https://www.electronjs.org",
-      "shard": 9
+      "shard": 14
     },
     {
       "key": "si-electronbuilder-global",
@@ -5410,7 +5410,7 @@
       "slug": "electronbuilder",
       "hex": "000000",
       "source": "https://www.electron.build",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-elegoo-global",
@@ -5418,7 +5418,7 @@
       "slug": "elegoo",
       "hex": "2C3A83",
       "source": "https://www.elegoo.com/pages/download",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-element-global",
@@ -5426,7 +5426,7 @@
       "slug": "element",
       "hex": "0DBD8B",
       "source": "https://element.io",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-elementary-global",
@@ -5434,7 +5434,7 @@
       "slug": "elementary",
       "hex": "64BAFF",
       "source": "https://elementary.io/brand",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-elementor-global",
@@ -5442,7 +5442,7 @@
       "slug": "elementor",
       "hex": "92003B",
       "source": "https://elementor.com/logos/",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-elevenlabs-global",
@@ -5450,7 +5450,7 @@
       "slug": "elevenlabs",
       "hex": "000000",
       "source": "https://elevenlabs.io/brand",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-eleventy-global",
@@ -5458,7 +5458,7 @@
       "slug": "eleventy",
       "hex": "222222",
       "source": "https://www.11ty.dev",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-elgato-global",
@@ -5466,7 +5466,7 @@
       "slug": "elgato",
       "hex": "101010",
       "source": "https://www.elgato.com/en/media-room",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-elsevier-global",
@@ -5474,7 +5474,7 @@
       "slug": "elsevier",
       "hex": "FF6C00",
       "source": "https://www.elsevier.com",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-embarcadero-global",
@@ -5482,7 +5482,7 @@
       "slug": "embarcadero",
       "hex": "ED1F35",
       "source": "https://www.embarcadero.com/news/logo",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-embark-global",
@@ -5490,7 +5490,7 @@
       "slug": "embark",
       "hex": "000000",
       "source": "https://www.embark-studios.com/press",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-emberdotjs-global",
@@ -5498,7 +5498,7 @@
       "slug": "emberdotjs",
       "hex": "E04E39",
       "source": "https://emberjs.com/logos/",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-emby-global",
@@ -5506,7 +5506,7 @@
       "slug": "emby",
       "hex": "52B54B",
       "source": "https://emby.media",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-emlakjet-global",
@@ -5514,7 +5514,7 @@
       "slug": "emlakjet",
       "hex": "0AE524",
       "source": "https://www.emlakjet.com/kurumsal-materyaller/",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-enpass-global",
@@ -5522,7 +5522,7 @@
       "slug": "enpass",
       "hex": "0D47A1",
       "source": "https://www.enpass.io/press/",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-ens-global",
@@ -5530,7 +5530,7 @@
       "slug": "ens",
       "hex": "0080BC",
       "source": "https://ens.domains/brand",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-ente-global",
@@ -5538,7 +5538,7 @@
       "slug": "ente",
       "hex": "00BC45",
       "source": "https://ente.io",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-enterprisedb-global",
@@ -5546,7 +5546,7 @@
       "slug": "enterprisedb",
       "hex": "FF3E00",
       "source": "https://www.enterprisedb.com",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-envato-global",
@@ -5554,7 +5554,7 @@
       "slug": "envato",
       "hex": "87E64B",
       "source": "https://envato.com",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-envoyproxy-global",
@@ -5562,7 +5562,7 @@
       "slug": "envoyproxy",
       "hex": "AC6199",
       "source": "https://d33wubrfki0l68.cloudfront.net/6f16455dae972425b77c7e31642269b375ec250e/3bd11/img/envoy-logo.svg",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-epel-global",
@@ -5570,7 +5570,7 @@
       "slug": "epel",
       "hex": "FC0000",
       "source": "https://fedoraproject.org/wiki/EPEL",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-epicgames-global",
@@ -5578,7 +5578,7 @@
       "slug": "epicgames",
       "hex": "313131",
       "source": "https://dev.epicgames.com/docs/services/en-US/EpicAccountServices/DesignGuidelines/index.html#epicgamesbrandguidelines",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-epson-global",
@@ -5586,7 +5586,7 @@
       "slug": "epson",
       "hex": "003399",
       "source": "https://global.epson.com/IR/library/",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-equinixmetal-global",
@@ -5594,7 +5594,7 @@
       "slug": "equinixmetal",
       "hex": "ED2224",
       "source": "https://metal.equinix.com",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-eraser-global",
@@ -5602,7 +5602,7 @@
       "slug": "eraser",
       "hex": "EC2C40",
       "source": "https://www.eraser.io",
-      "shard": 10
+      "shard": 14
     },
     {
       "key": "si-ericsson-global",
@@ -5610,7 +5610,7 @@
       "slug": "ericsson",
       "hex": "0082F0",
       "source": "https://www.ericsson.com/en/newsroom/media-kits/logo",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-esea-global",
@@ -5618,7 +5618,7 @@
       "slug": "esea",
       "hex": "0E9648",
       "source": "https://play.esea.net",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-eslgaming-global",
@@ -5626,7 +5626,7 @@
       "slug": "eslgaming",
       "hex": "FFFF09",
       "source": "https://brand.eslgaming.com",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-eslint-global",
@@ -5634,7 +5634,7 @@
       "slug": "eslint",
       "hex": "4B32C3",
       "source": "https://eslint.org",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-esotericsoftware-global",
@@ -5642,7 +5642,7 @@
       "slug": "esotericsoftware",
       "hex": "3FA9F5",
       "source": "https://esotericsoftware.com/forum/d/25405-sheildsio-branding",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-espressif-global",
@@ -5650,7 +5650,7 @@
       "slug": "espressif",
       "hex": "E7352C",
       "source": "https://www.espressif.com",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-esri-global",
@@ -5658,7 +5658,7 @@
       "slug": "esri",
       "hex": "000000",
       "source": "https://www.esri.com/en-us/arcgis/products/arcgis-pro/overview",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-etcd-global",
@@ -5666,7 +5666,7 @@
       "slug": "etcd",
       "hex": "419EDA",
       "source": "https://cncf-branding.netlify.app/projects/etcd/",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-ethereum-global",
@@ -5674,7 +5674,7 @@
       "slug": "ethereum",
       "hex": "3C3C3D",
       "source": "https://ethereum.org/en/assets/",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-ethers-global",
@@ -5682,7 +5682,7 @@
       "slug": "ethers",
       "hex": "2535A0",
       "source": "https://docs.ethers.org/v6",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-ethiopianairlines-global",
@@ -5690,7 +5690,7 @@
       "slug": "ethiopianairlines",
       "hex": "648B1A",
       "source": "https://corporate.ethiopianairlines.com/media/Ethiopian-Factsheet",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-etsy-global",
@@ -5698,7 +5698,7 @@
       "slug": "etsy",
       "hex": "F16521",
       "source": "https://www.etsy.com/uk/press",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-europeanunion-global",
@@ -5706,7 +5706,7 @@
       "slug": "europeanunion",
       "hex": "003399",
       "source": "https://europa.eu",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-evernote-global",
@@ -5714,7 +5714,7 @@
       "slug": "evernote",
       "hex": "00A82D",
       "source": "https://evernote.com/about-us",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-everydotorg-global",
@@ -5722,7 +5722,7 @@
       "slug": "everydotorg",
       "hex": "2BD7B0",
       "source": "https://www.every.org/brand",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-excalidraw-global",
@@ -5730,7 +5730,7 @@
       "slug": "excalidraw",
       "hex": "6965DB",
       "source": "https://excalidraw.com",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-exordo-global",
@@ -5738,7 +5738,7 @@
       "slug": "exordo",
       "hex": "DAA449",
       "source": "https://www.exordo.com",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-exoscale-global",
@@ -5746,7 +5746,7 @@
       "slug": "exoscale",
       "hex": "DA291C",
       "source": "https://www.exoscale.com/press/",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-expedia-global",
@@ -5754,7 +5754,7 @@
       "slug": "expedia",
       "hex": "191E3B",
       "source": "https://brandfolder.com/portals/brand-expedia",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-expensify-global",
@@ -5762,7 +5762,7 @@
       "slug": "expensify",
       "hex": "0185FF",
       "source": "https://use.expensify.com/press-kit",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-expertsexchange-global",
@@ -5770,7 +5770,7 @@
       "slug": "expertsexchange",
       "hex": "00AAE7",
       "source": "https://www.experts-exchange.com",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-expo-global",
@@ -5778,7 +5778,7 @@
       "slug": "expo",
       "hex": "1C2024",
       "source": "https://expo.dev/brand/",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-expressdotcom-global",
@@ -5786,7 +5786,7 @@
       "slug": "expressdotcom",
       "hex": "000000",
       "source": "https://www.express.com",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-expressvpn-global",
@@ -5794,7 +5794,7 @@
       "slug": "expressvpn",
       "hex": "DA3940",
       "source": "https://www.expressvpn.com/press",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-eyeem-global",
@@ -5802,7 +5802,7 @@
       "slug": "eyeem",
       "hex": "000000",
       "source": "https://www.eyeem.com",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-fdroid-global",
@@ -5810,7 +5810,7 @@
       "slug": "fdroid",
       "hex": "1976D2",
       "source": "https://f-droid.org",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-f1-global",
@@ -5818,7 +5818,7 @@
       "slug": "f1",
       "hex": "E10600",
       "source": "https://www.formula1.com",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-f5-global",
@@ -5826,7 +5826,7 @@
       "slug": "f5",
       "hex": "E4002B",
       "source": "https://www.f5.com/company/news/press-kit",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-facebook-global",
@@ -5834,7 +5834,7 @@
       "slug": "facebook",
       "hex": "0866FF",
       "source": "https://about.meta.com/brand/resources/facebook/logo",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-facebookgaming-global",
@@ -5842,7 +5842,7 @@
       "slug": "facebookgaming",
       "hex": "005FED",
       "source": "https://www.facebook.com/fbgaminghome/",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-facebooklive-global",
@@ -5850,7 +5850,7 @@
       "slug": "facebooklive",
       "hex": "ED4242",
       "source": "https://en.facebookbrand.com",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-faceit-global",
@@ -5858,7 +5858,7 @@
       "slug": "faceit",
       "hex": "FF5500",
       "source": "https://corporate.faceit.com/branding/",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-facepunch-global",
@@ -5866,7 +5866,7 @@
       "slug": "facepunch",
       "hex": "EC1C24",
       "source": "https://sbox.facepunch.com/news",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-fairphone-global",
@@ -5874,7 +5874,7 @@
       "slug": "fairphone",
       "hex": "4495D1",
       "source": "https://www.fairphone.com",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-falco-global",
@@ -5882,7 +5882,7 @@
       "slug": "falco",
       "hex": "00AEC7",
       "source": "https://falco.org/community/falco-brand",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-falcon-global",
@@ -5890,7 +5890,7 @@
       "slug": "falcon",
       "hex": "F0AD4E",
       "source": "https://falconframework.org",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-fampay-global",
@@ -5898,7 +5898,7 @@
       "slug": "fampay",
       "hex": "FFAD00",
       "source": "https://fampay.in",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-fandango-global",
@@ -5906,7 +5906,7 @@
       "slug": "fandango",
       "hex": "FF7300",
       "source": "https://www.fandango.com",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-fandom-global",
@@ -5914,7 +5914,7 @@
       "slug": "fandom",
       "hex": "FA005A",
       "source": "https://fandomdesignsystem.com",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-fanfou-global",
@@ -5922,7 +5922,7 @@
       "slug": "fanfou",
       "hex": "00CCFF",
       "source": "https://fanfou.com",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-fantom-global",
@@ -5930,7 +5930,7 @@
       "slug": "fantom",
       "hex": "0928FF",
       "source": "https://fantom.foundation",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-farcaster-global",
@@ -5938,7 +5938,7 @@
       "slug": "farcaster",
       "hex": "855DCD",
       "source": "https://www.farcaster.xyz",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-fareharbor-global",
@@ -5946,7 +5946,7 @@
       "slug": "fareharbor",
       "hex": "0A6ECE",
       "source": "https://help.fareharbor.com/about/logo",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-farfetch-global",
@@ -5954,7 +5954,7 @@
       "slug": "farfetch",
       "hex": "000000",
       "source": "https://www.farfetch.com",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-fastly-global",
@@ -5962,7 +5962,7 @@
       "slug": "fastly",
       "hex": "FF282D",
       "source": "https://assets.fastly.com/style-guide/docs/",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-fathom-global",
@@ -5970,7 +5970,7 @@
       "slug": "fathom",
       "hex": "9187FF",
       "source": "https://usefathom.com/brand",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-fauna-global",
@@ -5978,7 +5978,7 @@
       "slug": "fauna",
       "hex": "3A1AB6",
       "source": "https://fauna.com",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-favro-global",
@@ -5986,7 +5986,7 @@
       "slug": "favro",
       "hex": "512DA8",
       "source": "https://favro.com/login",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-fawry-global",
@@ -5994,7 +5994,7 @@
       "slug": "fawry",
       "hex": "FFD300",
       "source": "https://www.fawry.com/financials-and-earning-releases",
-      "shard": 10
+      "shard": 15
     },
     {
       "key": "si-fcc-global",
@@ -6002,7 +6002,7 @@
       "slug": "fcc",
       "hex": "1C3664",
       "source": "https://www.fcc.gov/logos",
-      "shard": 10
+      "shard": 15
     }
   ]
 }
