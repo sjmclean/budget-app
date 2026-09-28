@@ -110,6 +110,19 @@ describe("merchant icon catalogue", () => {
       assert.equal(entry.category, "fuel", `${key} should be categorised as fuel`);
     }
 
+    assert.deepEqual(getMerchantIconEntry("apco-service-stations-au")?.asset, {
+      kind: "image",
+      assetPath: "user-supplied/apco-service-stations-au.svg",
+    });
+    assert.deepEqual(getMerchantIconEntry("oom-energy-au")?.asset, {
+      kind: "image",
+      assetPath: "user-supplied/oom-energy-au.svg",
+    });
+    assert.deepEqual(getMerchantIconEntry("peter-alexander-au")?.asset, {
+      kind: "image",
+      assetPath: "user-supplied/peter-alexander-au.svg",
+    });
+
     for (const key of [
       "bp-au", "ampol-au", "shell-au", "mobil-au", "metro-petroleum-au",
       "otr-au", "reddy-express-au", "pearl-energy-au",
