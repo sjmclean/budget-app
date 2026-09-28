@@ -4,6 +4,7 @@ import {
   resolveMerchantIconAsset,
 } from "./merchantIconCatalogue.js";
 import { parsePayeeIconReference, type PayeeBuiltinIconKey } from "./payeeIconReference.js";
+import { DEFAULT_MERCHANT_REGION } from "./merchantRegionPolicy.js";
 
 export type ResolvedPayeeIcon =
   | { readonly kind: "builtin"; readonly key: PayeeBuiltinIconKey }
@@ -16,9 +17,14 @@ export type ResolvedPayeeIcon =
 export interface ResolvePayeeIconInput {
   readonly payee?: Pick<PayeeView, "id" | "name" | "iconRef"> | null;
   readonly state?: "payee" | "transfer" | "none";
+  readonly merchantRegion?: string | null;
 }
 
-export function resolvePayeeIcon({ payee, state = "payee" }: ResolvePayeeIconInput): ResolvedPayeeIcon {
+export function resolvePayeeIcon({
+  payee,
+  state = "payee",
+  merchantRegion = DEFAULT_MERCHANT_REGION,
+}: ResolvePayeeIconInput): ResolvedPayeeIcon {
   if (state === "transfer") return { kind: "transfer" };
   if (state === "none" || !payee) return { kind: "none" };
 
@@ -36,7 +42,7 @@ export function resolvePayeeIcon({ payee, state = "payee" }: ResolvePayeeIconInp
   }
 
   if (reference.kind === "automatic") {
-    const merchant = findMerchantIconByPayeeName(payee.name);
+    const merchant = findMerchantIconByPayeeName(payee.name, merchantRegion ?? undefined);
     const asset = merchant ? resolveMerchantIconAsset(merchant) : undefined;
     if (asset) return asset;
   }

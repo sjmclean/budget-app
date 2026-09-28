@@ -77,6 +77,7 @@ import {
 import { OrganiseCategoriesDialog } from "../features/budget/OrganiseCategoriesDialog";
 import { BudgetMoveMoneyDialog } from "../features/budget/BudgetMoveMoneyDialog";
 import { BudgetVirtualizedGroupList } from "../features/budget/BudgetVirtualizedGroupList";
+import { IncomeIcon } from "../features/icons/IncomeIcon";
 import { useBudgetMoneyMovementHistory } from "../features/budget/useBudgetMoneyMovementHistory";
 import type { BudgetMoneyMovementHistoryEntry } from "../features/budget/budgetMoneyMovement";
 import { CategoryGoalInspectorSection } from "../features/goals/CategoryGoalInspectorSection";
@@ -267,7 +268,7 @@ function BudgetNextMonthOutlook({
             <strong>{formatMoney(summary.previousOverspending, currencyCode)}</strong>
           </span>
           <span>
-            <span>Income for {monthName}</span>
+            <span><IncomeIcon size={16} /> Income for {monthName}</span>
             <strong>{formatMoney(summary.incomeForMonth, currencyCode)}</strong>
           </span>
           <span>

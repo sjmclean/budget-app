@@ -90,7 +90,7 @@ export const IMPORTED_MERCHANT_ICON_BATCH: readonly MerchantIconCatalogueEntry[]
   { key: "square-au", name: "Square", regions: ["AU"], aliases: [], asset: { kind: "sprite", spritePath: "user-seed-07.svg", symbolId: "square-au" } },
   { key: "strandbags-au", name: "Strandbags", regions: ["AU"], aliases: [], asset: { kind: "sprite", spritePath: "user-seed-07.svg", symbolId: "strandbags-au" } },
   { key: "subway-au", name: "Subway", regions: ["AU"], aliases: [], asset: { kind: "sprite", spritePath: "user-seed-07.svg", symbolId: "subway-au" } },
-  { key: "target-au", name: "Target", regions: ["AU"], aliases: [], asset: { kind: "sprite", spritePath: "user-seed-07.svg", symbolId: "target-au" } },
+  { key: "target-au", name: "Target", regions: ["AU"], aliases: ["Target Australia"], asset: { kind: "sprite", spritePath: "user-seed-07.svg", symbolId: "target-au" } },
   { key: "teachers-health-au", name: "Teachers Health", regions: ["AU"], aliases: ["TeachersHealth"], asset: { kind: "sprite", spritePath: "user-seed-07.svg", symbolId: "teachers-health-au" } },
   { key: "tgi-fridays-au", name: "TGI Fridays", regions: ["AU"], aliases: ["TGI Friday's"], asset: { kind: "sprite", spritePath: "user-seed-07.svg", symbolId: "tgi-fridays-au" } },
   { key: "the-good-guys-au", name: "The Good Guys", regions: ["AU"], aliases: ["TheGoodGuys"], asset: { kind: "sprite", spritePath: "user-seed-07.svg", symbolId: "the-good-guys-au" } },

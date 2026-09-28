@@ -1,11 +1,12 @@
 import {
   Bus, Clapperboard, Fuel, GraduationCap, HeartPulse, House, ShoppingBag,
-  ShoppingBasket, Store, Utensils, UtilityPole, ArrowRightLeft, UserRound,
+  ShoppingBasket, Store, Utensils, UtilityPole, UserRound,
   type LucideIcon,
 } from "lucide-react";
 import type { PayeeView } from "../accounts/payeeService.js";
 import { resolvePayeeIcon } from "./payeeIconResolver.js";
 import type { PayeeBuiltinIconKey } from "./payeeIconReference.js";
+import { TransferIcon } from "./TransferIcon.js";
 
 const builtinComponents: Record<PayeeBuiltinIconKey, LucideIcon> = {
   merchant: Store, shopping: ShoppingBag, groceries: ShoppingBasket, dining: Utensils,
@@ -56,7 +57,7 @@ export function PayeeIcon({
       </span>
     );
   }
-  if (resolved.kind === "transfer") return <span {...common} {...accessibility}><ArrowRightLeft aria-hidden="true" /></span>;
+  if (resolved.kind === "transfer") return <span {...common} {...accessibility}><TransferIcon size="100%" /></span>;
   if (resolved.kind === "none") return <span {...common} {...accessibility}><UserRound aria-hidden="true" /></span>;
   return <span {...common} {...accessibility} data-avatar-token={resolved.token}>{resolved.initials}</span>;
 }

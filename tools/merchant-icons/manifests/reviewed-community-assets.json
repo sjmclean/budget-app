@@ -1,0 +1,789 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "key": "stan-au",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "stan-au"
+      },
+      "source": "https://github.com/elax46/custom-brand-icons#stan"
+    },
+    {
+      "key": "binge-au",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "binge-au"
+      },
+      "source": "https://github.com/elax46/custom-brand-icons#binge"
+    },
+    {
+      "key": "kayo-sports-au",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "kayo-sports-au"
+      },
+      "source": "https://github.com/elax46/custom-brand-icons#kayo"
+    },
+    {
+      "key": "foxtel-au",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "foxtel-au"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.foxtel.com.au"
+    },
+    {
+      "key": "abc-iview-au",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "abc-iview-au"
+      },
+      "source": "https://github.com/elax46/custom-brand-icons#abc-iview"
+    },
+    {
+      "key": "9now-au",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "9now-au"
+      },
+      "source": "https://github.com/elax46/custom-brand-icons#9-now"
+    },
+    {
+      "key": "10-play-au",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "10-play-au"
+      },
+      "source": "https://github.com/elax46/custom-brand-icons#10-play"
+    },
+    {
+      "key": "disney-plus-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "disney-plus-global"
+      },
+      "source": "https://github.com/selfhst/icons#disney-plus"
+    },
+    {
+      "key": "prime-video-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "prime-video-global"
+      },
+      "source": "https://github.com/selfhst/icons#amazon-prime-video"
+    },
+    {
+      "key": "apple-tv-plus-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "apple-tv-plus-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://en.wikipedia.org/wiki/File:Apple_TV_(logo).svg"
+    },
+    {
+      "key": "paramount-plus-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "paramount-plus-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.paramount.com/brand/paramount-plus"
+    },
+    {
+      "key": "max-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "max-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://cycling74.com"
+    },
+    {
+      "key": "hulu-us",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "hulu-us"
+      },
+      "source": "https://github.com/coreui/coreui-icons#hulu"
+    },
+    {
+      "key": "peacock-us",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "peacock-us"
+      },
+      "source": "https://github.com/selfhst/icons#peacock"
+    },
+    {
+      "key": "amc-plus-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "amc-plus-global"
+      },
+      "source": "https://github.com/elax46/custom-brand-icons#amc"
+    },
+    {
+      "key": "discovery-plus-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "discovery-plus-global"
+      },
+      "source": "https://github.com/elax46/custom-brand-icons#discovery-plus"
+    },
+    {
+      "key": "crunchyroll-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "crunchyroll-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.crunchyroll.com"
+    },
+    {
+      "key": "shudder-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "shudder-global"
+      },
+      "source": "https://github.com/elax46/custom-brand-icons#shudder"
+    },
+    {
+      "key": "mubi-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "mubi-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://mubi.com"
+    },
+    {
+      "key": "nebula-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "nebula-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://nebula.tv"
+    },
+    {
+      "key": "plex-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "plex-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://brand.plex.tv"
+    },
+    {
+      "key": "dazn-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "dazn-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://media.dazn.com/en/assets/"
+    },
+    {
+      "key": "apple-music-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "apple-music-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.apple.com/itunes/marketing-on-music/identity-guidelines.html#apple-music-icon"
+    },
+    {
+      "key": "youtube-music-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "youtube-music-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://partnermarketinghub.withgoogle.com/#/brands"
+    },
+    {
+      "key": "amazon-music-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "amazon-music-global"
+      },
+      "source": "https://github.com/selfhst/icons#amazon-music"
+    },
+    {
+      "key": "tidal-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "tidal-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://tidal.com/press"
+    },
+    {
+      "key": "deezer-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "deezer-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://deezerbrand.com/document/37#/-/logo"
+    },
+    {
+      "key": "soundcloud-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "soundcloud-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://press.soundcloud.com"
+    },
+    {
+      "key": "iheartradio-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "iheartradio-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://brand.iheart.com/logo"
+    },
+    {
+      "key": "twitch-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "twitch-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://brand.twitch.tv"
+    },
+    {
+      "key": "vimeo-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "vimeo-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://press.vimeo.com/brand-guidelines"
+    },
+    {
+      "key": "audible-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "audible-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://commons.wikimedia.org/wiki/File:Audible_logo.svg"
+    },
+    {
+      "key": "xbox-game-pass-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "xbox-game-pass-global"
+      },
+      "source": "https://github.com/selfhst/icons#xbox-game-pass"
+    },
+    {
+      "key": "ubisoft-plus-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "ubisoft-plus-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.ubisoft.com/en-US/company/overview.aspx"
+    },
+    {
+      "key": "apple-arcade-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "apple-arcade-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.apple.com/apple-arcade"
+    },
+    {
+      "key": "paypal-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "paypal-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.paypal.com/us"
+    },
+    {
+      "key": "itunes-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "itunes-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://commons.wikimedia.org/wiki/File:ITunes_logo.svg"
+    },
+    {
+      "key": "ebay-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "ebay-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://go.developer.ebay.com/logos"
+    },
+    {
+      "key": "target-us",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "target-us"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.target.com"
+    },
+    {
+      "key": "national-grid-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "national-grid-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.nationalgrid.com"
+    },
+    {
+      "key": "nextera-energy-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "nextera-energy-global"
+      },
+      "source": "https://github.com/glincker/thesvg#nextera-energy"
+    },
+    {
+      "key": "bt-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "bt-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.bt.com"
+    },
+    {
+      "key": "orange-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "orange-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://brand.orange.com"
+    },
+    {
+      "key": "deutsche-telekom-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "deutsche-telekom-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://tmap.t-mobile.com/portals/pro74u7a/EXTBrandPortal"
+    },
+    {
+      "key": "singapore-airlines-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "singapore-airlines-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.singaporeair.com"
+    },
+    {
+      "key": "emirates-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "emirates-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.emirates.com/ie/english/"
+    },
+    {
+      "key": "qatar-airways-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "qatar-airways-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.qatarairways.com/press-releases/en-WW/media_kits"
+    },
+    {
+      "key": "etihad-airways-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "etihad-airways-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.etihad.com/en-ie/manage/duty-free"
+    },
+    {
+      "key": "cathay-pacific-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "cathay-pacific-global"
+      },
+      "source": "https://github.com/glincker/thesvg#cathay-pacific"
+    },
+    {
+      "key": "all-nippon-airways-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "all-nippon-airways-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.ana.co.jp/en/eur/the-ana-experience/brand"
+    },
+    {
+      "key": "japan-airlines-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "japan-airlines-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.jal.co.jp"
+    },
+    {
+      "key": "korean-air-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "korean-air-global"
+      },
+      "source": "https://github.com/glincker/thesvg#korean-air"
+    },
+    {
+      "key": "british-airways-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "british-airways-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.britishairways.com"
+    },
+    {
+      "key": "lufthansa-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "lufthansa-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.lufthansa.com"
+    },
+    {
+      "key": "air-france-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "air-france-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.airfrance.fr"
+    },
+    {
+      "key": "klm-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "klm-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.klm.com"
+    },
+    {
+      "key": "united-airlines-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "united-airlines-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.united.com"
+    },
+    {
+      "key": "delta-air-lines-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "delta-air-lines-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://news.delta.com/delta-air-lines-logos-brand-guidelines"
+    },
+    {
+      "key": "american-airlines-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "american-airlines-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://news.aa.com"
+    },
+    {
+      "key": "southwest-airlines-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "southwest-airlines-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.southwest.com"
+    },
+    {
+      "key": "air-canada-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "air-canada-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.aircanada.com"
+    },
+    {
+      "key": "ryanair-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "ryanair-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://corporate.ryanair.com/media-centre/stock-images-gallery/#album-container-3"
+    },
+    {
+      "key": "easyjet-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "easyjet-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.easyjet.com"
+    },
+    {
+      "key": "airasia-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "airasia-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.airasia.com/shop"
+    },
+    {
+      "key": "turkish-airlines-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "turkish-airlines-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.turkishairlines.com/en-int/press-room/logo-archive/index.html"
+    },
+    {
+      "key": "iberia-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "iberia-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://iberia.com"
+    },
+    {
+      "key": "austrian-airlines-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "austrian-airlines-global"
+      },
+      "source": "https://github.com/glincker/thesvg#austrian-airlines"
+    },
+    {
+      "key": "ita-airways-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "ita-airways-global"
+      },
+      "source": "https://github.com/elax46/custom-brand-icons#ita-airways"
+    },
+    {
+      "key": "wizz-air-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "wizz-air-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://wizzair.com/en-gb/information-and-services/about-us/press-office/logos"
+    },
+    {
+      "key": "alaska-airlines-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "alaska-airlines-global"
+      },
+      "source": "https://github.com/selfhst/icons#alaska-airlines"
+    },
+    {
+      "key": "jetblue-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "jetblue-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.jetblue.com"
+    },
+    {
+      "key": "spirit-airlines-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "spirit-airlines-global"
+      },
+      "source": "https://github.com/selfhst/icons#spirit-airlines"
+    },
+    {
+      "key": "avianca-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "avianca-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.avianca.com"
+    },
+    {
+      "key": "copa-airlines-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "copa-airlines-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.copaair.com"
+    },
+    {
+      "key": "aeromexico-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "aeromexico-global"
+      },
+      "source": "https://github.com/glincker/thesvg#aeromexico"
+    },
+    {
+      "key": "vietnam-airlines-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "vietnam-airlines-global"
+      },
+      "source": "https://github.com/glincker/thesvg#vietnam-airlines"
+    },
+    {
+      "key": "indigo-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "indigo-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.goindigo.in"
+    },
+    {
+      "key": "air-india-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "air-india-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.airindia.com"
+    },
+    {
+      "key": "revolut-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "revolut-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://developer.revolut.com/docs/resources/marketing-assets-guidelines/marketing-guidelines"
+    },
+    {
+      "key": "nordea-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "reviewed-brands-01.svg",
+        "symbolId": "nordea-global"
+      },
+      "source": "https://github.com/glincker/thesvg#nordea"
+    },
+    {
+      "key": "bp-au",
+      "asset": {
+        "kind": "image",
+        "assetPath": "fuel/bp.svg"
+      },
+      "source": "https://github.com/bienstudio-byron/servo-saver/tree/main/public/logos"
+    },
+    {
+      "key": "ampol-au",
+      "asset": {
+        "kind": "image",
+        "assetPath": "fuel/ampol.png"
+      },
+      "source": "https://github.com/bienstudio-byron/servo-saver/tree/main/public/logos"
+    },
+    {
+      "key": "shell-au",
+      "asset": {
+        "kind": "image",
+        "assetPath": "fuel/shell.png"
+      },
+      "source": "https://github.com/bienstudio-byron/servo-saver/tree/main/public/logos"
+    },
+    {
+      "key": "mobil-au",
+      "asset": {
+        "kind": "image",
+        "assetPath": "fuel/mobil.png"
+      },
+      "source": "https://github.com/bienstudio-byron/servo-saver/tree/main/public/logos"
+    },
+    {
+      "key": "metro-petroleum-au",
+      "asset": {
+        "kind": "image",
+        "assetPath": "fuel/metro-petroleum.png"
+      },
+      "source": "https://github.com/bienstudio-byron/servo-saver/tree/main/public/logos"
+    },
+    {
+      "key": "otr-au",
+      "asset": {
+        "kind": "image",
+        "assetPath": "fuel/otr.png"
+      },
+      "source": "https://github.com/bienstudio-byron/servo-saver/tree/main/public/logos"
+    },
+    {
+      "key": "reddy-express-au",
+      "asset": {
+        "kind": "image",
+        "assetPath": "fuel/reddy-express.png"
+      },
+      "source": "https://github.com/bienstudio-byron/servo-saver/tree/main/public/logos"
+    },
+    {
+      "key": "pearl-energy-au",
+      "asset": {
+        "kind": "image",
+        "assetPath": "fuel/pearl-energy.png"
+      },
+      "source": "https://github.com/bienstudio-byron/servo-saver/tree/main/public/logos"
+    }
+  ]
+}

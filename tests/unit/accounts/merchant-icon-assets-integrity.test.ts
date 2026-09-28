@@ -10,7 +10,7 @@ import {
 test("merchant catalogue entries have unique identities and real lazy assets", () => {
   const keys = new Set<string>();
   const symbols = new Set<string>();
-  const identities = new Map<string, string>();
+  const identities = new Map<string, typeof MERCHANT_ICON_CATALOGUE[number][]>();
   const spriteCache = new Map<string, string>();
 
   for (const entry of MERCHANT_ICON_CATALOGUE) {
@@ -41,11 +41,12 @@ test("merchant catalogue entries have unique identities and real lazy assets", (
     for (const identity of [entry.name, ...entry.aliases]) {
       const canonical = normaliseMerchantIconIdentity(identity);
       assert.ok(canonical);
-      const existing = identities.get(canonical);
-      assert.ok(!existing || existing === entry.key, `ambiguous merchant identity "${canonical}"`);
-      identities.set(canonical, entry.key);
+      const existing = identities.get(canonical) ?? [];
+      assert.ok(!existing.some((candidate) => candidate.key !== entry.key && candidate.regions.some((region) => entry.regions.includes(region) || region === "GLOBAL" || entry.regions.includes("GLOBAL"))), `same-region merchant identity collision "${canonical}"`);
+      if (!existing.some(({ key }) => key === entry.key)) existing.push(entry);
+      identities.set(canonical, existing);
     }
   }
 
-  assert.equal(spriteCache.size, 8);
+  assert.equal(spriteCache.size, 13);
 });
