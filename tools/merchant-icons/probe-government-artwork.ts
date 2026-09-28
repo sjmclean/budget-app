@@ -147,7 +147,7 @@ for (const result of rawResults) {
 const entries: ArtworkResult[] = rawResults.map((result) => {
   if (!result.assetSource || result.status !== "candidate-agency-specific") return result;
   const sharedArtworkCount = artworkUsage.get(result.assetSource) ?? 1;
-  if (sharedArtworkCount < 3) return { ...result, sharedArtworkCount };
+  if (sharedArtworkCount < 2) return { ...result, sharedArtworkCount };
   return { ...result, status: "candidate-shared-government", sharedArtworkCount };
 });
 
