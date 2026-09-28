@@ -40,7 +40,9 @@
     "merchant-icons:review": "tsx tools/merchant-icons/generate-review-contact-sheets.ts",
     "merchant-icons:import": "tsx tools/merchant-icons/import-catalogue-batch.ts",
     "merchant-icons:generate-simple": "tsx tools/merchant-icons/generate-simple-icons-expansion.ts",
-    "merchant-icons:check-simple": "tsx tools/merchant-icons/generate-simple-icons-expansion.ts --check"
+    "merchant-icons:check-simple": "tsx tools/merchant-icons/generate-simple-icons-expansion.ts --check",
+    "merchant-icons:government:refresh": "tsx tools/merchant-icons/refresh-government-sources.ts",
+    "merchant-icons:government:candidates": "tsx tools/merchant-icons/build-government-candidates.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
