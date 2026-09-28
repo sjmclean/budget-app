@@ -784,6 +784,62 @@
         "assetPath": "fuel/pearl-energy.png"
       },
       "source": "https://github.com/bienstudio-byron/servo-saver/tree/main/public/logos"
+    },
+    {
+      "key": "jd-sports-global",
+      "asset": {
+        "kind": "image",
+        "assetPath": "community/jd-sports-global.svg"
+      },
+      "source": "https://github.com/chobbledotcom/fun-pro-uk/blob/main/src/images/partners/jd-sports.svg"
+    },
+    {
+      "key": "shein-global",
+      "asset": {
+        "kind": "image",
+        "assetPath": "community/shein-global.svg"
+      },
+      "source": "https://github.com/lucasm/findto/blob/main/public/images/logos/shein.svg"
+    },
+    {
+      "key": "chatgpt-global",
+      "asset": {
+        "kind": "image",
+        "assetPath": "community/chatgpt-global.svg"
+      },
+      "source": "https://github.com/iconify/icon-sets/blob/master/json/bxl.json#openai"
+    },
+    {
+      "key": "glassons-global",
+      "asset": {
+        "kind": "image",
+        "assetPath": "community/glassons-global.svg"
+      },
+      "source": "https://github.com/rekha-credencesoft/seer/blob/f084013b28caded092240d621f48cad15a7f9ca4/src/assets/images/client_glassons.svg"
+    },
+    {
+      "key": "montmorency-secondary-college-au",
+      "asset": {
+        "kind": "image",
+        "assetPath": "community/montmorency-secondary-college-au.png"
+      },
+      "source": "https://www.montysc.vic.edu.au/images/MSC/MSC_HOZ.png"
+    },
+    {
+      "key": "regent-theatre-melbourne-au",
+      "asset": {
+        "kind": "image",
+        "assetPath": "community/regent-theatre-melbourne-au.jpg"
+      },
+      "source": "https://cdn.marrinergroup.com.au/strapi/uploads/overview_regent_30910a4f9f.jpg"
+    },
+    {
+      "key": "snooze-au",
+      "asset": {
+        "kind": "image",
+        "assetPath": "community/snooze-au.jpg"
+      },
+      "source": "https://images.squarespace-cdn.com/content/673e729c8d484844f4f7838f/1732156495707-FEQXVFGI8GEWELZ2YTA5/Melton+Homemaker+Centre+Logo.pdf.jpg?content-type=image/jpeg"
     }
   ]
 }

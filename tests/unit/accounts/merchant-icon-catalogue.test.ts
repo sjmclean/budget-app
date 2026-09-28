@@ -1,19 +1,24 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { before, describe, it } from "node:test";
 import {
   MERCHANT_ICON_CATALOGUE,
   findMerchantIconByPayeeName,
   getMerchantIconEntry,
   normaliseMerchantIconIdentity,
+  preloadExtendedMerchantIconCatalogue,
   resolveMerchantIconAsset,
   searchMerchantIcons,
 } from "../../../apps/web/src/features/icons/merchantIconCatalogue.js";
+import { GOVERNMENT_MERCHANT_ICON_EXPANSION } from "../../../apps/web/src/features/icons/merchantIconGovernmentExpansion.js";
 
 describe("merchant icon catalogue", () => {
+  before(async () => {
+    await preloadExtendedMerchantIconCatalogue();
+  });
   it("keeps stable unique keys across the seed and imported batch", () => {
     const keys = MERCHANT_ICON_CATALOGUE.map(({ key }) => key);
     assert.equal(new Set(keys).size, keys.length);
-    assert.ok(MERCHANT_ICON_CATALOGUE.length >= 600 && MERCHANT_ICON_CATALOGUE.length <= 800);
+    assert.ok(MERCHANT_ICON_CATALOGUE.length >= 1500 && MERCHANT_ICON_CATALOGUE.length <= 2700);
   });
 
   it("matches only exact canonical merchant identities automatically", () => {
@@ -55,9 +60,12 @@ describe("merchant icon catalogue", () => {
     const generatedFallbacks = MERCHANT_ICON_CATALOGUE.filter(({ provenance }) =>
       provenance?.kind === "generated" && provenance.reviewed === false
     );
-    assert.equal(MERCHANT_ICON_CATALOGUE.length, 769);
+    assert.equal(MERCHANT_ICON_CATALOGUE.length, 2526 + GOVERNMENT_MERCHANT_ICON_EXPANSION.length);
     assert.ok(reviewed.length > MERCHANT_ICON_CATALOGUE.length / 2);
-    assert.equal(reviewed.length, 511);
+    assert.equal(
+      reviewed.length,
+      2268 + GOVERNMENT_MERCHANT_ICON_EXPANSION.filter(({ provenance }) => provenance?.reviewed).length,
+    );
     assert.equal(generatedFallbacks.length, 258);
     assert.ok(MERCHANT_ICON_CATALOGUE.every(({ provenance }) => !provenance || !("source" in provenance)));
   });
@@ -75,6 +83,9 @@ describe("merchant icon catalogue", () => {
       "hertz-global",
       "wilson-parking-global",
       "banyule-city-council-au",
+      "jd-sports-global",
+      "shein-global",
+      "chatgpt-global",
     ];
 
     for (const key of keys) {
@@ -107,6 +118,20 @@ describe("merchant icon catalogue", () => {
       assert.equal(entry.category, "fuel", `${key} should be categorised as fuel`);
     }
 
+    assert.deepEqual(getMerchantIconEntry("apco-service-stations-au")?.asset, {
+      kind: "image",
+      assetPath: "user-supplied/apco-service-stations-au.svg",
+    });
+    assert.deepEqual(getMerchantIconEntry("oom-energy-au")?.asset, {
+      kind: "image",
+      assetPath: "user-supplied/oom-energy-au.svg",
+    });
+    assert.equal(getMerchantIconEntry("oom-energy-au")?.category, "fuel");
+    assert.deepEqual(getMerchantIconEntry("peter-alexander-au")?.asset, {
+      kind: "image",
+      assetPath: "user-supplied/peter-alexander-au.svg",
+    });
+
     for (const key of [
       "bp-au", "ampol-au", "shell-au", "mobil-au", "metro-petroleum-au",
       "otr-au", "reddy-express-au", "pearl-energy-au",
@@ -116,6 +141,52 @@ describe("merchant icon catalogue", () => {
       assert.equal(entry.provenance?.reviewed, true);
       assert.equal(entry.asset.kind, "image");
     }
+  });
+
+
+  it("adds the user-identified priority brands with reviewed artwork and conservative aliases", () => {
+    assert.equal(findMerchantIconByPayeeName("JD Sports")?.key, "jd-sports-global");
+    assert.equal(findMerchantIconByPayeeName("JD Sports Australia")?.key, "jd-sports-global");
+    assert.equal(findMerchantIconByPayeeName("SHEIN")?.key, "shein-global");
+    assert.equal(findMerchantIconByPayeeName("Chat GPT")?.key, "chatgpt-global");
+    assert.equal(findMerchantIconByPayeeName("Glassons")?.key, "glassons-global");
+    assert.equal(findMerchantIconByPayeeName("Afterpay")?.key, "si-afterpay-global");
+    assert.equal(findMerchantIconByPayeeName("Booking.com")?.key, "si-bookingdotcom-global");
+    assert.equal(findMerchantIconByPayeeName("FedEx")?.key, "si-fedex-global");
+    assert.equal(findMerchantIconByPayeeName("Ferrari")?.key, "si-ferrari-global");
+    assert.equal(findMerchantIconByPayeeName("Montmorency Secondary College")?.key, "montmorency-secondary-college-au");
+    assert.equal(findMerchantIconByPayeeName("Regent Theatre")?.key, "regent-theatre-melbourne-au");
+    assert.equal(findMerchantIconByPayeeName("Regent Theatre Melbourne")?.key, "regent-theatre-melbourne-au");
+    assert.equal(findMerchantIconByPayeeName("Snooze")?.key, "snooze-au");
+
+    for (const key of [
+      "jd-sports-global",
+      "shein-global",
+      "glassons-global",
+      "chatgpt-global",
+      "montmorency-secondary-college-au",
+      "regent-theatre-melbourne-au",
+      "snooze-au",
+    ]) {
+      const entry = getMerchantIconEntry(key);
+      assert.ok(entry, `Missing priority merchant ${key}`);
+      assert.equal(entry.provenance?.kind, "community");
+      assert.equal(entry.provenance?.reviewed, true);
+      assert.equal(entry.asset.kind, "image");
+    }
+  });
+
+  it("keeps the generated brand expansion reviewed, lazy and exact-match-only", () => {
+    const afterpay = getMerchantIconEntry("si-afterpay-global");
+    assert.equal(afterpay?.name, "Afterpay");
+    assert.equal(afterpay?.provenance?.kind, "community");
+    assert.equal(afterpay?.provenance?.reviewed, true);
+    assert.deepEqual(afterpay?.asset, {
+      kind: "sprite",
+      spritePath: "community-simple-icons-02.svg",
+      symbolId: "si-afterpay",
+    });
+    assert.equal(findMerchantIconByPayeeName("Afterpay 1234"), undefined);
   });
 
   it("provides lazy sprite references and bounded search", () => {

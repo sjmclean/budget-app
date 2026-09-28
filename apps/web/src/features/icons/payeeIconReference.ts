@@ -15,16 +15,25 @@ export const PAYEE_BUILTIN_ICONS = [
 ] as const;
 
 export type PayeeBuiltinIconKey = (typeof PAYEE_BUILTIN_ICONS)[number]["key"];
+
+export const PAYEE_SPECIAL_ICONS = [
+  { key: "income", label: "Income" },
+  { key: "transfer", label: "Transfer" },
+] as const;
+
+export type PayeeSpecialIconKey = (typeof PAYEE_SPECIAL_ICONS)[number]["key"];
 export type PayeeEmbeddedIconFormat = "webp" | "png";
 export type PayeeIconReference =
   | { readonly kind: "automatic" }
   | { readonly kind: "builtin"; readonly key: PayeeBuiltinIconKey }
+  | { readonly kind: "special"; readonly key: PayeeSpecialIconKey }
   | { readonly kind: "merchant"; readonly key: string }
   | { readonly kind: "embedded"; readonly format: PayeeEmbeddedIconFormat; readonly data: string }
   | { readonly kind: "content"; readonly contentHash: string }
   | { readonly kind: "unknown"; readonly raw: string };
 
 const builtinKeys = new Set<string>(PAYEE_BUILTIN_ICONS.map(({ key }) => key));
+const specialKeys = new Set<string>(PAYEE_SPECIAL_ICONS.map(({ key }) => key));
 const contentHashPattern = /^[a-f0-9]{64}$/;
 const embeddedDataPattern = /^[A-Za-z0-9+/]+={0,2}$/;
 const MAX_EMBEDDED_ICON_BASE64_LENGTH = 500_000;
@@ -55,6 +64,12 @@ export function parsePayeeIconReference(raw: string | null | undefined): PayeeIc
       ? { kind: "builtin", key: key as PayeeBuiltinIconKey }
       : { kind: "unknown", raw };
   }
+  if (raw.startsWith("special:v1:")) {
+    const key = raw.slice("special:v1:".length);
+    return specialKeys.has(key)
+      ? { kind: "special", key: key as PayeeSpecialIconKey }
+      : { kind: "unknown", raw };
+  }
   if (raw.startsWith("merchant:v1:")) {
     const key = raw.slice("merchant:v1:".length);
     return isMerchantIconKey(key)
@@ -76,6 +91,7 @@ export function parsePayeeIconReference(raw: string | null | undefined): PayeeIc
 export function serialisePayeeIconReference(reference: Exclude<PayeeIconReference, { kind: "unknown" }>): string {
   if (reference.kind === "automatic") return "";
   if (reference.kind === "builtin") return `builtin:v1:${reference.key}`;
+  if (reference.kind === "special") return `special:v1:${reference.key}`;
   if (reference.kind === "merchant") {
     if (!isMerchantIconKey(reference.key)) throw new TypeError("Invalid merchant payee icon.");
     return `merchant:v1:${reference.key}`;
@@ -99,7 +115,7 @@ export function validatePayeeIconReferenceForWrite(raw: string): string {
 
 export function isExplicitPayeeIconReference(raw: string | null | undefined): boolean {
   const parsed = parsePayeeIconReference(raw);
-  return parsed.kind === "builtin" || parsed.kind === "merchant" || parsed.kind === "embedded" || parsed.kind === "content";
+  return parsed.kind === "builtin" || parsed.kind === "special" || parsed.kind === "merchant" || parsed.kind === "embedded" || parsed.kind === "content";
 }
 
 export function mergePayeeIconReferences(

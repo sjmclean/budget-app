@@ -83,6 +83,11 @@ export async function bootstrapApp() {
       apiBaseUrl: (import.meta as ImportMeta & { env?: { VITE_BUDGET_API_URL?: string } }).env?.VITE_BUDGET_API_URL,
     });
 
+    // Preload the extended merchant identity index before application modules render.
+    // The index remains an async chunk, while exact automatic matching is ready for first paint.
+    const { preloadExtendedMerchantIconCatalogue } = await import("./features/icons/merchantIconCatalogue");
+    await preloadExtendedMerchantIconCatalogue();
+
     // Import application modules only after runtime persistence is configured.
     // Zustand stores read registry and selection state during module creation.
     const { App } = await import("./App");

@@ -23,8 +23,19 @@ export const MERCHANT_ICON_ENTRY_OVERRIDES: Readonly<Record<string, Partial<Merc
     asset: { kind: "image", assetPath: "fuel/bp.svg" },
   },
   "7-eleven-au": { category: "fuel" },
-  "apco-service-stations-au": { category: "fuel" },
+  "apco-service-stations-au": {
+    category: "fuel",
+    asset: { kind: "image", assetPath: "user-supplied/apco-service-stations-au.svg" },
+  },
   "caltex-au": { category: "fuel" },
   "coles-express-au": { category: "fuel" },
   "united-petroleum-au": { category: "fuel" },
+  "oom-energy-au": {
+    category: "fuel",
+    asset: { kind: "image", assetPath: "user-supplied/oom-energy-au.svg" },
+  },
+  "peter-alexander-au": {
+    category: "clothing",
+    asset: { kind: "image", assetPath: "user-supplied/peter-alexander-au.svg" },
+  },
 } as const;

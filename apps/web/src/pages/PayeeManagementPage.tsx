@@ -34,6 +34,7 @@ import { PayeeIcon } from "../features/icons/PayeeIcon";
 import { PayeeCustomImagePicker } from "../features/icons/PayeeCustomImagePicker";
 import {
   PAYEE_BUILTIN_ICONS,
+  PAYEE_SPECIAL_ICONS,
   serialisePayeeIconReference,
 } from "../features/icons/payeeIconReference";
 import { searchMerchantIcons } from "../features/icons/merchantIconCatalogue";
@@ -1644,6 +1645,13 @@ export function PayeeManagementPage() {
                 className={iconPickerDraft === "" ? "is-selected" : ""} onClick={() => setIconPickerDraft("")}>
                 <PayeeIcon payee={{ ...selectedPayee, iconRef: "" }} size={40} decorative /><span>Automatic</span>
               </button>
+              {PAYEE_SPECIAL_ICONS.map(({ key, label }) => {
+                const iconRef = serialisePayeeIconReference({ kind: "special", key });
+                return <button key={key} type="button" role="radio" aria-checked={iconPickerDraft === iconRef}
+                  className={iconPickerDraft === iconRef ? "is-selected" : ""} onClick={() => setIconPickerDraft(iconRef)}>
+                  <PayeeIcon payee={{ ...selectedPayee, iconRef }} size={40} decorative /><span>{label}</span>
+                </button>;
+              })}
               {merchantIconMatches.map((merchant) => {
                 const iconRef = serialisePayeeIconReference({ kind: "merchant", key: merchant.key });
                 return <button key={merchant.key} type="button" role="radio" aria-checked={iconPickerDraft === iconRef}

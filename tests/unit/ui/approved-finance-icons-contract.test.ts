@@ -9,7 +9,8 @@ const budgetPage = readFileSync("apps/web/src/pages/BudgetPage.tsx", "utf8");
 
 test("PayeeIcon renders the approved custom transfer icon with existing accessibility semantics", () => {
   assert.match(payeeIcon, /resolved\.kind === "transfer"[^\n]+<TransferIcon size="100%"/u);
-  assert.match(payeeIcon, /state === "transfer" \? "Transfer"/u);
+  assert.match(payeeIcon, /resolved\.kind === "transfer"[\s\S]*?\? "Transfer"/u);
+  assert.match(payeeIcon, /resolved\.kind === "income"[\s\S]*?\? "Income"/u);
   assert.match(payeeIcon, /decorative \? \{ "aria-hidden": true/u);
   assert.doesNotMatch(payeeIcon, /ArrowRightLeft/u);
   assert.match(transferIcon, /data-app-icon="transfer"/u);
@@ -17,11 +18,12 @@ test("PayeeIcon renders the approved custom transfer icon with existing accessib
   assert.match(transferIcon, /transfer-icon-inbound/u);
 });
 
-test("IncomeIcon is reusable and appears only in explicit monthly-income UI", () => {
+test("IncomeIcon is reusable in explicit monthly-income UI and selectable payee icons", () => {
   assert.match(incomeIcon, /data-app-icon="income"/u);
   assert.match(incomeIcon, /<circle/u);
   assert.match(incomeIcon, /income-icon-arrow/u);
   assert.match(budgetPage, /<IncomeIcon size=\{16\} \/> Income for \{monthName\}/u);
-  assert.doesNotMatch(payeeIcon, /IncomeIcon|builtin:v1:income/u);
+  assert.match(payeeIcon, /IncomeIcon/u);
+  assert.match(payeeIcon, /resolved\.kind === "income"/u);
 });
 

@@ -36,9 +36,17 @@
     "benchmark:p0-6:projection:large": "P0_6_BENCHMARK_TRANSACTIONS=250000 P0_6_BENCHMARK_ITERATIONS=3 P0_6_BENCHMARK_OUTPUT=test-results/p0-6-projection-benchmark-large.json tsx tools/performance/p0-6-projection-benchmark.ts",
     "benchmark:local-first-sync": "tsx tools/performance/local-first-sync-benchmark.ts",
     "benchmark:local-first-sync:large": "LOCAL_FIRST_SYNC_OPERATIONS=100000 LOCAL_FIRST_SYNC_OUTPUT=test-results/local-first-sync-performance-large.json tsx tools/performance/local-first-sync-benchmark.ts",
-    "merchant-icons:check": "tsx tools/merchant-icons/validate-catalogue.ts",
+    "merchant-icons:check": "tsx tools/merchant-icons/validate-catalogue.ts && tsx tools/merchant-icons/generate-simple-icons-expansion.ts --check",
     "merchant-icons:review": "tsx tools/merchant-icons/generate-review-contact-sheets.ts",
-    "merchant-icons:import": "tsx tools/merchant-icons/import-catalogue-batch.ts"
+    "merchant-icons:import": "tsx tools/merchant-icons/import-catalogue-batch.ts",
+    "merchant-icons:generate-simple": "tsx tools/merchant-icons/generate-simple-icons-expansion.ts",
+    "merchant-icons:check-simple": "tsx tools/merchant-icons/generate-simple-icons-expansion.ts --check",
+    "merchant-icons:government:refresh": "tsx tools/merchant-icons/refresh-government-sources.ts",
+    "merchant-icons:government:candidates": "tsx tools/merchant-icons/build-government-candidates.ts",
+    "merchant-icons:government:audit": "tsx tools/merchant-icons/audit-government-candidates.ts",
+    "merchant-icons:government:queue": "tsx tools/merchant-icons/build-government-promotion-queue.ts",
+    "merchant-icons:government:artwork-probe": "tsx tools/merchant-icons/probe-government-artwork.ts",
+    "merchant-icons:government:promote": "tsx tools/merchant-icons/promote-government-artwork.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

@@ -3,7 +3,10 @@ import { extname, resolve } from "node:path";
 import {
   MERCHANT_ICON_CATALOGUE,
   normaliseMerchantIconIdentity,
+  preloadExtendedMerchantIconCatalogue,
 } from "../../apps/web/src/features/icons/merchantIconCatalogue.js";
+
+await preloadExtendedMerchantIconCatalogue();
 
 const root = process.cwd();
 const errors: string[] = [];
@@ -21,10 +24,16 @@ const officialManifest = JSON.parse(await readFile(resolve(manifestDirectory, "r
 const communityManifest = JSON.parse(await readFile(resolve(manifestDirectory, "reviewed-community-assets.json"), "utf8")) as {
   entries: { key: string; asset: { kind: "sprite"; spritePath: string; symbolId: string } | { kind: "image"; assetPath: string }; source: string }[];
 };
+const simpleIconsManifest = JSON.parse(await readFile(resolve(manifestDirectory, "reviewed-simple-icons-assets.json"), "utf8")) as {
+  entries: { key: string; asset: { kind: "sprite"; spritePath: string; symbolId: string }; source: string }[];
+};
 const officialByKey = new Map(officialManifest.entries.map((entry) => [entry.key, entry]));
-const communityByKey = new Map(communityManifest.entries.map((entry) => [entry.key, entry]));
+const communityByKey = new Map([
+  ...communityManifest.entries,
+  ...simpleIconsManifest.entries,
+].map((entry) => [entry.key, entry]));
 if (officialByKey.size !== officialManifest.entries.length) errors.push("Official provenance manifest contains duplicate keys.");
-if (communityByKey.size !== communityManifest.entries.length) errors.push("Community provenance manifest contains duplicate keys.");
+if (communityByKey.size !== communityManifest.entries.length + simpleIconsManifest.entries.length) errors.push("Community provenance manifests contain duplicate keys.");
 
 async function readSprite(path: string): Promise<string | undefined> {
   const cached = spriteCache.get(path);
@@ -160,7 +169,7 @@ for (const entry of officialManifest.entries) {
     errors.push(`Official provenance manifest entry "${entry.key}" is not an official runtime entry.`);
   }
 }
-for (const entry of communityManifest.entries) {
+for (const entry of [...communityManifest.entries, ...simpleIconsManifest.entries]) {
   if (MERCHANT_ICON_CATALOGUE.find(({ key }) => key === entry.key)?.provenance?.kind !== "community") {
     errors.push(`Community provenance manifest entry "${entry.key}" is not a community runtime entry.`);
   }

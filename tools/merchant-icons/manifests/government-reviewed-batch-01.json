@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "purpose": "Manually approved first government artwork promotion batch. Promotion still requires the local artwork probe to classify the exact asset as agency-specific.",
+  "entries": [
+    {
+      "key": "gov-internal-revenue-service-us",
+      "name": "Internal Revenue Service",
+      "regions": [
+        "US"
+      ],
+      "aliases": [
+        "IRS"
+      ],
+      "category": "government",
+      "source": "https://www.irs.gov",
+      "assetSource": "https://www.irs.gov/themes/custom/pup_base/favicon.ico",
+      "assetPath": "official/government/gov-internal-revenue-service-us.ico"
+    },
+    {
+      "key": "gov-social-security-administration-us",
+      "name": "Social Security Administration",
+      "regions": [
+        "US"
+      ],
+      "aliases": [
+        "SSA"
+      ],
+      "category": "government",
+      "source": "https://www.ssa.gov",
+      "assetSource": "https://www.ssa.gov/themes/custom/ssa_core/apple-touch-icon.png",
+      "assetPath": "official/government/gov-social-security-administration-us.png"
+    },
+    {
+      "key": "gov-immigration-and-customs-enforcement-us",
+      "name": "Immigration and Customs Enforcement",
+      "regions": [
+        "US"
+      ],
+      "aliases": [
+        "ICE",
+        "U.S. Immigration and Customs Enforcement"
+      ],
+      "category": "government",
+      "source": "https://www.ice.gov",
+      "assetSource": "https://www.ice.gov/profiles/iced8_gov/themes/whitehouse_base_subtheme/favicon.ico",
+      "assetPath": "official/government/gov-immigration-and-customs-enforcement-us.ico"
+    },
+    {
+      "key": "gov-federal-election-commission-us",
+      "name": "Federal Election Commission",
+      "regions": [
+        "US"
+      ],
+      "aliases": [
+        "FEC"
+      ],
+      "category": "government",
+      "source": "https://www.fec.gov",
+      "assetSource": "https://www.fec.gov/static/img/favicon/favicon-32x32.png",
+      "assetPath": "official/government/gov-federal-election-commission-us.png"
+    },
+    {
+      "key": "gov-transportation-security-administration-us",
+      "name": "Transportation Security Administration",
+      "regions": [
+        "US"
+      ],
+      "aliases": [
+        "TSA"
+      ],
+      "category": "government",
+      "source": "https://www.tsa.gov",
+      "assetSource": "https://www.tsa.gov/profiles/tsad8_gov/themes/custom/tsa_uswds/favicon.ico",
+      "assetPath": "official/government/gov-transportation-security-administration-us.ico"
+    },
+    {
+      "key": "gov-revenue-nsw-nsw-au",
+      "name": "Revenue NSW",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [],
+      "category": "government",
+      "source": "https://www.revenue.nsw.gov.au",
+      "assetSource": "https://www.revenue.nsw.gov.au/favicon.png",
+      "assetPath": "official/government/gov-revenue-nsw-nsw-au.png"
+    },
+    {
+      "key": "gov-nsw-electoral-commission-nsw-au",
+      "name": "NSW Electoral Commission",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [],
+      "category": "government",
+      "source": "https://elections.nsw.gov.au",
+      "assetSource": "https://elections.nsw.gov.au/apple-touch-icon.png",
+      "assetPath": "official/government/gov-nsw-electoral-commission-nsw-au.png"
+    },
+    {
+      "key": "gov-office-of-the-work-health-and-safety-commissioner-worksafe-act-act-au",
+      "name": "Office of the Work Health and Safety Commissioner (WorkSafe ACT)",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "WorkSafe ACT"
+      ],
+      "category": "government",
+      "source": "https://www.worksafe.act.gov.au",
+      "assetSource": "https://www.worksafe.act.gov.au/__data/assets/image/0004/1635475/favicon.png",
+      "assetPath": "official/government/gov-office-of-the-work-health-and-safety-commissioner-worksafe-act-act-au.png"
+    },
+    {
+      "key": "gov-transport-canberra-act-au",
+      "name": "Transport Canberra",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [],
+      "category": "transport",
+      "source": "https://www.transport.act.gov.au",
+      "assetSource": "https://www.transport.act.gov.au/__data/assets/file/0009/1174446/favicon.ico",
+      "assetPath": "official/government/gov-transport-canberra-act-au.ico"
+    },
+    {
+      "key": "gov-western-australian-electoral-commission-wa-au",
+      "name": "Western Australian Electoral Commission",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "WA Electoral Commission"
+      ],
+      "category": "government",
+      "source": "https://www.elections.wa.gov.au",
+      "assetSource": "https://www.elections.wa.gov.au/themes/custom/waectheme/favicon.ico",
+      "assetPath": "official/government/gov-western-australian-electoral-commission-wa-au.ico"
+    }
+  ]
+}
