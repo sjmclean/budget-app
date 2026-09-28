@@ -45,7 +45,8 @@
     "merchant-icons:government:candidates": "tsx tools/merchant-icons/build-government-candidates.ts",
     "merchant-icons:government:audit": "tsx tools/merchant-icons/audit-government-candidates.ts",
     "merchant-icons:government:queue": "tsx tools/merchant-icons/build-government-promotion-queue.ts",
-    "merchant-icons:government:artwork-probe": "tsx tools/merchant-icons/probe-government-artwork.ts"
+    "merchant-icons:government:artwork-probe": "tsx tools/merchant-icons/probe-government-artwork.ts",
+    "merchant-icons:government:promote": "tsx tools/merchant-icons/promote-government-artwork.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
