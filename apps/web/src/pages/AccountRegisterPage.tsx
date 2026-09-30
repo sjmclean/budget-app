@@ -111,6 +111,7 @@ import type { BudgetCategoryOption } from "../features/budget/budgetViewTypes";
 import { useBudgetRegistryStore } from "../stores/budgetRegistryStore";
 import { useUIStore } from "../stores/uiStore";
 import { formatDateForDisplay } from "../features/settings/dateFormatting";
+import { localCalendarDate } from "../features/dates/localCalendarDate";
 import { useDateFormatPreference } from "../features/settings/useDateFormatPreference";
 import { useDeveloperPerformanceMode } from "../features/settings/useDeveloperPerformanceMode";
 import { useRegisterMerchantIconsPreference } from "../features/settings/useRegisterMerchantIconsPreference";
@@ -542,7 +543,7 @@ export function AccountRegisterPage() {
   const [transactionEditIntent, setTransactionEditIntent] =
     useState<TransactionEditIntent>({ field: "date" });
   const [lastEntryDate, setLastEntryDate] = useState(
-    new Date().toISOString().slice(0, 10),
+    localCalendarDate(),
   );
   const [categoryOptions, setCategoryOptions] = useState<
     BudgetCategoryOption[]
@@ -1357,7 +1358,7 @@ export function AccountRegisterPage() {
         csv,
         createSelectedTransactionsFilename(
           data?.accountName ?? "account",
-          new Date().toISOString().slice(0, 10),
+          localCalendarDate(),
         ),
       );
     } catch (error) {
