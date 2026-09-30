@@ -82,7 +82,7 @@ export function AppShell() {
     if (!activeBudgetId) return;
     let disposed = false;
     const generate = () => {
-      if (disposed || persistenceProvider.accountRegisterQueries?.isLocalDatabaseReleased?.()) return;
+      if (disposed) return;
       void generateDueScheduledTransactionsForBudget(persistenceProvider, activeBudgetId)
         .catch((error) => {
           if (!isDatabaseReleasedError(error)) console.error("Scheduled transaction generation failed.", error);
