@@ -172,8 +172,12 @@ test("cover and settings workflows retain their existing callback contracts", ()
   assert.match(cover, /Selected amounts cannot exceed the overspending/);
   assert.match(cover, /onCoverOverspending\(\{[\s\S]*overspentCategoryId:[\s\S]*sources: selectedSources/);
   assert.doesNotMatch(cover, /OverspendingHandling|type="radio"/);
+  assert.match(windowSource, /function saveChanges\(\)/);
   assert.match(windowSource, /onRenameCategory\(category\.id, trimmedName\)/);
   assert.match(windowSource, /onUpdateCategoryNote\(category\.id, draftCategoryNote\)/);
+  assert.match(windowSource, />Save changes</);
+  assert.match(windowSource, />Cancel</);
+  assert.doesNotMatch(windowSource, /onBlur=\{saveRename\}|onBlur=\{saveCategoryNote\}/);
   assert.match(windowSource, /onSetOverspendingHandling\(category\.id, "reduce-next-month"\)/);
   assert.match(windowSource, /onSetOverspendingHandling\(category\.id, "carry-category"\)/);
   assert.match(windowSource, /onSetCategoryArchived\(category\.id, !category\.isArchived\)/);
