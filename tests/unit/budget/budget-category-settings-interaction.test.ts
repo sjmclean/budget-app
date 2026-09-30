@@ -175,8 +175,8 @@ test("cover and settings workflows retain their existing callback contracts", ()
   assert.match(windowSource, /function saveChanges\(\)/);
   assert.match(windowSource, /onRenameCategory\(category\.id, trimmedName\)/);
   assert.match(windowSource, /onUpdateCategoryNote\(category\.id, draftCategoryNote\)/);
-  assert.match(windowSource, />Save changes</);
-  assert.match(windowSource, />Cancel</);
+  assert.match(windowSource, />\s*Save changes\s*</);
+  assert.match(windowSource, />\s*Cancel\s*</);
   assert.doesNotMatch(windowSource, /onBlur=\{saveRename\}|onBlur=\{saveCategoryNote\}/);
   assert.match(windowSource, /onSetOverspendingHandling\(category\.id, "reduce-next-month"\)/);
   assert.match(windowSource, /onSetOverspendingHandling\(category\.id, "carry-category"\)/);
