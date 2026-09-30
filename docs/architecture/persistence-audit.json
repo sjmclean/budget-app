@@ -121,41 +121,6 @@
   ],
   "findings": [
     {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 402
-    },
-    {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 405
-    },
-    {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 491
-    },
-    {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 496
-    },
-    {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 508
-    },
-    {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 519
-    },
-    {
-      "kind": "replicationApi",
-      "path": "apps/server/src/server.mjs",
-      "line": 531
-    },
-    {
       "kind": "localStorage",
       "path": "apps/web/src/app/errors/appErrorDiagnostics.ts",
       "line": 25,
@@ -168,14 +133,20 @@
       "classification": "review-required"
     },
     {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/accounts/accountRegisterPersistencePort.ts",
+      "line": 44,
+      "classification": "review-required"
+    },
+    {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/accountRegisterPersistencePort.ts",
       "line": 43
     },
     {
       "kind": "localStorage",
-      "path": "apps/web/src/features/accounts/accountRegisterPersistencePort.ts",
-      "line": 44,
+      "path": "apps/web/src/features/accounts/accountRegisterService.ts",
+      "line": 61,
       "classification": "review-required"
     },
     {
@@ -202,12 +173,6 @@
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/accountRegisterService.ts",
       "line": 45
-    },
-    {
-      "kind": "localStorage",
-      "path": "apps/web/src/features/accounts/accountRegisterService.ts",
-      "line": 61,
-      "classification": "review-required"
     },
     {
       "kind": "persistenceBoundary",
@@ -520,11 +485,6 @@
       "line": 10
     },
     {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/accounts/payeePersistencePort.ts",
-      "line": 6
-    },
-    {
       "kind": "localStorage",
       "path": "apps/web/src/features/accounts/payeePersistencePort.ts",
       "line": 7,
@@ -535,6 +495,11 @@
       "path": "apps/web/src/features/accounts/payeePersistencePort.ts",
       "line": 8,
       "classification": "review-required"
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/accounts/payeePersistencePort.ts",
+      "line": 6
     },
     {
       "kind": "persistenceBoundary",
@@ -631,15 +596,15 @@
       "line": 113
     },
     {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/accounts/scheduledTransactionPersistencePort.ts",
-      "line": 29
-    },
-    {
       "kind": "localStorage",
       "path": "apps/web/src/features/accounts/scheduledTransactionPersistencePort.ts",
       "line": 30,
       "classification": "review-required"
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/accounts/scheduledTransactionPersistencePort.ts",
+      "line": 29
     },
     {
       "kind": "persistenceBoundary",
@@ -682,6 +647,12 @@
       "line": 265
     },
     {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
+      "line": 584,
+      "classification": "review-required"
+    },
+    {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
       "line": 15
@@ -700,12 +671,6 @@
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
       "line": 501
-    },
-    {
-      "kind": "localStorage",
-      "path": "apps/web/src/features/budget/actualBudgetLauncherImport.ts",
-      "line": 584,
-      "classification": "review-required"
     },
     {
       "kind": "persistenceBoundary",
@@ -1184,6 +1149,12 @@
       "line": 87
     },
     {
+      "kind": "localStorage",
+      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
+      "line": 450,
+      "classification": "review-required"
+    },
+    {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
       "line": 14
@@ -1207,12 +1178,6 @@
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
       "line": 425
-    },
-    {
-      "kind": "localStorage",
-      "path": "apps/web/src/features/budget/ynab4LauncherImport.ts",
-      "line": 450,
-      "classification": "review-required"
     },
     {
       "kind": "persistenceBoundary",
@@ -1265,16 +1230,6 @@
       "line": 1674
     },
     {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts",
-      "line": 5
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts",
-      "line": 171
-    },
-    {
       "kind": "localStorage",
       "path": "apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts",
       "line": 561,
@@ -1285,6 +1240,16 @@
       "path": "apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts",
       "line": 566,
       "classification": "review-required"
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts",
+      "line": 5
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/budget/ynab4LauncherImportAccuracyAudit.ts",
+      "line": 171
     },
     {
       "kind": "persistenceBoundary",
@@ -1352,19 +1317,9 @@
       "line": 12
     },
     {
-      "kind": "checkpoints",
-      "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
-      "line": 8
-    },
-    {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
       "line": 10
-    },
-    {
-      "kind": "operationJournal",
-      "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
-      "line": 11
     },
     {
       "kind": "persistenceBoundary",
@@ -1379,7 +1334,17 @@
     {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
+      "line": 11
+    },
+    {
+      "kind": "operationJournal",
+      "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
       "line": 60
+    },
+    {
+      "kind": "checkpoints",
+      "path": "apps/web/src/features/persistence/budgetPersistenceProvider.ts",
+      "line": 8
     },
     {
       "kind": "checkpoints",
@@ -1412,6 +1377,16 @@
       "line": 1
     },
     {
+      "kind": "operationJournal",
+      "path": "apps/web/src/features/persistence/checkpoint.ts",
+      "line": 37
+    },
+    {
+      "kind": "operationJournal",
+      "path": "apps/web/src/features/persistence/checkpoint.ts",
+      "line": 142
+    },
+    {
       "kind": "checkpoints",
       "path": "apps/web/src/features/persistence/checkpoint.ts",
       "line": 21
@@ -1437,11 +1412,6 @@
       "line": 36
     },
     {
-      "kind": "operationJournal",
-      "path": "apps/web/src/features/persistence/checkpoint.ts",
-      "line": 37
-    },
-    {
       "kind": "checkpoints",
       "path": "apps/web/src/features/persistence/checkpoint.ts",
       "line": 64
@@ -1460,11 +1430,6 @@
       "kind": "checkpoints",
       "path": "apps/web/src/features/persistence/checkpoint.ts",
       "line": 141
-    },
-    {
-      "kind": "operationJournal",
-      "path": "apps/web/src/features/persistence/checkpoint.ts",
-      "line": 142
     },
     {
       "kind": "checkpoints",
@@ -1492,24 +1457,24 @@
       "line": 6
     },
     {
-      "kind": "checkpoints",
-      "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
-      "line": 10
-    },
-    {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
       "line": 12
     },
     {
-      "kind": "operationJournal",
+      "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
-      "line": 13
+      "line": 21
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
-      "line": 21
+      "line": 41
+    },
+    {
+      "kind": "operationJournal",
+      "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
+      "line": 13
     },
     {
       "kind": "operationJournal",
@@ -1519,12 +1484,12 @@
     {
       "kind": "checkpoints",
       "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
-      "line": 27
+      "line": 10
     },
     {
-      "kind": "persistenceBoundary",
+      "kind": "checkpoints",
       "path": "apps/web/src/features/persistence/createKeyValueBudgetPersistenceProvider.ts",
-      "line": 41
+      "line": 27
     },
     {
       "kind": "persistenceBoundary",
@@ -1647,19 +1612,24 @@
       "line": 5
     },
     {
-      "kind": "checkpoints",
+      "kind": "indexedDB",
       "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
-      "line": 10
+      "line": 563
     },
     {
-      "kind": "checkpoints",
+      "kind": "indexedDB",
       "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
-      "line": 12
+      "line": 568
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
       "line": 29
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
+      "line": 63
     },
     {
       "kind": "operationJournal",
@@ -1672,16 +1642,6 @@
       "line": 35
     },
     {
-      "kind": "checkpoints",
-      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
-      "line": 63
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
-      "line": 63
-    },
-    {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
       "line": 68
@@ -1690,21 +1650,6 @@
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
       "line": 69
-    },
-    {
-      "kind": "checkpoints",
-      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
-      "line": 70
-    },
-    {
-      "kind": "checkpoints",
-      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
-      "line": 71
-    },
-    {
-      "kind": "checkpoints",
-      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
-      "line": 74
     },
     {
       "kind": "operationJournal",
@@ -1727,21 +1672,6 @@
       "line": 231
     },
     {
-      "kind": "checkpoints",
-      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
-      "line": 248
-    },
-    {
-      "kind": "checkpoints",
-      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
-      "line": 280
-    },
-    {
-      "kind": "checkpoints",
-      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
-      "line": 451
-    },
-    {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
       "line": 452
@@ -1750,21 +1680,6 @@
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
       "line": 525
-    },
-    {
-      "kind": "checkpoints",
-      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
-      "line": 544
-    },
-    {
-      "kind": "indexedDB",
-      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
-      "line": 563
-    },
-    {
-      "kind": "indexedDB",
-      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
-      "line": 568
     },
     {
       "kind": "operationJournal",
@@ -1802,6 +1717,71 @@
       "line": 789
     },
     {
+      "kind": "operationJournal",
+      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
+      "line": 888
+    },
+    {
+      "kind": "operationJournal",
+      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
+      "line": 921
+    },
+    {
+      "kind": "operationJournal",
+      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
+      "line": 988
+    },
+    {
+      "kind": "checkpoints",
+      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
+      "line": 10
+    },
+    {
+      "kind": "checkpoints",
+      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
+      "line": 12
+    },
+    {
+      "kind": "checkpoints",
+      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
+      "line": 63
+    },
+    {
+      "kind": "checkpoints",
+      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
+      "line": 70
+    },
+    {
+      "kind": "checkpoints",
+      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
+      "line": 71
+    },
+    {
+      "kind": "checkpoints",
+      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
+      "line": 74
+    },
+    {
+      "kind": "checkpoints",
+      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
+      "line": 248
+    },
+    {
+      "kind": "checkpoints",
+      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
+      "line": 280
+    },
+    {
+      "kind": "checkpoints",
+      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
+      "line": 451
+    },
+    {
+      "kind": "checkpoints",
+      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
+      "line": 544
+    },
+    {
       "kind": "checkpoints",
       "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
       "line": 817
@@ -1835,21 +1815,6 @@
       "kind": "checkpoints",
       "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
       "line": 887
-    },
-    {
-      "kind": "operationJournal",
-      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
-      "line": 888
-    },
-    {
-      "kind": "operationJournal",
-      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
-      "line": 921
-    },
-    {
-      "kind": "operationJournal",
-      "path": "apps/web/src/features/persistence/localDatabaseKeyValueStorage.ts",
-      "line": 988
     },
     {
       "kind": "persistenceBoundary",
@@ -2000,11 +1965,6 @@
       "line": 314
     },
     {
-      "kind": "checkpoints",
-      "path": "apps/web/src/features/persistence/replication.ts",
-      "line": 1
-    },
-    {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/replication.ts",
       "line": 2
@@ -2027,6 +1987,11 @@
     {
       "kind": "checkpoints",
       "path": "apps/web/src/features/persistence/replication.ts",
+      "line": 1
+    },
+    {
+      "kind": "checkpoints",
+      "path": "apps/web/src/features/persistence/replication.ts",
       "line": 89
     },
     {
@@ -2040,6 +2005,31 @@
       "line": 1
     },
     {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/replicationEngine.ts",
+      "line": 58
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/replicationEngine.ts",
+      "line": 383
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/replicationEngine.ts",
+      "line": 409
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/replicationEngine.ts",
+      "line": 447
+    },
+    {
+      "kind": "persistenceBoundary",
+      "path": "apps/web/src/features/persistence/replicationEngine.ts",
+      "line": 477
+    },
+    {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/replicationEngine.ts",
       "line": 12
@@ -2050,19 +2040,9 @@
       "line": 48
     },
     {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/persistence/replicationEngine.ts",
-      "line": 58
-    },
-    {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/replicationEngine.ts",
       "line": 371
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/persistence/replicationEngine.ts",
-      "line": 383
     },
     {
       "kind": "operationJournal",
@@ -2075,11 +2055,6 @@
       "line": 388
     },
     {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/persistence/replicationEngine.ts",
-      "line": 409
-    },
-    {
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/replicationEngine.ts",
       "line": 413
@@ -2088,16 +2063,6 @@
       "kind": "operationJournal",
       "path": "apps/web/src/features/persistence/replicationEngine.ts",
       "line": 415
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/persistence/replicationEngine.ts",
-      "line": 447
-    },
-    {
-      "kind": "persistenceBoundary",
-      "path": "apps/web/src/features/persistence/replicationEngine.ts",
-      "line": 477
     },
     {
       "kind": "operationJournal",
@@ -2140,16 +2105,6 @@
       "line": 109
     },
     {
-      "kind": "checkpoints",
-      "path": "apps/web/src/features/persistence/replicationTransport.ts",
-      "line": 1
-    },
-    {
-      "kind": "operationJournal",
-      "path": "apps/web/src/features/persistence/replicationTransport.ts",
-      "line": 2
-    },
-    {
       "kind": "replicationApi",
       "path": "apps/web/src/features/persistence/replicationTransport.ts",
       "line": 28
@@ -2175,14 +2130,24 @@
       "line": 59
     },
     {
-      "kind": "checkpoints",
-      "path": "apps/web/src/features/persistence/replicationTransport.ts",
-      "line": 64
-    },
-    {
       "kind": "replicationApi",
       "path": "apps/web/src/features/persistence/replicationTransport.ts",
       "line": 109
+    },
+    {
+      "kind": "operationJournal",
+      "path": "apps/web/src/features/persistence/replicationTransport.ts",
+      "line": 2
+    },
+    {
+      "kind": "checkpoints",
+      "path": "apps/web/src/features/persistence/replicationTransport.ts",
+      "line": 1
+    },
+    {
+      "kind": "checkpoints",
+      "path": "apps/web/src/features/persistence/replicationTransport.ts",
+      "line": 64
     },
     {
       "kind": "persistenceBoundary",
@@ -2452,6 +2417,41 @@
       "path": "apps/web/src/stores/uiStore.ts",
       "line": 83,
       "classification": "ui-preference"
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 402
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 405
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 491
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 496
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 508
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 519
+    },
+    {
+      "kind": "replicationApi",
+      "path": "apps/server/src/server.mjs",
+      "line": 531
     }
   ]
 }
