@@ -23,6 +23,17 @@ test("Budget mounts Category Details whenever a category is selected", () => {
   );
 });
 
+test("Category Details exposes a visible close control", () => {
+  assert.match(
+    budgetPage,
+    /className="budget-category-details-close"[\s\S]*aria-label="Close category details"[\s\S]*×/,
+  );
+  assert.match(
+    budgetCss,
+    /\.budget-category-details-close\s*\{[\s\S]*border:\s*1px solid var\(--border-soft\)[\s\S]*background:\s*var\(--surface\)[\s\S]*color:\s*var\(--text\)/,
+  );
+});
+
 test("Category Details follows the rich reference mockup hierarchy", () => {
   assert.match(
     budgetPage,
