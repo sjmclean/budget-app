@@ -82,6 +82,20 @@ export async function generateDueScheduledTransactionsForBudget(
         );
       },
 
+      async enterOccurrence(accountId, schedule, occurrenceDate, createTransaction) {
+        await engine.enterScheduledTransaction({
+          budgetId,
+          accountId,
+          schedule,
+          transactionId: scheduledOccurrenceTransactionId(
+            accountId,
+            schedule.id,
+            occurrenceDate,
+          ),
+          createTransaction,
+        });
+      },
+
       async repairExisting(accountId, existingTransaction, transaction) {
         await persistScheduledAttachments(
           engine,
