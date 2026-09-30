@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import type { BudgetPersistenceProvider } from "./budgetPersistenceProvider";
+import { isDatabaseReleasedError } from "./localFirst/budgetDatabaseOwnership";
 import {
   getPersistenceRevisionForInterest,
   subscribeToPersistenceInterest,
@@ -182,6 +183,16 @@ function ensureFresh<T>(entry: ReactiveQueryEntry<T>): Promise<void> {
       });
     } catch (error) {
       if (entry.generation !== generation) return;
+      if (isDatabaseReleasedError(error)) {
+        entry.attemptedRevision = -1;
+        setSnapshot(entry, {
+          data: entry.snapshot.data,
+          status: entry.snapshot.data === undefined ? "loading" : "refreshing",
+          error: null,
+          dataRevision: entry.snapshot.dataRevision,
+        });
+        return;
+      }
       setSnapshot(entry, {
         data: entry.snapshot.data,
         status: "error",
@@ -233,9 +244,27 @@ function subscribeHandle<T>(
     );
   }
 
+  const retryOnVisible = () => {
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+    entry.attemptedRevision = -1;
+    void ensureFresh(entry);
+  };
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", retryOnVisible);
+  }
+  if (typeof window !== "undefined") {
+    window.addEventListener("focus", retryOnVisible);
+  }
+
   void ensureFresh(entry);
 
   return () => {
+    if (typeof document !== "undefined") {
+      document.removeEventListener("visibilitychange", retryOnVisible);
+    }
+    if (typeof window !== "undefined") {
+      window.removeEventListener("focus", retryOnVisible);
+    }
     entry.listeners.delete(listener);
     if (entry.listeners.size === 0) {
       entry.unsubscribePersistence?.();
