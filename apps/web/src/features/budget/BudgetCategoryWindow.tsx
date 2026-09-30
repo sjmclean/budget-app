@@ -44,12 +44,14 @@ function CategorySettingsContent({
   onSetCategoryArchived,
   onUpdateCategoryNote,
   onSetOverspendingHandling,
+  onClose,
 }: Pick<
   BudgetCategoryWindowProps,
   | "onRenameCategory"
   | "onSetCategoryArchived"
   | "onUpdateCategoryNote"
   | "onSetOverspendingHandling"
+  | "onClose"
 > & { category: BudgetCategoryView }) {
   const [draftName, setDraftName] = useState(category.name);
   const [draftCategoryNote, setDraftCategoryNote] = useState(category.note ?? "");
@@ -59,19 +61,26 @@ function CategorySettingsContent({
     setDraftCategoryNote(category.note ?? "");
   }, [category.id, category.name, category.note]);
 
-  function saveRename() {
-    const trimmedName = draftName.trim();
-    if (!trimmedName) {
-      setDraftName(category.name);
-    } else if (trimmedName !== category.name) {
+  const trimmedName = draftName.trim();
+  const hasDraftChanges =
+    (trimmedName && trimmedName !== category.name) ||
+    draftCategoryNote !== (category.note ?? "");
+
+  function saveChanges() {
+    if (!trimmedName) return;
+    if (trimmedName !== category.name) {
       onRenameCategory(category.id, trimmedName);
     }
-  }
-
-  function saveCategoryNote() {
     if (draftCategoryNote !== (category.note ?? "")) {
       onUpdateCategoryNote(category.id, draftCategoryNote);
     }
+    onClose();
+  }
+
+  function cancelChanges() {
+    setDraftName(category.name);
+    setDraftCategoryNote(category.note ?? "");
+    onClose();
   }
 
   return (
@@ -85,10 +94,9 @@ function CategorySettingsContent({
             autoFocus
             value={draftName}
             onChange={(event) => setDraftName(event.target.value)}
-            onBlur={saveRename}
             onKeyDown={(event) => {
-              if (event.key === "Enter") saveRename();
-              if (event.key === "Escape") setDraftName(category.name);
+              if (event.key === "Enter") saveChanges();
+              if (event.key === "Escape") cancelChanges();
             }}
             aria-label="Category name"
           />
@@ -99,7 +107,6 @@ function CategorySettingsContent({
             className="category-note-textarea"
             value={draftCategoryNote}
             onChange={(event) => setDraftCategoryNote(event.target.value)}
-            onBlur={saveCategoryNote}
             placeholder="Add reminders, rules, renewal dates, or category-specific instructions…"
             rows={5}
           />
@@ -142,6 +149,24 @@ function CategorySettingsContent({
           You can cover overspending manually at any time.
         </p>
       </section>
+
+      <div className="category-management-edit-actions">
+        <button
+          className="button button-secondary"
+          type="button"
+          onClick={cancelChanges}
+        >
+          Cancel
+        </button>
+        <button
+          className="button"
+          type="button"
+          onClick={saveChanges}
+          disabled={!trimmedName || !hasDraftChanges}
+        >
+          Save changes
+        </button>
+      </div>
 
       <section className="category-management-section category-management-actions-section">
         <h3>Actions</h3>
@@ -237,6 +262,7 @@ export function BudgetCategoryWindow(props: BudgetCategoryWindowProps) {
           onSetCategoryArchived={props.onSetCategoryArchived}
           onUpdateCategoryNote={props.onUpdateCategoryNote}
           onSetOverspendingHandling={props.onSetOverspendingHandling}
+          onClose={props.onClose}
         />
       </div>
     </FloatingMenu>
