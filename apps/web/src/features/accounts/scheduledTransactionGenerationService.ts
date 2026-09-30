@@ -41,6 +41,12 @@ export interface ScheduledTransactionGenerationInput {
       existingTransaction: RegisterTransactionView,
       transaction: NewRegisterTransactionInput,
     ): Promise<void>;
+    enterOccurrence?(
+      accountId: string,
+      schedule: ScheduledTransactionView,
+      occurrenceDate: string,
+      createTransaction: boolean,
+    ): Promise<void>;
   };
 }
 
@@ -177,22 +183,40 @@ async function generateDueScheduledTransactionsInternal(
           occurrenceDate,
           payee: dueSchedule.payee,
         });
-      } else {
-        const registerInput = createGeneratedRegisterTransaction(
-          gateway.scheduledTransactions.toRegisterInput(dueSchedule),
+      }
+
+      if (input.hostedTransactions?.enterOccurrence) {
+        await input.hostedTransactions.enterOccurrence(
+          dueSchedule.accountId,
           dueSchedule,
           occurrenceDate,
+          !skipOccurrence && !alreadyExists,
         );
+      } else {
+        if (!skipOccurrence && !alreadyExists) {
+          const registerInput = createGeneratedRegisterTransaction(
+            gateway.scheduledTransactions.toRegisterInput(dueSchedule),
+            dueSchedule,
+            occurrenceDate,
+          );
 
-        if (input.hostedTransactions) {
-          await input.hostedTransactions.add(dueSchedule.accountId, registerInput);
-        } else {
-          await gateway.accountRegisters.addTransaction({
-            accountId: dueSchedule.accountId,
-            transaction: registerInput,
-          });
+          if (input.hostedTransactions) {
+            await input.hostedTransactions.add(dueSchedule.accountId, registerInput);
+          } else {
+            await gateway.accountRegisters.addTransaction({
+              accountId: dueSchedule.accountId,
+              transaction: registerInput,
+            });
+          }
         }
 
+        await gateway.scheduledTransactions.advanceAfterEnter(
+          dueSchedule.accountId,
+          dueSchedule.id,
+        );
+      }
+
+      if (!skipOccurrence && !alreadyExists) {
         result.createdTransactions.push({
           accountId: dueSchedule.accountId,
           scheduledTransactionId: dueSchedule.id,
@@ -200,11 +224,6 @@ async function generateDueScheduledTransactionsInternal(
           payee: dueSchedule.payee,
         });
       }
-
-      await gateway.scheduledTransactions.advanceAfterEnter(
-        dueSchedule.accountId,
-        dueSchedule.id,
-      );
       result.advancedScheduleIds.push(dueSchedule.id);
 
       schedules = await gateway.scheduledTransactions.listByAccount(account.id);

@@ -12,12 +12,23 @@ function cloneSplitLines(
 ): NewRegisterTransactionInput["splitLines"] {
   return splitLines?.map((line) => {
     const { incomeBudgetMonthOffset, ...rest } = line;
+    const inflowClassification =
+      incomeBudgetMonthOffset !== undefined
+        ? "income" as const
+        : !line.transferAccountId &&
+            Boolean(line.categoryId) &&
+            line.inflow > 0 &&
+            line.outflow === 0
+          ? line.inflowClassification ?? "category-inflow"
+          : line.inflowClassification;
+
     return {
       ...rest,
       incomeBudgetMonth:
         incomeBudgetMonthOffset === undefined
           ? undefined
           : addBudgetMonths(occurrenceDate.slice(0, 7), incomeBudgetMonthOffset),
+      inflowClassification,
     };
   });
 }
@@ -46,7 +57,16 @@ export function scheduledTransactionToRegisterInput(
             transaction.nextDueDate.slice(0, 7),
             transaction.incomeBudgetMonthOffset,
           ),
-    inflowClassification: transaction.inflowClassification,
+    inflowClassification:
+      transaction.incomeBudgetMonthOffset !== undefined
+        ? "income"
+        : !transaction.transferAccountId &&
+            !transaction.splitLines?.length &&
+            Boolean(transaction.categoryId) &&
+            transaction.inflow > 0 &&
+            transaction.outflow === 0
+          ? transaction.inflowClassification ?? "category-inflow"
+          : transaction.inflowClassification,
     memo: transaction.memo,
     outflow: transaction.outflow,
     inflow: transaction.inflow,

@@ -573,12 +573,12 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/scheduledTransactionGenerationService.ts",
-      "line": 62
+      "line": 68
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/scheduledTransactionGenerationService.ts",
-      "line": 104
+      "line": 110
     },
     {
       "kind": "persistenceBoundary",
@@ -593,7 +593,7 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/scheduledTransactionMaintenance.ts",
-      "line": 99
+      "line": 113
     },
     {
       "kind": "localStorage",
