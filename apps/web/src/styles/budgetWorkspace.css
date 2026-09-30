@@ -378,15 +378,15 @@
 }
 
 .budget-category-details-close {
-  width: 1.9rem;
-  min-width: 1.9rem;
-  height: 1.9rem;
+  width: 2rem;
+  min-width: 2rem;
+  height: 2rem;
   display: inline-grid;
   place-items: center;
-  border: 0;
-  border-radius: 0.45rem;
-  background: transparent;
-  color: var(--text-muted);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
   cursor: pointer;
   font: inherit;
   font-size: 1rem;
@@ -397,6 +397,7 @@
 .budget-category-details-close:focus-visible {
   background: var(--surface-subtle);
   color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
 }
 
 .budget-category-details-close:focus-visible,
@@ -2486,4 +2487,17 @@
   .budget-year-month-navigation > .budget-visible-month-control {
     display: none;
   }
+}
+
+
+.category-management-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding: 0.8rem 0 0.15rem;
+  border-top: 1px solid var(--border-soft);
+}
+
+.category-management-edit-actions .button {
+  min-width: 7rem;
 }
