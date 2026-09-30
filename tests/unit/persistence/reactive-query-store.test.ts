@@ -8,6 +8,7 @@ const { act, create } = webRequire("react-test-renderer");
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 import type { BudgetPersistenceProvider } from "../../../apps/web/src/features/persistence/budgetPersistenceProvider.js";
+import { databaseReleasedError } from "../../../apps/web/src/features/persistence/localFirst/budgetDatabaseOwnership.js";
 import {
   configureBudgetPersistenceProvider,
   getBudgetPersistenceProvider,
@@ -265,6 +266,35 @@ test("refresh errors retain the last authoritative data", async () => {
   assert.equal(latest?.status, "error");
   assert.equal(latest?.error, "refresh failed");
   assert.equal(loads, 2, "the failed revision is not retried in a loop");
+  await act(async () => root?.unmount());
+});
+
+test("database release remains transient instead of surfacing as a query error", async () => {
+  resetReactiveQueryStore();
+  const query = createReactiveQueryDefinition<{ budgetId: string }, string>({
+    id: "released-transient",
+    key: ({ budgetId }) => budgetId,
+    interest: ({ budgetId }) => ({ budgetId, domains: ["budget"] }),
+    load: async () => {
+      throw databaseReleasedError();
+    },
+  });
+  let latest: ReactiveQuerySnapshot<string> | undefined;
+
+  function Consumer() {
+    latest = useReactiveQuery(query, provider, { budgetId: "budget-released" });
+    return null;
+  }
+
+  let root: ReturnType<typeof create> | undefined;
+  await act(async () => {
+    root = create(createElement(Consumer));
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  assert.equal(latest?.error, null);
+  assert.notEqual(latest?.status, "error");
   await act(async () => root?.unmount());
 });
 
