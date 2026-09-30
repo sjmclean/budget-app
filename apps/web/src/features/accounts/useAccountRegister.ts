@@ -343,16 +343,25 @@ export function useAccountRegister(
     }
 
     const retryOnVisible = () => {
-      if (document.visibilityState === "visible") void loadRegister();
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      void loadRegister();
     };
-    window.addEventListener("focus", retryOnVisible);
-    document.addEventListener("visibilitychange", retryOnVisible);
+    if (typeof window !== "undefined") {
+      window.addEventListener("focus", retryOnVisible);
+    }
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", retryOnVisible);
+    }
     void loadRegister();
 
     return () => {
       isMounted = false;
-      window.removeEventListener("focus", retryOnVisible);
-      document.removeEventListener("visibilitychange", retryOnVisible);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("focus", retryOnVisible);
+      }
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", retryOnVisible);
+      }
     };
   }, [
     accountId,
