@@ -313,6 +313,55 @@ test("blank positive scheduled inflow is uncategorised unless explicit income in
 });
 
 
+
+
+test("legacy scheduled direct-category inflow defaults to category-inflow at materialisation", () => {
+  const transaction = scheduledTransactionToRegisterInput({
+    id: "legacy-category-inflow",
+    accountId: "checking",
+    nextDueDate: "2026-09-30",
+    frequency: "monthly",
+    payee: "Legacy refund",
+    category: "Groceries",
+    categoryId: "groceries",
+    outflow: 0,
+    inflow: 25,
+    createdAt: "created",
+    updatedAt: "updated",
+  });
+
+  assert.equal(transaction.inflowClassification, "category-inflow");
+  assert.equal(transaction.incomeBudgetMonth, undefined);
+});
+
+test("legacy scheduled split category inflow defaults to category-inflow per line", () => {
+  const transaction = scheduledTransactionToRegisterInput({
+    id: "legacy-split-category-inflow",
+    accountId: "checking",
+    nextDueDate: "2026-09-30",
+    frequency: "monthly",
+    payee: "Legacy split refund",
+    category: "Split",
+    outflow: 0,
+    inflow: 25,
+    splitLines: [
+      {
+        id: "groceries-line",
+        category: "Groceries",
+        categoryId: "groceries",
+        outflow: 0,
+        inflow: 25,
+      },
+    ],
+    createdAt: "created",
+    updatedAt: "updated",
+  });
+
+  assert.equal(transaction.splitLines?.[0]?.inflowClassification, "category-inflow");
+  assert.equal(transaction.splitLines?.[0]?.incomeBudgetMonth, undefined);
+});
+
+
 test("scheduled ordinary category inflow materialises its explicit classification unchanged", () => {
   const transaction = scheduledTransactionToRegisterInput({
     id: "category-inflow",
