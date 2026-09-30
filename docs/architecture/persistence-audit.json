@@ -1947,22 +1947,22 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/reactiveQueryStore.ts",
-      "line": 29
+      "line": 30
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/reactiveQueryStore.ts",
-      "line": 264
+      "line": 293
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/reactiveQueryStore.ts",
-      "line": 301
+      "line": 330
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/persistence/reactiveQueryStore.ts",
-      "line": 314
+      "line": 343
     },
     {
       "kind": "operationJournal",

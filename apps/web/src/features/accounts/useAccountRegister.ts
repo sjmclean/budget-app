@@ -2,6 +2,7 @@ import { runAccountRegisterSqliteMutation } from "./accountRegisterMutationRunne
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getBudgetPersistenceProvider } from "../persistence";
 import { ensureActiveBudgetPersistenceReady } from "../persistence/budgetDatabaseLifecycle";
+import { isDatabaseReleasedError } from "../persistence/localFirst/budgetDatabaseOwnership";
 import { requireLocalBudgetEngine } from "../persistence/budgetPersistenceProvider";
 import { getPersistenceChangesSince, getPersistenceRevisionForInterest, usePersistenceChange } from "../persistence/persistenceChangeBus";
 import { reconcileRegisterDelta, type LoadedRegisterPage } from "./registerDeltaReconciliation";
@@ -326,6 +327,11 @@ export function useAccountRegister(
         if (!isMounted) {
           return;
         }
+        if (isDatabaseReleasedError(error)) {
+          setError(null);
+          setIsLoading(!hasLoadedDataRef.current);
+          return;
+        }
 
         setError(
           error instanceof Error
@@ -336,10 +342,26 @@ export function useAccountRegister(
       }
     }
 
+    const retryOnVisible = () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      void loadRegister();
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("focus", retryOnVisible);
+    }
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", retryOnVisible);
+    }
     void loadRegister();
 
     return () => {
       isMounted = false;
+      if (typeof window !== "undefined") {
+        window.removeEventListener("focus", retryOnVisible);
+      }
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", retryOnVisible);
+      }
     };
   }, [
     accountId,
@@ -393,7 +415,8 @@ export function useAccountRegister(
       registerCursorRef.current = last ? { date: last.date, id: last.id } : null;
     }
     void consumePublications().catch((cause) => {
-      if (!cancelled) setError(cause instanceof Error ? cause.message : "Failed to refresh account register.");
+      if (cancelled || isDatabaseReleasedError(cause)) return;
+      setError(cause instanceof Error ? cause.message : "Failed to refresh account register.");
     });
     return () => { cancelled = true; };
   }, [accountId, accountRegisterQueries, budgetId, ensureSqliteReady, persistenceChangeVersion, persistenceInterest, registerViewQuery, reloadSqliteRegister, sqlitePage, storageMode]);
