@@ -1,5 +1,6 @@
 import { CalendarDays } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { addLocalCalendarDays, localCalendarDate } from "../../dates/localCalendarDate";
 
 export function formatDateForInput(date: string): string {
   if (!date) {
@@ -10,30 +11,24 @@ export function formatDateForInput(date: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export function parseDateInput(value: string): string | null {
+export function parseDateInput(value: string, now = new Date()): string | null {
   const trimmed = value.trim().toLowerCase();
-  const today = new Date();
+  const today = localCalendarDate(now);
 
   if (["t", "today"].includes(trimmed)) {
-    return today.toISOString().slice(0, 10);
+    return today;
   }
 
   if (["y", "yesterday"].includes(trimmed)) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - 1);
-    return date.toISOString().slice(0, 10);
+    return addLocalCalendarDays(today, -1);
   }
 
   if (["tm", "tomorrow"].includes(trimmed)) {
-    const date = new Date(today);
-    date.setDate(date.getDate() + 1);
-    return date.toISOString().slice(0, 10);
+    return addLocalCalendarDays(today, 1);
   }
 
   if (/^[+-]\d+$/.test(trimmed)) {
-    const date = new Date(today);
-    date.setDate(date.getDate() + Number.parseInt(trimmed, 10));
-    return date.toISOString().slice(0, 10);
+    return addLocalCalendarDays(today, Number.parseInt(trimmed, 10));
   }
 
   const compact = trimmed.replace(/[^0-9]/g, "");
