@@ -614,12 +614,12 @@
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/scheduledTransactionPreview.ts",
-      "line": 24
+      "line": 25
     },
     {
       "kind": "persistenceBoundary",
       "path": "apps/web/src/features/accounts/scheduledTransactionPreview.ts",
-      "line": 29
+      "line": 30
     },
     {
       "kind": "persistenceBoundary",

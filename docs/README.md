@@ -36,6 +36,12 @@ Regenerate them with:
 
     pnpm audit:persistence
 
+Before opening or updating a PR, run:
+
+    pnpm verify:local
+
+This regenerates persistence-audit outputs before running the normal verification suite. CI continues to use `audit:persistence:check`, so stale generated outputs still fail rather than being silently rewritten.
+
 ## Architecture decision records
 
 `adr/` contains architectural decision records. ADRs are historical decision

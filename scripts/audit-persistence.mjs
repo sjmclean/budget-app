@@ -120,6 +120,22 @@ Object.entries(report.counts).map(([key, value]) => `| ${key} | ${value} |`).joi
 }
 
 const report = await scan();
+
+if (!checkOnly) {
+  try {
+    const existingReport = JSON.parse(await readFile(outputJson, "utf8"));
+    const existingComparable = structuredClone(existingReport);
+    const currentComparable = structuredClone(report);
+    delete existingComparable.generatedAt;
+    delete currentComparable.generatedAt;
+    if (JSON.stringify(existingComparable) === JSON.stringify(currentComparable)) {
+      report.generatedAt = existingReport.generatedAt;
+    }
+  } catch {
+    // Missing or unreadable output will be replaced below.
+  }
+}
+
 const renderedMarkdown = markdown(report);
 const renderedJson = JSON.stringify(report, null, 2) + "\n";
 

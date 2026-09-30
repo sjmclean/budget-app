@@ -92,6 +92,40 @@ test("maps ordinary transactions, balances, categories, payees, and flags", () =
   assert.equal(income?.inflow, 25.05);
 });
 
+test("preserves the written YNAB4 calendar date when source values include timezone offsets", () => {
+  const registers = mapYnab4Transactions({
+    accounts,
+    maps,
+    currencyCode: "AUD",
+    importedFlagTagIdByColour: new Map(),
+    transactions: [
+      {
+        entityId: "melbourne-midnight",
+        accountId: "source-checking",
+        date: "2026-09-30T00:30:00+10:00",
+        amount: -10,
+        categoryId: "source-groceries",
+      },
+      {
+        entityId: "los-angeles-late",
+        accountId: "source-checking",
+        date: "2026-09-30T23:30:00-07:00",
+        amount: -20,
+        categoryId: "source-groceries",
+      },
+    ],
+  });
+
+  assert.equal(
+    registers.checking.transactions.find((row) => row.id === "melbourne-midnight")?.date,
+    "2026-09-30",
+  );
+  assert.equal(
+    registers.checking.transactions.find((row) => row.id === "los-angeles-late")?.date,
+    "2026-09-30",
+  );
+});
+
 test("migrates YNAB4 deferred income to the following budget month without changing its date", () => {
   const registers = mapYnab4Transactions({
     accounts,

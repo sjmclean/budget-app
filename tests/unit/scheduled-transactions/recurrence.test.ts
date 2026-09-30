@@ -64,6 +64,26 @@ describe("scheduled transaction recurrence", () => {
     assert.equal(shouldSkipOccurrence("2026-07-27", "skip"), false);
   });
 
+  it("applies weekend policies identically across user timezones", () => {
+    const previous = process.env.TZ;
+    try {
+      for (const timezone of ["UTC", "Australia/Melbourne", "America/Los_Angeles", "Pacific/Auckland"]) {
+        process.env.TZ = timezone;
+        assert.deepEqual(resolveOccurrenceDate("2026-07-25", 1, "week", "previous-business-day"), {
+          anchorDate: "2026-07-25",
+          dueDate: "2026-07-24",
+        });
+        assert.deepEqual(resolveOccurrenceDate("2026-07-26", 1, "week", "next-business-day"), {
+          anchorDate: "2026-07-26",
+          dueDate: "2026-07-27",
+        });
+      }
+    } finally {
+      if (previous === undefined) delete process.env.TZ;
+      else process.env.TZ = previous;
+    }
+  });
+
   it("advances one recurrence at a time after a skipped weekend", async () => {
     for (const scenario of [
       { frequency: "weekly" as const, interval: 1, unit: "week" as const, expected: "2026-08-01" },

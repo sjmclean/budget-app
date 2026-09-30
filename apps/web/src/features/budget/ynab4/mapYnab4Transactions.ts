@@ -564,10 +564,44 @@ function requireYnab4Date(value: string | null, source: string): string {
 
 function normaliseDate(value: string | null): string | null {
   if (!value) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toISOString().slice(0, 10);
+
+  const trimmed = value.trim();
+  const isoLike = /^(\d{4})-(\d{2})-(\d{2})(?:$|[T\s])/.exec(trimmed);
+  if (isoLike) {
+    return validCalendarDateParts(isoLike[1], isoLike[2], isoLike[3]);
+  }
+
+  const compact = /^(\d{4})(\d{2})(\d{2})(?:$|[T\s])/.exec(trimmed);
+  if (compact) {
+    return validCalendarDateParts(compact[1], compact[2], compact[3]);
+  }
+
+  return null;
+}
+
+function validCalendarDateParts(
+  yearPart: string,
+  monthPart: string,
+  dayPart: string,
+): string | null {
+  const year = Number(yearPart);
+  const month = Number(monthPart);
+  const day = Number(dayPart);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return [
+    String(year).padStart(4, "0"),
+    String(month).padStart(2, "0"),
+    String(day).padStart(2, "0"),
+  ].join("-");
 }
 
 function requireYnab4Amount(value: number | null, source: string): number {

@@ -1,4 +1,5 @@
 import type { KeyValueStoragePort } from "../persistence/keyValueStoragePort";
+import { addLocalCalendarDays } from "../dates/localCalendarDate";
 import type { ScheduledTransactionView } from "./scheduledTransactionTypes";
 import type { RegisterColumnId } from "./components/TransactionRow";
 
@@ -28,11 +29,6 @@ export function readScheduledPreviewDays(storage: Pick<KeyValueStoragePort,"getI
 }
 export function writeScheduledPreviewDays(storage: Pick<KeyValueStoragePort,"setItem">, days: ScheduledPreviewDays) {
   storage.setItem(SCHEDULED_PREVIEW_DAYS_KEY, String(days));
-}
-export function addLocalCalendarDays(today: string, days: number): string {
-  const date = new Date(`${today}T12:00:00`); date.setDate(date.getDate()+days);
-  const year=date.getFullYear(),month=String(date.getMonth()+1).padStart(2,"0"),day=String(date.getDate()).padStart(2,"0");
-  return `${year}-${month}-${day}`;
 }
 export function getScheduledPreviewRelativeLabel(occurrenceDate: string, today: string): string {
   if (occurrenceDate === today) return "Today";

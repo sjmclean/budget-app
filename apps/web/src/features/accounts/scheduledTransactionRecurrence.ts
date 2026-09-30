@@ -157,7 +157,7 @@ export function adjustOccurrenceDueDate(
   }
 
   const parsed = parseIsoDate(date);
-  const day = parsed.getDay();
+  const day = parsed.getUTCDay();
 
   if (day !== 0 && day !== 6) {
     return date;
@@ -168,11 +168,11 @@ export function adjustOccurrenceDueDate(
   }
 
   if (policy === "previous-business-day") {
-    parsed.setDate(parsed.getDate() - (day === 6 ? 1 : 2));
+    parsed.setUTCDate(parsed.getUTCDate() - (day === 6 ? 1 : 2));
     return formatIsoDate(parsed);
   }
 
-  parsed.setDate(parsed.getDate() + (day === 6 ? 2 : 1));
+  parsed.setUTCDate(parsed.getUTCDate() + (day === 6 ? 2 : 1));
   return formatIsoDate(parsed);
 }
 
@@ -226,19 +226,19 @@ function isValidCalendarDate(value: string): boolean {
 }
 
 function isWeekend(date: string): boolean {
-  const day = parseIsoDate(date).getDay();
+  const day = parseIsoDate(date).getUTCDay();
   return day === 0 || day === 6;
 }
 
 function parseIsoDate(date: string): Date {
   const [year, month, day] = date.split("-").map(Number);
-  return new Date(year, month - 1, day);
+  return new Date(Date.UTC(year, month - 1, day));
 }
 
 function formatIsoDate(date: Date): string {
   return [
-    String(date.getFullYear()).padStart(4, "0"),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
+    String(date.getUTCFullYear()).padStart(4, "0"),
+    String(date.getUTCMonth() + 1).padStart(2, "0"),
+    String(date.getUTCDate()).padStart(2, "0"),
   ].join("-");
 }
