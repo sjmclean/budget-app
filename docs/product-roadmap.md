@@ -1,6 +1,6 @@
 # Product Roadmap
 
-*Last reconciled: 26 September 2026 against `master` at `727df1e061556983a2207222d176ea9c2c5acefd`.*
+*Last reconciled: 30 September 2026 against `master` at `f600c2b22ac0691b265722b8cf675d9423d41a61`.*
 
 This is the **single authoritative product roadmap** for Budget App.
 
@@ -580,7 +580,8 @@ Keep parked unless evidence or user value changes the priority:
 - Developer API / CLI;
 - PWA/install experience;
 - privacy/scramble mode;
-- multicurrency implementation before feasibility work.
+- multicurrency implementation before feasibility work;
+- **Merchant / Payee Icon Expansion** — PARKED. Continue expanding the full merchant catalogue when this workstream is resumed, not only government icons. Scope includes broader reviewed real-brand coverage across regions and merchant classes (including retail, fuel/petrol, banking and credit unions, utilities, internet/mobile, airlines, car rental, parking, health insurance, streaming/digital services, councils, government/public-sector payees and other common transaction merchants); replacing weak/generated fallbacks with reviewed artwork; repairing broken or low-quality assets; preserving conservative exact-name/regional matching; maintaining provenance/review controls; and keeping catalogue growth within bundle/sharding performance budgets. The existing government source/ranking/probe/promotion pipeline should be reused for future public-sector batches, including revisiting blocked official assets such as Transport for NSW and Transport WA.
 
 Overspending remains three separate concepts:
 
@@ -618,6 +619,18 @@ Completed theme passes removed high-risk repair layers and established feature
 ownership for Budget/Register/Scheduled Transactions responsive/theme rules.
 Remaining CSS cleanup is maintainability work only when concrete product work
 exposes debt.
+
+## Merchant / Payee icon foundations — COMPLETE BASELINE; EXPANSION PARKED
+
+- stable merchant icon references, catalogue validation and provenance controls;
+- reviewed official/community/user-supplied artwork support plus generated fallbacks;
+- lazy-sharded Simple Icons expansion and bundle-size guards;
+- selectable Transfer and Income special icons;
+- priority merchant artwork repairs and broader fuel/merchant coverage;
+- government source ingestion, candidate ranking, artwork probing and reviewed promotion pipeline;
+- first reviewed government artwork batch promoted to runtime.
+
+Further catalogue growth remains parked under **Merchant / Payee Icon Expansion** above.
 
 ## Import foundations — COMPLETE; REVIEW REMAINS
 
