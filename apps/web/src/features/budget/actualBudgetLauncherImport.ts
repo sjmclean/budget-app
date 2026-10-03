@@ -336,7 +336,11 @@ function mapActualBudgetForLocalFirst(
     id: payee.id,
     budgetId: budget.id,
     name: payee.name,
-    note: "",
+    note: payee.note ?? "",
+    defaultCategoryId: payee.defaultCategoryId,
+    defaultCategoryName: payee.defaultCategoryName,
+    aliases: payee.aliases,
+    importRules: payee.importRules,
     archived: payee.isArchived === true,
     createdAt: payee.createdAt,
     updatedAt: payee.lastUsedAt,
@@ -744,7 +748,7 @@ function mapActualCategoryGroups(preview: FullBudgetImportPreview, maps: ActualI
           available: 0,
           isOverspent: false,
           isArchived: group.hidden || category.hidden,
-          note: "",
+          note: category.note ?? "",
         };
       });
 
@@ -786,7 +790,7 @@ function mapActualCategoryGroups(preview: FullBudgetImportPreview, maps: ActualI
           available: 0,
           isOverspent: false,
           isArchived: category.hidden,
-          note: "",
+          note: category.note ?? "",
         };
       }),
     });
@@ -818,12 +822,19 @@ function mapActualPayees(preview: FullBudgetImportPreview, maps: ActualImportMap
     const id = uniqueSlug(payee.name, existingIds, "payee");
     maps.payeeIdBySourceId.set(payee.id, id);
     maps.payeeNameById.set(id, payee.name);
+    const defaultCategoryId = payee.defaultCategoryId
+      ? maps.categoryIdBySourceId.get(payee.defaultCategoryId)
+      : undefined;
     return [{
       id,
       name: payee.name,
       createdAt: nowIso,
       lastUsedAt: nowIso,
       useCount: transactionCountByPayeeId.get(payee.id) ?? 1,
+      defaultCategoryId,
+      defaultCategoryName: defaultCategoryId
+        ? maps.categoryNameById.get(defaultCategoryId) ?? payee.defaultCategoryName ?? ""
+        : undefined,
       isArchived: false,
     }];
   });
