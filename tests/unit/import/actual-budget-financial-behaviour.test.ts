@@ -542,6 +542,99 @@ test("Actual categorized budget-boundary transfer affects category activity with
   assert.ok(imported.transferAccountId);
 });
 
+test("Actual hidden categories remain archived projection facts and balance Ready to Assign", () => {
+  const storage = createMemoryStorage();
+
+  const result = createActualBudgetLauncherImport(storage, {
+    now: new Date("2026-01-31T00:00:00.000Z"),
+    preview: basePreview({
+      categoryGroups: [
+        {
+          id: "source-income-group",
+          name: "Income",
+          hidden: false,
+          isIncome: true,
+        },
+        {
+          id: "source-spending-group",
+          name: "Living",
+          hidden: false,
+          isIncome: false,
+        },
+        {
+          id: "source-hidden-group",
+          name: "Hidden Categories",
+          hidden: false,
+          isIncome: false,
+        },
+      ],
+      categories: [
+        {
+          id: "source-income",
+          name: "Salary",
+          groupId: "source-income-group",
+          groupName: "Income",
+          hidden: false,
+          isIncome: true,
+        },
+        {
+          id: "source-groceries",
+          name: "Groceries",
+          groupId: "source-spending-group",
+          groupName: "Living",
+          hidden: false,
+          isIncome: false,
+        },
+        {
+          id: "source-old-debt",
+          name: "Old Debt",
+          groupId: "source-hidden-group",
+          groupName: "Hidden Categories",
+          hidden: false,
+          isIncome: false,
+        },
+      ],
+      transactions: [
+        {
+          id: "income-1",
+          accountId: "source-checking",
+          accountName: "Checking",
+          date: "2026-01-01",
+          amount: 10_000,
+          payeeId: null,
+          payeeName: "Employer",
+          categoryId: "source-income",
+          categoryName: "Salary",
+          memo: null,
+          cleared: true,
+          transferId: null,
+          isTransfer: false,
+        },
+      ],
+      budgetMonths: [
+        {
+          id: "jan-hidden",
+          month: "2026-01",
+          categoryId: "source-old-debt",
+          assigned: 10_000,
+          carryover: 0,
+        },
+      ],
+    }),
+  });
+
+  const january = readMonth(storage, result.budget.id, "2026-01");
+  assert.equal(january.incomeForMonth, 100);
+  assert.equal(january.totalAssigned, 100);
+  assert.equal(january.readyToAssign, 0);
+
+  const hidden = january.categoryGroups
+    .flatMap((group) => group.categories)
+    .find((category) => category.name === "Old Debt");
+  assert.ok(hidden);
+  assert.equal(hidden.isArchived, true);
+});
+
 test("Actual positive uncategorised inflow is not guessed to be budget income", () => {
   const storage = createMemoryStorage();
 
