@@ -1,6 +1,6 @@
 # Product Roadmap
 
-*Last reconciled: 26 September 2026 against `master` at `727df1e061556983a2207222d176ea9c2c5acefd`.*
+*Last reconciled: 4 October 2026 against `master` at `1f844a7b5fc704d09b592364c783793b7c83babf`.*
 
 This is the **single authoritative product roadmap** for Budget App.
 
@@ -82,7 +82,11 @@ Recent completed import work:
 
 - PR #80 — review clarity and preservation of reviewed payee edits;
 - PR #83 — session-scoped badges and bounded recent-import tint;
-- PR #84 — possible-match editing correctly becomes an import proposal.
+- PR #84 — possible-match editing correctly becomes an import proposal;
+- PR #116 — Actual Budget simple payee→category rules and category notes;
+- PR #117 — Actual Budget source-faithful balance semantics, including
+  category mappings, categorized budget-boundary transfers, hidden-category
+  budget history, income classification, and closing-month carryover semantics.
 
 Detailed reference:
 
@@ -139,7 +143,10 @@ Completed Budget UX foundations now include:
 - editable month panes with month-aware Category Details selection;
 - synchronized multi-month table scrolling with hidden scrollbar chrome;
 - compact Budget Health summary aligned to the month/table hierarchy;
-- Blueprint blue-white workspace canvas treatment.
+- Blueprint blue-white workspace canvas treatment;
+- explicit monthly income model with exactly current-month/following-month
+  general-income choices, chronological carry-forward, split support and
+  canonical reporting semantics.
 
 Recent completed work:
 
@@ -148,7 +155,10 @@ Recent completed work:
 - PR #90 — refreshed Budget planning header;
 - PR #94 — Move Money + effective movement history;
 - PR #96 — adaptive 1–4 month Budget planning view;
-- PR #98 — multi-month polish, permanent inspector, Budget Health, synchronized scrolling and Blueprint canvas.
+- PR #98 — multi-month polish, permanent inspector, Budget Health, synchronized scrolling and Blueprint canvas;
+- PRs #100–#107 — explicit monthly income specification and implementation,
+  including removal of the global future-budget pool, Register/split/scheduled
+  income UX, reporting semantics and final legacy cleanup.
 
 Design reference:
 
@@ -208,58 +218,7 @@ Detailed operational reference:
 This is the **only active ordering list**. Deal with item **1** first unless a
 blocking correctness/security defect requires immediate interruption.
 
-## 1 — Budget: explicit monthly income model — ACTIVE / NEXT
-
-Replace the current Ready to Assign transaction pseudo-category and
-future-commitment/global-pool behaviour with the accepted explicit monthly
-income model.
-
-Authoritative product contract:
-
-- a transaction dated in month M offers exactly two synthetic general-income
-  category choices:
-  - **Income for M**;
-  - **Income for M+1**;
-- choosing one records the income budget month explicitly; there is no second
-  month selector and no null-as-current-month shorthand;
-- general income first becomes available to budget in its designated month;
-- money left unbudgeted at month end carries forward chronologically and is
-  shown as money not budgeted in the previous month, not as new income;
-- normal category Available balances continue to carry forward;
-- arbitrary future assignments are removed; the normal editable planning
-  horizon is current month plus immediately following month;
-- longer-term earmarking happens through ordinary user-defined categories;
-- a positive inflow directly to a normal category is a category inflow/refund
-  by default and exposes a contextual **Count this inflow as income** control;
-- Income for Month choices imply income automatically;
-- scheduled general income stores relative occurrence-month/following-month
-  intent;
-- YNAB4 ImmediateIncome and DeferredIncome map to the same canonical model;
-- ordinary unreviewed bank inflows must not silently become general income;
-- reports consume explicit income classification rather than infer income from
-  every positive external amount.
-
-There are no production-user compatibility requirements for the superseded
-native model. Remove obsolete code, tests and documentation instead of
-preserving dual semantics.
-
-Implementation sequence:
-
-1. canonical transaction/split income destination and reporting classification;
-2. remove forward reservation / future commitment semantics;
-3. rebuild Register entry/edit and split UX around synthetic Income for Month
-   choices and contextual direct-category income classification;
-4. extend scheduled transactions and import review;
-5. update Budget header/navigation and reporting;
-6. delete remaining obsolete compatibility code and run full VM/browser
-   acceptance.
-
-Authoritative references:
-
-- [Explicit Monthly Income Model](explicit-monthly-income.md)
-- [ADR-009 Explicit Monthly Income](adr/ADR-009-explicit-monthly-income.md)
-
-## 2 — Budget: finish Category Details responsive behaviour + focused acceptance coverage — PLANNED
+## 1 — Budget: finish Category Details responsive behaviour + focused acceptance coverage — PLANNED
 
 Complete the adaptive layer after the desktop inspector information
 architecture is settled:
@@ -275,9 +234,14 @@ architecture is settled:
   - Category Details open/close and responsive presentation;
   - multi-month selection and inspector month context.
 
-## 3 — Import workflow close-out review — PLANNED
+## 1 — Import workflow close-out review — PLANNED
 
 Perform the bounded review already agreed for the completed importer.
+
+Actual Budget financial correctness from PRs #116–#117 is now an accepted
+baseline. Do not reopen those semantics without a concrete mismatch against
+source data. Performance findings belong to the performance close-out work
+rather than being mixed into correctness changes.
 
 Verify:
 
@@ -295,9 +259,32 @@ Verify:
 Fix only concrete defects found. Do not redesign the importer merely for code
 cleanliness.
 
-## 4 — Performance/navigation/tab-lifecycle close-out review — PLANNED
+## 1 — Performance/navigation/tab-lifecycle close-out review — PLANNED
 
-Regression-review the finished performance programme in the VM/browser:
+Regression-review the finished performance programme in the VM/browser.
+
+Add a dedicated **Actual Budget import and first-open performance tuning** pass.
+PR #117 established correctness against a real large Actual export; follow-up
+work must improve speed without changing those source-faithful financial
+semantics. Measure the stages separately before optimizing:
+
+- ZIP/SQLite source inspection and mapping;
+- transaction/category/payee normalization;
+- staged SQLite register/entity writes;
+- baseline publication/checkpoint work;
+- first Budget projection after import;
+- month switching and repeated Budget reads on the imported dataset;
+- Account Register first load and navigation on the same large import.
+
+Use the PR #117 validated import as a regression fixture or equivalent
+representative benchmark where practical. Preserve these correctness invariants
+while tuning: categorized on-budget→tracking transfers affect their category,
+income comes only from Actual income categories, hidden-category history remains
+financially represented, and carryover is controlled by the closing/source
+month. Do not reintroduce a second financial authority, skip validation to gain
+speed, or change YNAB4 calculations as part of this work.
+
+Also review the existing navigation/lifecycle scenarios:
 
 - startup shell and sidebar identity first paint;
 - Budget first paint;
@@ -315,7 +302,7 @@ Regression-review the finished performance programme in the VM/browser:
 Use measured evidence. Do not introduce a second cache/authority or retries/sleeps
 for correctness.
 
-## 5 — Full-application adaptive/mobile/UI scalability audit — PLANNED
+## 1 — Full-application adaptive/mobile/UI scalability audit — PLANNED
 
 Review the entire product at representative desktop, tablet and mobile widths,
 including larger browser zoom/text.
@@ -342,7 +329,7 @@ Audit:
 Produce a page/flow findings matrix with severity, owner and implementation
 sequence. Route feature-specific findings into their owning roadmap item.
 
-## 6 — Transaction Entry UX — PLANNED
+## 1 — Transaction Entry UX — PLANNED
 
 Audit first, then improve in bounded passes:
 
@@ -359,7 +346,7 @@ Audit first, then improve in bounded passes:
 - accessibility;
 - high-value browser coverage.
 
-## 7 — Account Reconciliation workflow — PLANNED
+## 1 — Account Reconciliation workflow — PLANNED
 
 Promote reconciliation from parked work into the active queue as a core Account
 Register capability.
@@ -383,7 +370,7 @@ Define and implement:
 Use the existing cleared/reconciled transaction-state foundations rather than
 creating a second accounting model.
 
-## 8 — Broader Account Register UX — PLANNED
+## 1 — Broader Account Register UX — PLANNED
 
 Review:
 
@@ -397,7 +384,7 @@ Review:
 - Account Groups / custom sidebar organisation as a presentation/navigation
   feature.
 
-## 9 — Register Customisation + Adaptive Register — PLANNED
+## 1 — Register Customisation + Adaptive Register — PLANNED
 
 Build a coherent user-facing customization experience around existing
 foundations:
@@ -411,7 +398,7 @@ foundations:
 
 Then implement Register-specific adaptive/mobile findings from item 7.
 
-## 10 — Scheduled Transactions product UX — PLANNED
+## 1 — Scheduled Transactions product UX — PLANNED
 
 Review/refine:
 
@@ -428,7 +415,7 @@ High-value planned candidate within this workstream:
 - Scheduled Transaction Calendar using the existing schedule/preview/Enter/Skip
   authority, showing upcoming income/bills, funding state and due/overdue status.
 
-## 11 — Shared application polish + Settings UX — PLANNED
+## 1 — Shared application polish + Settings UX — PLANNED
 
 Cross-cutting polish after the major workflows:
 
@@ -445,7 +432,7 @@ Cross-cutting polish after the major workflows:
 Also perform the dedicated Settings UX review that was present in the older
 roadmap and should remain explicit.
 
-## 12 — Codebase health / runtime close-out — PLANNED, BOUNDED
+## 1 — Codebase health / runtime close-out — PLANNED, BOUNDED
 
 Do not turn this into another architecture rewrite.
 
@@ -628,9 +615,14 @@ exposes debt.
 - edit preservation.
 - recent-import presentation lifetime.
 - possible-match proposal-state correction.
+- Actual simple payee→category rule and category-note import (PR #116).
+- Actual source-faithful financial balance semantics (PR #117): persisted
+  category mappings, budget-boundary transfer activity, historical hidden
+  categories, explicit income classification and closing-month carryover.
 
 ## Budget UX foundations — COMPLETE; FOLLOW-UPS ORDERED ABOVE
 
+- Explicit monthly income model (PRs #100–#107).
 - Cover Overspending.
 - overspending policy/category settings.
 - month navigation/RTA breakdown.
