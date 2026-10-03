@@ -1076,29 +1076,26 @@ function mapActualBudgetMonthViews(
   const views = new Map<string, BudgetMonthView>();
 
   const previousAvailableByCategory = new Map<string, number>();
+  const previousCarryoverByCategory = new Map<string, boolean>();
   let previousReadyToAssign = 0;
 
   const sortedMonths = [...months].sort();
 
-  for (const [monthIndex, month] of sortedMonths.entries()) {
-    const nextMonth = sortedMonths[monthIndex + 1];
+  for (const month of sortedMonths) {
     const groups = cloneCategoryGroups(templateGroups);
     const categoryById = new Map(groups.flatMap((group) => group.categories.map((category) => [category.id, category] as const)));
     const activityByCategory = activityByMonthCategory.get(month) ?? new Map<string, number>();
     const budgetDataByCategory = budgetDataByMonthCategory.get(month) ?? new Map<string, ActualBudgetCategoryMonthData>();
-    const nextBudgetDataByCategory = nextMonth
-      ? budgetDataByMonthCategory.get(nextMonth) ?? new Map<string, ActualBudgetCategoryMonthData>()
-      : new Map<string, ActualBudgetCategoryMonthData>();
 
     let previousOverspending = 0;
 
     for (const category of categoryById.values()) {
       const budgetData = budgetDataByCategory.get(category.id);
-      const nextBudgetData = nextBudgetDataByCategory.get(category.id);
       const previousAvailable = roundMoney(previousAvailableByCategory.get(category.id) ?? 0);
-      const shouldCarryForward = previousAvailable > 0 || Boolean(budgetData?.carryover);
+      const previousCarryover = previousCarryoverByCategory.get(category.id) ?? false;
+      const shouldCarryForward = previousAvailable > 0 || previousCarryover;
 
-      if (previousAvailable < 0 && !budgetData?.carryover) {
+      if (previousAvailable < 0 && !previousCarryover) {
         previousOverspending = roundMoney(previousOverspending + previousAvailable);
       }
 
@@ -1108,13 +1105,15 @@ function mapActualBudgetMonthViews(
       category.available = normaliseMoney(category.previousAvailable + category.assigned + category.activity);
       category.isOverspent = isMoneyNegative(category.available);
 
-      // Actual stores carryover on the destination month. The projection
-      // engine stores the rollover policy on the closing/source month.
-      category.overspendingHandling = nextBudgetData?.carryover
+      // Actual stores the carryover flag on the closing/source month. It
+      // controls whether this month's leftover (including a negative one)
+      // rolls into the next month.
+      category.overspendingHandling = budgetData?.carryover
         ? "carry-category"
         : "reduce-next-month";
 
       previousAvailableByCategory.set(category.id, category.available);
+      previousCarryoverByCategory.set(category.id, Boolean(budgetData?.carryover));
     }
 
     for (const group of groups) {
