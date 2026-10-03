@@ -310,6 +310,23 @@ test("Actual import persists payee default categories and category notes", () =>
           defaultCategoryName: "Groceries",
         },
       ],
+      transactions: [
+        {
+          id: "coles-1",
+          accountId: "source-checking",
+          accountName: "Checking",
+          date: "2026-03-01",
+          amount: -1_000,
+          payeeId: "source-coles",
+          payeeName: "Coles",
+          categoryId: "source-groceries",
+          categoryName: "Groceries",
+          memo: null,
+          cleared: true,
+          transferId: null,
+          isTransfer: false,
+        },
+      ],
     }),
   });
 
