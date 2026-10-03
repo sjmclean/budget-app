@@ -192,11 +192,11 @@ test("Actual import derives Ready to Assign from income and preserves uncategori
   assert.equal(expense.outflow, 50);
 });
 
-test("Actual carryover preserves negative category balance without reducing next month's RTA", () => {
+test("Actual carryover is controlled by the closing/source month", () => {
   const storage = createMemoryStorage();
 
   const result = createActualBudgetLauncherImport(storage, {
-    now: new Date("2026-02-28T00:00:00.000Z"),
+    now: new Date("2026-03-31T00:00:00.000Z"),
     preview: basePreview({
       transactions: [
         {
@@ -236,14 +236,21 @@ test("Actual carryover preserves negative category balance without reducing next
           month: "2026-01",
           categoryId: "source-groceries",
           assigned: 10_000,
-          carryover: 0,
+          carryover: 1,
         },
         {
           id: "feb-groceries",
           month: "2026-02",
           categoryId: "source-groceries",
           assigned: 0,
-          carryover: 1,
+          carryover: 0,
+        },
+        {
+          id: "mar-groceries",
+          month: "2026-03",
+          categoryId: "source-groceries",
+          assigned: 0,
+          carryover: 0,
         },
       ],
     }),
@@ -251,6 +258,7 @@ test("Actual carryover preserves negative category balance without reducing next
 
   const january = readMonth(storage, result.budget.id, "2026-01");
   const february = readMonth(storage, result.budget.id, "2026-02");
+  const march = readMonth(storage, result.budget.id, "2026-03");
 
   const januaryGroceries =
     january.categoryGroups
@@ -262,18 +270,95 @@ test("Actual carryover preserves negative category balance without reducing next
       .flatMap((group) => group.categories)
       .find((category) => category.name === "Groceries");
 
+  const marchGroceries =
+    march.categoryGroups
+      .flatMap((group) => group.categories)
+      .find((category) => category.name === "Groceries");
+
   assert.ok(januaryGroceries);
   assert.ok(februaryGroceries);
+  assert.ok(marchGroceries);
 
   assert.equal(januaryGroceries.available, -100);
   assert.equal(januaryGroceries.overspendingHandling, "carry-category");
   assert.equal(februaryGroceries.previousAvailable, -100);
+  assert.equal(februaryGroceries.available, -100);
   assert.equal(februaryGroceries.overspendingHandling, "reduce-next-month");
   assert.equal(february.previousOverspending, 0);
+
+  assert.equal(marchGroceries.previousAvailable, 0);
+  assert.equal(march.previousOverspending, -100);
 
   assert.equal(january.readyToAssign, 900);
   assert.equal(february.carriedForwardReadyToAssign, 900);
   assert.equal(february.readyToAssign, 900);
+  assert.equal(march.carriedForwardReadyToAssign, 900);
+  assert.equal(march.readyToAssign, 800);
+});
+
+
+test("Actual October overspending reaches November and remains in December", () => {
+  const storage = createMemoryStorage();
+
+  const result = createActualBudgetLauncherImport(storage, {
+    now: new Date("2026-12-31T00:00:00.000Z"),
+    preview: basePreview({
+      transactions: [
+        {
+          id: "october-overspending",
+          accountId: "source-checking",
+          accountName: "Checking",
+          date: "2026-10-15",
+          amount: -6_281_533,
+          payeeId: null,
+          payeeName: "October spending",
+          categoryId: "source-groceries",
+          categoryName: "Groceries",
+          memo: null,
+          cleared: true,
+          transferId: null,
+          isTransfer: false,
+        },
+      ],
+      budgetMonths: [
+        {
+          id: "oct-groceries",
+          month: "2026-10",
+          categoryId: "source-groceries",
+          assigned: 0,
+          carryover: 0,
+        },
+        {
+          id: "nov-groceries",
+          month: "2026-11",
+          categoryId: "source-groceries",
+          assigned: 0,
+          carryover: 0,
+        },
+        {
+          id: "dec-groceries",
+          month: "2026-12",
+          categoryId: "source-groceries",
+          assigned: 0,
+          carryover: 0,
+        },
+      ],
+    }),
+  });
+
+  const october = readMonth(storage, result.budget.id, "2026-10");
+  const november = readMonth(storage, result.budget.id, "2026-11");
+  const december = readMonth(storage, result.budget.id, "2026-12");
+
+  assert.equal(october.readyToAssign, 0);
+  assert.equal(october.previousOverspending, 0);
+
+  assert.equal(november.previousOverspending, -62_815.33);
+  assert.equal(november.readyToAssign, -62_815.33);
+
+  assert.equal(december.previousOverspending, 0);
+  assert.equal(december.carriedForwardReadyToAssign, -62_815.33);
+  assert.equal(december.readyToAssign, -62_815.33);
 });
 
 
