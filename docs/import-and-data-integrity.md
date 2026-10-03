@@ -181,6 +181,58 @@ policies, and source semantics.
 Source-calculated totals are evidence for validation, not a permanent competing
 financial engine.
 
+## Actual Budget import semantics
+
+PRs #116 and #117 establish the current accepted Actual Budget import baseline.
+
+The importer must preserve Actual's source financial semantics rather than infer
+equivalents from the destination Register presentation:
+
+- transaction categories are resolved through Actual's persisted
+  `category_mapping` when present;
+- budget activity is derived from the source Actual transaction/category facts,
+  not from a Register representation that may intentionally display a row as a
+  transfer;
+- a categorized transfer from an on-budget account to an off-budget/tracking
+  account consumes that category on the on-budget leg;
+- the reciprocal off-budget/tracking leg must not double-count activity;
+- generic positive uncategorized transactions are not guessed to be budget
+  income;
+- Actual income comes from source income categories and that income
+  classification must survive local-first SQLite persistence;
+- hidden Actual categories remain represented as archived financial facts when
+  their historical assignments affect budget totals;
+- a month's carryover setting controls how that closing/source month rolls into
+  the following month.
+
+The Register may still present a categorized boundary transfer as
+`Transfer`; display semantics must not erase the financial source fact needed
+by the budget projection.
+
+These rules were validated against a real Actual export during PR #117. Changes
+to them require concrete source evidence and regression coverage. They are
+Actual-specific and must not be used as a reason to alter YNAB4 financial
+semantics.
+
+### Actual import performance follow-up
+
+Correctness is the baseline; performance tuning is a separate roadmap item.
+Measure before changing behavior. At minimum, profile:
+
+1. ZIP/SQLite inspection and source mapping;
+2. normalization of accounts, payees, categories and transactions;
+3. staged local SQLite writes;
+4. baseline publication/checkpoint work;
+5. the first authoritative Budget projection after import;
+6. repeated month reads/switching;
+7. Account Register first load and navigation on a representative large Actual
+   budget.
+
+Performance work must retain staged-import integrity and the source-faithful
+semantics above. Do not gain speed by skipping financial validation, dropping
+hidden historical facts, bypassing canonical persistence, or creating a second
+projection authority.
+
 ## Commit integrity
 
 Imports should be staged before becoming authoritative.
