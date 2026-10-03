@@ -100,7 +100,12 @@ test("Actual carryover rows preserve carry-category overspending policy", () => 
 
   assert.match(
     body,
-    /overspendingHandling\s*=\s*nextBudgetData\?\.carryover\s*\?\s*"carry-category"\s*:\s*"reduce-next-month"/,
+    /overspendingHandling\s*=\s*budgetData\?\.carryover\s*\?\s*"carry-category"\s*:\s*"reduce-next-month"/,
     "Actual carryover semantics must survive normalization into the budget projection policy",
+  );
+  assert.match(
+    body,
+    /previousCarryoverByCategory/,
+    "Actual carryover must be read from the closing/source month when rolling availability forward",
   );
 });
