@@ -33,6 +33,7 @@ const ACTUAL_TABLES = {
   payees: "payees",
   transactions: "transactions",
   budgetMonths: "zero_budgets",
+  categoryMappings: "category_mapping",
   rules: "rules",
   notes: "notes",
 } as const;
@@ -45,6 +46,7 @@ export function mapActualSQLiteRepositoryToFullBudgetPreview(repository: ActualS
   const payeesRead = readTable(repository, ACTUAL_TABLES.payees, issues);
   const transactionsRead = readTable(repository, ACTUAL_TABLES.transactions, issues);
   const budgetMonthsRead = readTable(repository, ACTUAL_TABLES.budgetMonths, issues);
+  const categoryMappingsRead = readOptionalTable(repository, ACTUAL_TABLES.categoryMappings, issues);
   const rulesRead = readOptionalTable(repository, ACTUAL_TABLES.rules, issues);
   const notesRead = readOptionalTable(repository, ACTUAL_TABLES.notes, issues);
 
@@ -67,6 +69,15 @@ export function mapActualSQLiteRepositoryToFullBudgetPreview(repository: ActualS
     mapCategory(row, index, categoryGroupById, categoryNoteById.get(readString(row, ["id"], `actual-category-${index + 1}`)) ?? null),
   );
   const categoryById = new Map(categories.map((category) => [category.id, category]));
+  const categoryIdByStoredTransactionCategoryId = new Map(
+    categoryMappingsRead
+      .map((row) => {
+        const storedId = readOptionalString(row, ["id"]);
+        const categoryId = readOptionalString(row, ["transferId", "transfer_id", "categoryId", "category_id"]);
+        return storedId && categoryId ? [storedId, categoryId] as const : null;
+      })
+      .filter((entry): entry is readonly [string, string] => Boolean(entry)),
+  );
 
   const ruleMapping = mapSimplePayeeCategoryRules(rulesRead, payeesRead, categoryById, issues);
   const payees = payeesRead.map((row, index) =>
@@ -86,7 +97,15 @@ export function mapActualSQLiteRepositoryToFullBudgetPreview(repository: ActualS
   const budgetMonths = budgetMonthsRead.map((row, index) => mapBudgetMonth(row, index, categoryById));
 
   const mappedTransactionRows = transactionsRead.map((row, index) =>
-    mapTransaction(row, index, accountById, categoryById, payeeById, transferAccountByPayeeId),
+    mapTransaction(
+      row,
+      index,
+      accountById,
+      categoryById,
+      categoryIdByStoredTransactionCategoryId,
+      payeeById,
+      transferAccountByPayeeId,
+    ),
   );
   const splitLinesByParentId = new Map<string, FullBudgetImportPreviewSplitLine[]>();
 
@@ -225,7 +244,10 @@ function mapBudgetMonth(
   index: number,
   categoryById: Map<string, FullBudgetImportPreviewCategory>,
 ): FullBudgetImportPreviewBudgetMonth {
-  const categoryId = readOptionalString(row, ["category", "categoryId", "cat"]);
+  const storedCategoryId = readOptionalString(row, ["category", "categoryId", "cat"]);
+  const categoryId = storedCategoryId
+    ? categoryIdByStoredTransactionCategoryId.get(storedCategoryId) ?? storedCategoryId
+    : null;
   return {
     id: readString(row, ["id"], `actual-budget-month-${index + 1}`),
     month: readActualMonth(row, ["month"]),
@@ -377,6 +399,7 @@ function mapTransaction(
   index: number,
   accountById: Map<string, FullBudgetImportPreviewAccount>,
   categoryById: Map<string, FullBudgetImportPreviewCategory>,
+  categoryIdByStoredTransactionCategoryId: Map<string, string>,
   payeeById: Map<string, FullBudgetImportPreviewPayee>,
   transferAccountByPayeeId: Map<string, string>,
 ): ActualMappedTransaction {
