@@ -14,6 +14,10 @@ import {
 import {
   readTransactionRegisters,
 } from "../../../apps/web/src/features/accounts/entities/transactionEntityPersistence.js";
+import {
+  createPayeeEntityRepository,
+  projectPayee,
+} from "../../../apps/web/src/features/accounts/entities/payeeEntity.js";
 import type {
   BudgetMonthView,
 } from "../../../apps/web/src/features/budget/budgetViewTypes.js";
@@ -270,4 +274,58 @@ test("Actual carryover preserves negative category balance without reducing next
   assert.equal(january.readyToAssign, 900);
   assert.equal(february.carriedForwardReadyToAssign, 900);
   assert.equal(february.readyToAssign, 900);
+});
+
+
+test("Actual import persists payee default categories and category notes", () => {
+  const storage = createMemoryStorage();
+
+  const result = createActualBudgetLauncherImport(storage, {
+    now: new Date("2026-03-01T00:00:00.000Z"),
+    preview: basePreview({
+      categories: [
+        {
+          id: "source-income",
+          name: "Salary",
+          groupId: "source-income-group",
+          groupName: "Income",
+          hidden: false,
+          isIncome: true,
+        },
+        {
+          id: "source-groceries",
+          name: "Groceries",
+          groupId: "source-spending-group",
+          groupName: "Living",
+          hidden: false,
+          isIncome: false,
+          note: "Imported category note",
+        },
+      ],
+      payees: [
+        {
+          id: "source-coles",
+          name: "Coles",
+          defaultCategoryId: "source-groceries",
+          defaultCategoryName: "Groceries",
+        },
+      ],
+    }),
+  });
+
+  const month = readMonth(storage, result.budget.id, "2026-03");
+  const groceries = month.categoryGroups
+    .flatMap((group) => group.categories)
+    .find((category) => category.name === "Groceries");
+  assert.ok(groceries);
+  assert.equal(groceries.note, "Imported category note");
+
+  const payeeRepo = createPayeeEntityRepository(
+    createFixedBudgetScopedStorage(storage, result.budget.id),
+  );
+  const colesEntity = payeeRepo.list().find((entity) => projectPayee(entity).name === "Coles");
+  assert.ok(colesEntity);
+  const coles = projectPayee(colesEntity);
+  assert.equal(coles.defaultCategoryName, "Groceries");
+  assert.ok(coles.defaultCategoryId);
 });
