@@ -346,3 +346,144 @@ test("Actual import persists payee default categories and category notes", () =>
   assert.equal(coles.defaultCategoryName, "Groceries");
   assert.ok(coles.defaultCategoryId);
 });
+
+
+test("Actual categorized budget-boundary transfer affects category activity without becoming income", () => {
+  const storage = createMemoryStorage();
+
+  const result = createActualBudgetLauncherImport(storage, {
+    now: new Date("2026-10-31T00:00:00.000Z"),
+    preview: basePreview({
+      accounts: [
+        {
+          id: "source-checking",
+          name: "Checking",
+          type: "checking",
+          closed: false,
+          offBudget: false,
+        },
+        {
+          id: "source-mortgage",
+          name: "Mortgage Loan",
+          type: "mortgage",
+          closed: false,
+          offBudget: true,
+        },
+      ],
+      categories: [
+        {
+          id: "source-income",
+          name: "Salary",
+          groupId: "source-income-group",
+          groupName: "Income",
+          hidden: false,
+          isIncome: true,
+        },
+        {
+          id: "source-mortgage-category",
+          name: "Mortgage",
+          groupId: "source-spending-group",
+          groupName: "Living",
+          hidden: false,
+          isIncome: false,
+        },
+      ],
+      transactions: [
+        {
+          id: "mortgage-transfer",
+          accountId: "source-checking",
+          accountName: "Checking",
+          date: "2026-10-15",
+          amount: -87_800,
+          payeeId: null,
+          payeeName: "Transfer: Mortgage Loan",
+          categoryId: "source-mortgage-category",
+          categoryName: "Mortgage",
+          memo: null,
+          cleared: true,
+          transferId: "source-mortgage",
+          isTransfer: true,
+        },
+        {
+          id: "mortgage-transfer-counterpart",
+          accountId: "source-mortgage",
+          accountName: "Mortgage Loan",
+          date: "2026-10-15",
+          amount: 87_800,
+          payeeId: null,
+          payeeName: "Transfer: Checking",
+          categoryId: null,
+          categoryName: null,
+          memo: null,
+          cleared: true,
+          transferId: "source-checking",
+          isTransfer: true,
+        },
+      ],
+      budgetMonths: [
+        {
+          id: "oct-mortgage",
+          month: "2026-10",
+          categoryId: "source-mortgage-category",
+          assigned: 147_800,
+          carryover: 0,
+        },
+      ],
+      transferCount: 2,
+    }),
+  });
+
+  const october = readMonth(storage, result.budget.id, "2026-10");
+  const mortgage = october.categoryGroups
+    .flatMap((group) => group.categories)
+    .find((category) => category.name === "Mortgage");
+
+  assert.ok(mortgage);
+  assert.equal(mortgage.assigned, 1_478);
+  assert.equal(mortgage.activity, -878);
+  assert.equal(mortgage.available, 600);
+  assert.equal(october.incomeForMonth, 0);
+
+  const registers = readTransactionRegisters(
+    createFixedBudgetScopedStorage(storage, result.budget.id),
+  );
+  const imported = Object.values(registers)
+    .flatMap((register) => register.transactions)
+    .find((transaction) => transaction.id === "mortgage-transfer");
+
+  assert.ok(imported);
+  assert.equal(imported.category, "Transfer");
+  assert.equal(imported.categoryId, undefined);
+  assert.ok(imported.transferAccountId);
+});
+
+test("Actual positive uncategorised inflow is not guessed to be budget income", () => {
+  const storage = createMemoryStorage();
+
+  const result = createActualBudgetLauncherImport(storage, {
+    now: new Date("2026-10-31T00:00:00.000Z"),
+    preview: basePreview({
+      transactions: [
+        {
+          id: "uncategorised-positive",
+          accountId: "source-checking",
+          accountName: "Checking",
+          date: "2026-10-05",
+          amount: 100_000,
+          payeeId: null,
+          payeeName: "Unknown inflow",
+          categoryId: null,
+          categoryName: null,
+          memo: null,
+          cleared: true,
+          transferId: null,
+          isTransfer: false,
+        },
+      ],
+    }),
+  });
+
+  const october = readMonth(storage, result.budget.id, "2026-10");
+  assert.equal(october.incomeForMonth, 0);
+  assert.equal(october.readyToAssign, 0);
+});
