@@ -18,6 +18,11 @@ export interface ActualBudgetMappingResult {
   transactions: FullBudgetImportPreviewTransaction[];
   budgetMonths: FullBudgetImportPreviewBudgetMonth[];
   transferCount: number;
+  importedRuleCount: number;
+  unsupportedRuleCount: number;
+  ignoredDeletedRuleCount: number;
+  importedCategoryNoteCount: number;
+  unsupportedNoteCount: number;
   issues: BankImportIssue[];
 }
 
@@ -28,6 +33,8 @@ const ACTUAL_TABLES = {
   payees: "payees",
   transactions: "transactions",
   budgetMonths: "zero_budgets",
+  rules: "rules",
+  notes: "notes",
 } as const;
 
 export function mapActualSQLiteRepositoryToFullBudgetPreview(repository: ActualSQLiteRepository): ActualBudgetMappingResult {
@@ -38,6 +45,8 @@ export function mapActualSQLiteRepositoryToFullBudgetPreview(repository: ActualS
   const payeesRead = readTable(repository, ACTUAL_TABLES.payees, issues);
   const transactionsRead = readTable(repository, ACTUAL_TABLES.transactions, issues);
   const budgetMonthsRead = readTable(repository, ACTUAL_TABLES.budgetMonths, issues);
+  const rulesRead = readOptionalTable(repository, ACTUAL_TABLES.rules, issues);
+  const notesRead = readOptionalTable(repository, ACTUAL_TABLES.notes, issues);
 
   const accounts = accountsRead.map((row, index) => mapAccount(row, index));
   const accountById = new Map(accounts.map((account) => [account.id, account]));
@@ -45,10 +54,24 @@ export function mapActualSQLiteRepositoryToFullBudgetPreview(repository: ActualS
   const categoryGroups = categoryGroupsRead.map((row, index) => mapCategoryGroup(row, index));
   const categoryGroupById = new Map(categoryGroups.map((group) => [group.id, group]));
 
-  const categories = categoriesRead.map((row, index) => mapCategory(row, index, categoryGroupById));
+  const categoryNoteById = new Map(
+    notesRead
+      .map((row) => {
+        const id = readOptionalString(row, ["id"]);
+        const note = readOptionalString(row, ["note"]);
+        return id && note ? [id, note] as const : null;
+      })
+      .filter((entry): entry is readonly [string, string] => Boolean(entry)),
+  );
+  const categories = categoriesRead.map((row, index) =>
+    mapCategory(row, index, categoryGroupById, categoryNoteById.get(readString(row, ["id"], `actual-category-${index + 1}`)) ?? null),
+  );
   const categoryById = new Map(categories.map((category) => [category.id, category]));
 
-  const payees = payeesRead.map((row, index) => mapPayee(row, index, accountById));
+  const ruleMapping = mapSimplePayeeCategoryRules(rulesRead, payeesRead, categoryById, issues);
+  const payees = payeesRead.map((row, index) =>
+    mapPayee(row, index, accountById, categoryById, ruleMapping.defaultCategoryIdByPayeeId),
+  );
   const payeeById = new Map(payees.map((payee) => [payee.id, payee]));
   const transferAccountByPayeeId = new Map(
     payeesRead
@@ -111,6 +134,13 @@ export function mapActualSQLiteRepositoryToFullBudgetPreview(repository: ActualS
     });
   }
 
+  const importedCategoryNoteCount = categories.filter((category) => Boolean(category.note)).length;
+  const unsupportedNoteCount = notesRead.filter((row) => {
+    const id = readOptionalString(row, ["id"]);
+    const note = readOptionalString(row, ["note"]);
+    return Boolean(note) && (!id || !categoryById.has(id));
+  }).length;
+
   return {
     accounts,
     categoryGroups,
@@ -119,6 +149,11 @@ export function mapActualSQLiteRepositoryToFullBudgetPreview(repository: ActualS
     transactions,
     budgetMonths,
     transferCount: transactions.filter((transaction) => transaction.isTransfer).length,
+    importedRuleCount: ruleMapping.importedRuleCount,
+    unsupportedRuleCount: ruleMapping.unsupportedRuleCount,
+    ignoredDeletedRuleCount: ruleMapping.ignoredDeletedRuleCount,
+    importedCategoryNoteCount,
+    unsupportedNoteCount,
     issues,
   };
 }
@@ -127,6 +162,17 @@ function readTable(repository: ActualSQLiteRepository, tableName: string, issues
   const result = repository.readTableRows(tableName);
   for (const issue of result.issues) {
     issues.push({ rowNumber: null, severity: "warning", code: "ActualSQLiteTableReadWarning", message: issue });
+  }
+  return result.rows;
+}
+
+function readOptionalTable(repository: ActualSQLiteRepository, tableName: string, issues: BankImportIssue[]): ActualSQLiteTableRow[] {
+  const result = repository.readTableRows(tableName);
+  const missingTableOnly = result.rows.length === 0 && result.issues.every((issue) => issue.includes("was not found"));
+  if (!missingTableOnly) {
+    for (const issue of result.issues) {
+      issues.push({ rowNumber: null, severity: "warning", code: "ActualSQLiteTableReadWarning", message: issue });
+    }
   }
   return result.rows;
 }
@@ -153,7 +199,12 @@ function mapCategoryGroup(row: ActualSQLiteTableRow, index: number): FullBudgetI
   };
 }
 
-function mapCategory(row: ActualSQLiteTableRow, index: number, categoryGroupById: Map<string, FullBudgetImportPreviewCategoryGroup>): FullBudgetImportPreviewCategory {
+function mapCategory(
+  row: ActualSQLiteTableRow,
+  index: number,
+  categoryGroupById: Map<string, FullBudgetImportPreviewCategoryGroup>,
+  note: string | null,
+): FullBudgetImportPreviewCategory {
   const id = readString(row, ["id"], `actual-category-${index + 1}`);
   const groupId = readOptionalString(row, ["cat_group", "group", "groupId", "categoryGroupId"]);
   return {
@@ -164,6 +215,7 @@ function mapCategory(row: ActualSQLiteTableRow, index: number, categoryGroupById
     hidden: readBoolean(row, ["hidden", "is_hidden", "isHidden"]),
     isIncome: readBoolean(row, ["is_income", "isIncome", "income"]),
     sortOrder: readOptionalNumber(row, ["sort_order", "sortOrder", "sort"]),
+    note,
   };
 }
 
@@ -187,15 +239,137 @@ function mapPayee(
   row: ActualSQLiteTableRow,
   index: number,
   accountById: Map<string, FullBudgetImportPreviewAccount>,
+  categoryById: Map<string, FullBudgetImportPreviewCategory>,
+  defaultCategoryIdByPayeeId: Map<string, string>,
 ): FullBudgetImportPreviewPayee {
   const id = readString(row, ["id"], `actual-payee-${index + 1}`);
   const explicitName = readOptionalString(row, ["name"]);
   const transferAccountId = readOptionalString(row, ["transfer_acct", "transferAcct", "transferAccountId"]);
   const transferAccountName = transferAccountId ? accountById.get(transferAccountId)?.name ?? null : null;
+  const defaultCategoryId = defaultCategoryIdByPayeeId.get(id) ?? null;
   return {
     id,
     name: explicitName ?? (transferAccountName ? `Transfer: ${transferAccountName}` : id),
+    defaultCategoryId,
+    defaultCategoryName: defaultCategoryId ? categoryById.get(defaultCategoryId)?.name ?? null : null,
   };
+}
+
+
+interface ActualRuleMappingResult {
+  defaultCategoryIdByPayeeId: Map<string, string>;
+  importedRuleCount: number;
+  unsupportedRuleCount: number;
+  ignoredDeletedRuleCount: number;
+}
+
+function mapSimplePayeeCategoryRules(
+  rows: ActualSQLiteTableRow[],
+  payeeRows: ActualSQLiteTableRow[],
+  categoryById: Map<string, FullBudgetImportPreviewCategory>,
+  issues: BankImportIssue[],
+): ActualRuleMappingResult {
+  const knownPayeeIds = new Set(
+    payeeRows.map((row) => readOptionalString(row, ["id"])).filter((id): id is string => Boolean(id)),
+  );
+  const candidatesByPayeeId = new Map<string, Array<{ categoryId: string }>>();
+  let unsupportedRuleCount = 0;
+  let ignoredDeletedRuleCount = 0;
+
+  for (const row of rows) {
+    if (readBoolean(row, ["tombstone"])) {
+      ignoredDeletedRuleCount += 1;
+      continue;
+    }
+
+    const stage = readOptionalString(row, ["stage"]);
+    const conditionsOp = (readOptionalString(row, ["conditions_op", "conditionsOp"]) ?? "and").toLowerCase();
+    const conditions = parseActualRuleArray(readOptionalString(row, ["conditions"]));
+    const actions = parseActualRuleArray(readOptionalString(row, ["actions"]));
+
+    const condition = conditions?.length === 1 ? conditions[0] : null;
+    const action = actions?.length === 1 ? actions[0] : null;
+    const payeeId =
+      condition?.op === "is" &&
+      condition.field === "description" &&
+      condition.type === "id" &&
+      typeof condition.value === "string"
+        ? condition.value
+        : null;
+    const categoryId =
+      action?.op === "set" &&
+      action.field === "category" &&
+      action.type === "id" &&
+      typeof action.value === "string"
+        ? action.value
+        : null;
+
+    const isDefaultStage = stage === null || stage === "" || stage === "default";
+    if (
+      !isDefaultStage ||
+      conditionsOp !== "and" ||
+      !payeeId ||
+      !categoryId ||
+      !knownPayeeIds.has(payeeId) ||
+      !categoryById.has(categoryId)
+    ) {
+      unsupportedRuleCount += 1;
+      continue;
+    }
+
+    candidatesByPayeeId.set(payeeId, [
+      ...(candidatesByPayeeId.get(payeeId) ?? []),
+      { categoryId },
+    ]);
+  }
+
+  const defaultCategoryIdByPayeeId = new Map<string, string>();
+  let importedRuleCount = 0;
+
+  for (const [payeeId, candidates] of candidatesByPayeeId) {
+    const categoryIds = new Set(candidates.map(({ categoryId }) => categoryId));
+    if (categoryIds.size !== 1) {
+      unsupportedRuleCount += candidates.length;
+      issues.push({
+        rowNumber: null,
+        severity: "warning",
+        code: "ActualConflictingPayeeCategoryRules",
+        message: `Actual payee ${payeeId} has conflicting default-category rules; ${candidates.length} rules were left unsupported.`,
+      });
+      continue;
+    }
+
+    const [categoryId] = [...categoryIds];
+    if (categoryId) {
+      defaultCategoryIdByPayeeId.set(payeeId, categoryId);
+      importedRuleCount += candidates.length;
+    }
+  }
+
+  return {
+    defaultCategoryIdByPayeeId,
+    importedRuleCount,
+    unsupportedRuleCount,
+    ignoredDeletedRuleCount,
+  };
+}
+
+interface ActualRuleClause {
+  op?: string;
+  field?: string;
+  type?: string;
+  value?: unknown;
+}
+
+function parseActualRuleArray(value: string | null): ActualRuleClause[] | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) return null;
+    return parsed.filter((entry): entry is ActualRuleClause => typeof entry === "object" && entry !== null);
+  } catch {
+    return null;
+  }
 }
 
 function mapTransaction(

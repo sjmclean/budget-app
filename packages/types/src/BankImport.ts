@@ -80,11 +80,14 @@ export interface FullBudgetImportPreviewCategory {
   hidden: boolean;
   isIncome?: boolean;
   sortOrder?: number | null;
+  note?: string | null;
 }
 
 export interface FullBudgetImportPreviewPayee {
   id: string;
   name: string;
+  defaultCategoryId?: string | null;
+  defaultCategoryName?: string | null;
 }
 
 export interface FullBudgetImportPreviewSplitLine {
