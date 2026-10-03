@@ -115,6 +115,30 @@ test("Actual local-first persistence retains source categories on transfers for 
   );
 });
 
+test("Actual local-first persistence preserves imported income classification", () => {
+  const start = importerSource.indexOf("function mapActualBudgetForLocalFirst(");
+  assert.notEqual(start, -1);
+
+  const end = importerSource.indexOf(
+    "function displayAmountToMinorUnits(",
+    start,
+  );
+  assert.notEqual(end, -1);
+
+  const body = importerSource.slice(start, end);
+
+  assert.match(
+    body,
+    /inflowClassification:\s*transaction\.inflowClassification\s*\?\?\s*null/,
+    "source Actual income classification must survive into SQLite projection facts",
+  );
+  assert.match(
+    body,
+    /inflowClassification:\s*split\.inflowClassification\s*\?\?\s*null/,
+    "split Actual income classification must survive into SQLite projection facts",
+  );
+});
+
 test("Actual carryover rows preserve carry-category overspending policy", () => {
   const start = importerSource.indexOf("function mapActualBudgetMonthViews(");
   assert.notEqual(start, -1);
