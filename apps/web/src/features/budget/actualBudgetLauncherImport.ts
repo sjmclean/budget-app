@@ -387,7 +387,7 @@ function mapActualBudgetForLocalFirst(
           categoryId: split.categoryId ?? null,
           categoryName: split.category ?? null,
           incomeBudgetMonth: split.incomeBudgetMonth ?? null,
-          inflowClassification: null,
+          inflowClassification: split.inflowClassification ?? null,
           transferAccountId: null,
           transferTransactionId: null,
           memo: split.memo ?? null,
