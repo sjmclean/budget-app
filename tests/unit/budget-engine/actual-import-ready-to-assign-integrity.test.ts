@@ -86,6 +86,35 @@ test("Actual import must not default every unmapped transaction category to Read
   );
 });
 
+test("Actual local-first persistence retains source categories on transfers for budget projection", () => {
+  const start = importerSource.indexOf("function mapActualBudgetForLocalFirst(");
+  assert.notEqual(start, -1);
+
+  const end = importerSource.indexOf(
+    "function displayAmountToMinorUnits(",
+    start,
+  );
+  assert.notEqual(end, -1);
+
+  const body = importerSource.slice(start, end);
+
+  assert.match(
+    body,
+    /sourceTransactionById/,
+    "local-first persistence must retain access to the source Actual transaction",
+  );
+  assert.match(
+    body,
+    /transaction\.transferAccountId\s*&&\s*sourceTransaction\?\.categoryId/,
+    "categorized Actual transfers must restore their source category before SQLite persistence",
+  );
+  assert.match(
+    body,
+    /categoryId:\s*persistedCategoryId/,
+    "the restored source category must be written into the canonical local transaction",
+  );
+});
+
 test("Actual carryover rows preserve carry-category overspending policy", () => {
   const start = importerSource.indexOf("function mapActualBudgetMonthViews(");
   assert.notEqual(start, -1);
