@@ -272,7 +272,7 @@ function mapSimplePayeeCategoryRules(
   const knownPayeeIds = new Set(
     payeeRows.map((row) => readOptionalString(row, ["id"])).filter((id): id is string => Boolean(id)),
   );
-  const candidatesByPayeeId = new Map<string, Array<{ categoryId: string; rowId: string }>>();
+  const candidatesByPayeeId = new Map<string, Array<{ categoryId: string }>>();
   let unsupportedRuleCount = 0;
   let ignoredDeletedRuleCount = 0;
 
@@ -319,7 +319,7 @@ function mapSimplePayeeCategoryRules(
 
     candidatesByPayeeId.set(payeeId, [
       ...(candidatesByPayeeId.get(payeeId) ?? []),
-      { categoryId, rowId },
+      { categoryId },
     ]);
   }
 
