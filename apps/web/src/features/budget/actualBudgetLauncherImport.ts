@@ -1000,39 +1000,47 @@ function recalculateRegister(register: AccountRegisterView): void {
   register.unclearedBalance = roundMoney(register.workingBalance - register.clearedBalance);
 }
 
-function buildActualIncomeByMonthFromRegisters(
-  registers: Record<string, AccountRegisterView>,
+function buildActualIncomeByMonthFromPreview(
+  preview: FullBudgetImportPreview,
+  maps: ActualImportMaps,
 ): Map<string, number> {
   const result = new Map<string, number>();
+  const onBudgetSourceAccountIds = new Set(
+    preview.accounts.filter((account) => !account.offBudget).map((account) => account.id),
+  );
 
-  for (const register of Object.values(registers)) {
-    if (register.accountType === "Tracking") continue;
+  for (const transaction of preview.transactions) {
+    if (
+      !transaction.accountId ||
+      !onBudgetSourceAccountIds.has(transaction.accountId) ||
+      !transaction.date ||
+      !/^\d{4}-\d{2}/.test(transaction.date)
+    ) {
+      continue;
+    }
 
-    for (const transaction of register.transactions) {
-      if (!transaction.date || !/^\d{4}-\d{2}/.test(transaction.date)) continue;
-      if (transaction.transferAccountId) continue;
+    const month = transaction.date.slice(0, 7);
+    let amount = 0;
 
-      const month = transaction.date.slice(0, 7);
-      let amount = 0;
+    if (transaction.splitLines?.length) {
+      amount = transaction.splitLines.reduce((sum, line) => {
+        if (
+          !line.categoryId ||
+          !maps.readyToAssignCategorySourceIds.has(line.categoryId)
+        ) {
+          return sum;
+        }
+        return sum + minorUnitsToDisplayAmount(line.amount);
+      }, 0);
+    } else if (
+      transaction.categoryId &&
+      maps.readyToAssignCategorySourceIds.has(transaction.categoryId)
+    ) {
+      amount = minorUnitsToDisplayAmount(transaction.amount);
+    }
 
-      if (transaction.splitLines?.length) {
-        amount = transaction.splitLines.reduce((sum, line) => {
-          if (
-            line.inflowClassification !== "income" ||
-            line.incomeBudgetMonth !== month
-          ) return sum;
-          return sum + line.inflow - line.outflow;
-        }, 0);
-      } else if (
-        transaction.inflowClassification === "income" &&
-        transaction.incomeBudgetMonth === month
-      ) {
-        amount = transaction.inflow - transaction.outflow;
-      }
-
-      if (amount !== 0) {
-        result.set(month, roundMoney((result.get(month) ?? 0) + amount));
-      }
+    if (amount !== 0) {
+      result.set(month, roundMoney((result.get(month) ?? 0) + amount));
     }
   }
 
@@ -1058,8 +1066,12 @@ function mapActualBudgetMonthViews(
     }
   }
 
-  const activityByMonthCategory = buildActualActivityByMonthCategoryFromRegisters(registers);
-  const incomeByMonth = buildActualIncomeByMonthFromRegisters(registers);
+  // Derive budget semantics from the Actual source preview, not from our
+  // register presentation. In particular, our register model intentionally
+  // presents transfers as transfers and may clear their category, while Actual
+  // legitimately retains category activity for budget-boundary transfers.
+  const activityByMonthCategory = buildActualActivityByMonthCategoryFromPreview(preview, maps);
+  const incomeByMonth = buildActualIncomeByMonthFromPreview(preview, maps);
   const budgetDataByMonthCategory = buildActualBudgetDataByMonthCategory(preview, maps.categoryIdBySourceId);
   const views = new Map<string, BudgetMonthView>();
 
@@ -1173,32 +1185,52 @@ function buildActualBudgetDataByMonthCategory(
   return result;
 }
 
-function buildActualActivityByMonthCategoryFromRegisters(
-  registers: Record<string, AccountRegisterView>,
+function buildActualActivityByMonthCategoryFromPreview(
+  preview: FullBudgetImportPreview,
+  maps: ActualImportMaps,
 ): Map<string, Map<string, number>> {
   const result = new Map<string, Map<string, number>>();
+  const onBudgetSourceAccountIds = new Set(
+    preview.accounts.filter((account) => !account.offBudget).map((account) => account.id),
+  );
 
-  for (const register of Object.values(registers)) {
-    for (const transaction of register.transactions) {
-      if (!transaction.date || !/^\d{4}-\d{2}/.test(transaction.date)) continue;
-      const month = transaction.date.slice(0, 7);
-      const byCategory = result.get(month) ?? new Map<string, number>();
-
-      if (transaction.splitLines?.length) {
-        for (const splitLine of transaction.splitLines) {
-          if (!splitLine.categoryId) continue;
-          const amount = splitLine.inflow - splitLine.outflow;
-          byCategory.set(splitLine.categoryId, roundMoney((byCategory.get(splitLine.categoryId) ?? 0) + amount));
-        }
-        result.set(month, byCategory);
-        continue;
-      }
-
-      if (!transaction.categoryId) continue;
-      const amount = transaction.inflow - transaction.outflow;
-      byCategory.set(transaction.categoryId, roundMoney((byCategory.get(transaction.categoryId) ?? 0) + amount));
-      result.set(month, byCategory);
+  for (const transaction of preview.transactions) {
+    if (
+      !transaction.accountId ||
+      !onBudgetSourceAccountIds.has(transaction.accountId) ||
+      !transaction.date ||
+      !/^\d{4}-\d{2}/.test(transaction.date)
+    ) {
+      continue;
     }
+
+    const month = transaction.date.slice(0, 7);
+    const byCategory = result.get(month) ?? new Map<string, number>();
+
+    if (transaction.splitLines?.length) {
+      for (const splitLine of transaction.splitLines) {
+        if (!splitLine.categoryId) continue;
+        const categoryId = maps.categoryIdBySourceId.get(splitLine.categoryId);
+        if (!categoryId) continue;
+        const amount = minorUnitsToDisplayAmount(splitLine.amount);
+        byCategory.set(
+          categoryId,
+          roundMoney((byCategory.get(categoryId) ?? 0) + amount),
+        );
+      }
+      result.set(month, byCategory);
+      continue;
+    }
+
+    if (!transaction.categoryId) continue;
+    const categoryId = maps.categoryIdBySourceId.get(transaction.categoryId);
+    if (!categoryId) continue;
+    const amount = minorUnitsToDisplayAmount(transaction.amount);
+    byCategory.set(
+      categoryId,
+      roundMoney((byCategory.get(categoryId) ?? 0) + amount),
+    );
+    result.set(month, byCategory);
   }
 
   return result;
