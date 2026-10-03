@@ -244,10 +244,7 @@ function mapBudgetMonth(
   index: number,
   categoryById: Map<string, FullBudgetImportPreviewCategory>,
 ): FullBudgetImportPreviewBudgetMonth {
-  const storedCategoryId = readOptionalString(row, ["category", "categoryId", "cat"]);
-  const categoryId = storedCategoryId
-    ? categoryIdByStoredTransactionCategoryId.get(storedCategoryId) ?? storedCategoryId
-    : null;
+  const categoryId = readOptionalString(row, ["category", "categoryId", "cat"]);
   return {
     id: readString(row, ["id"], `actual-budget-month-${index + 1}`),
     month: readActualMonth(row, ["month"]),
@@ -405,7 +402,10 @@ function mapTransaction(
 ): ActualMappedTransaction {
   const id = readString(row, ["id"], `actual-transaction-${index + 1}`);
   const accountId = readOptionalString(row, ["acct", "account", "accountId"]);
-  const categoryId = readOptionalString(row, ["category", "categoryId", "cat"]);
+  const storedCategoryId = readOptionalString(row, ["category", "categoryId", "cat"]);
+  const categoryId = storedCategoryId
+    ? categoryIdByStoredTransactionCategoryId.get(storedCategoryId) ?? storedCategoryId
+    : null;
   const payeeId = readOptionalString(row, ["payee", "payeeId", "description"]);
   const transferAccountId = payeeId ? transferAccountByPayeeId.get(payeeId) ?? null : null;
   const importedPayee = readOptionalString(row, ["imported_payee", "importedPayee", "imported_description", "importedDescription"]);
