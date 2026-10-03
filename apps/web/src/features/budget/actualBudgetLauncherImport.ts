@@ -360,16 +360,34 @@ function mapActualBudgetForLocalFirst(
   );
 
   const transactions: LocalTransactionRecord[] = [];
+  const sourceTransactionById = new Map(
+    preview.transactions.map((transaction) => [transaction.id, transaction] as const),
+  );
 
   for (const [accountId, register] of Object.entries(registers)) {
     for (const transaction of register.transactions) {
+      const sourceTransaction = sourceTransactionById.get(transaction.id);
+      // The register presentation intentionally clears a category from transfers,
+      // but Actual legitimately retains a category on budget-boundary transfers.
+      // Persist that source category as a canonical projection fact while the
+      // register UI continues to render the row as "Transfer" via transferAccountId.
+      const persistedCategoryId =
+        transaction.transferAccountId && sourceTransaction?.categoryId
+          ? maps.categoryIdBySourceId.get(sourceTransaction.categoryId) ?? null
+          : transaction.categoryId ?? null;
+      const persistedCategoryName = persistedCategoryId
+        ? maps.categoryNameById.get(persistedCategoryId) ?? null
+        : transaction.transferAccountId
+          ? null
+          : transaction.category ?? null;
+
       const splitLines: LocalTransactionSplitRecord[] =
         (transaction.splitLines ?? []).map((split) => ({
           id: split.id,
           categoryId: split.categoryId ?? null,
           categoryName: split.category ?? null,
           incomeBudgetMonth: split.incomeBudgetMonth ?? null,
-          inflowClassification: null,
+          inflowClassification: split.inflowClassification ?? null,
           transferAccountId: null,
           transferTransactionId: null,
           memo: split.memo ?? null,
@@ -394,10 +412,10 @@ function mapActualBudgetForLocalFirst(
         payeeId: transaction.payeeId ?? null,
         payeeName: transaction.payee ?? null,
         rawPayeeName: transaction.payee ?? null,
-        categoryId: transaction.categoryId ?? null,
-        categoryName: transaction.category ?? null,
+        categoryId: persistedCategoryId,
+        categoryName: persistedCategoryName,
         incomeBudgetMonth: transaction.incomeBudgetMonth ?? null,
-        inflowClassification: null,
+        inflowClassification: transaction.inflowClassification ?? null,
         transferAccountId: transaction.transferAccountId ?? null,
         transferTransactionId: null,
         generatedFromSchedule: false,
@@ -710,10 +728,9 @@ function isActualBudgetCategoryImportable(
   category: FullBudgetImportPreview["categories"][number],
   group: FullBudgetImportPreview["categoryGroups"][number] | null,
 ): boolean {
-  if (category.hidden || category.isIncome === true) return false;
+  if (category.isIncome === true) return false;
   if (!group) return true;
-  if (group.hidden || group.isIncome === true) return false;
-  if (isActualHiddenCategoryGroupName(group.name)) return false;
+  if (group.isIncome === true) return false;
   return true;
 }
 
@@ -747,7 +764,10 @@ function mapActualCategoryGroups(preview: FullBudgetImportPreview, maps: ActualI
           activity: 0,
           available: 0,
           isOverspent: false,
-          isArchived: group.hidden || category.hidden,
+          isArchived:
+            group.hidden ||
+            category.hidden ||
+            isActualHiddenCategoryGroupName(group.name),
           note: category.note ?? "",
         };
       });
@@ -1000,39 +1020,47 @@ function recalculateRegister(register: AccountRegisterView): void {
   register.unclearedBalance = roundMoney(register.workingBalance - register.clearedBalance);
 }
 
-function buildActualIncomeByMonthFromRegisters(
-  registers: Record<string, AccountRegisterView>,
+function buildActualIncomeByMonthFromPreview(
+  preview: FullBudgetImportPreview,
+  maps: ActualImportMaps,
 ): Map<string, number> {
   const result = new Map<string, number>();
+  const onBudgetSourceAccountIds = new Set(
+    preview.accounts.filter((account) => !account.offBudget).map((account) => account.id),
+  );
 
-  for (const register of Object.values(registers)) {
-    if (register.accountType === "Tracking") continue;
+  for (const transaction of preview.transactions) {
+    if (
+      !transaction.accountId ||
+      !onBudgetSourceAccountIds.has(transaction.accountId) ||
+      !transaction.date ||
+      !/^\d{4}-\d{2}/.test(transaction.date)
+    ) {
+      continue;
+    }
 
-    for (const transaction of register.transactions) {
-      if (!transaction.date || !/^\d{4}-\d{2}/.test(transaction.date)) continue;
-      if (transaction.transferAccountId) continue;
+    const month = transaction.date.slice(0, 7);
+    let amount = 0;
 
-      const month = transaction.date.slice(0, 7);
-      let amount = 0;
+    if (transaction.splitLines?.length) {
+      amount = transaction.splitLines.reduce((sum, line) => {
+        if (
+          !line.categoryId ||
+          !maps.readyToAssignCategorySourceIds.has(line.categoryId)
+        ) {
+          return sum;
+        }
+        return sum + minorUnitsToDisplayAmount(line.amount);
+      }, 0);
+    } else if (
+      transaction.categoryId &&
+      maps.readyToAssignCategorySourceIds.has(transaction.categoryId)
+    ) {
+      amount = minorUnitsToDisplayAmount(transaction.amount);
+    }
 
-      if (transaction.splitLines?.length) {
-        amount = transaction.splitLines.reduce((sum, line) => {
-          if (
-            line.inflowClassification !== "income" ||
-            line.incomeBudgetMonth !== month
-          ) return sum;
-          return sum + line.inflow - line.outflow;
-        }, 0);
-      } else if (
-        transaction.inflowClassification === "income" &&
-        transaction.incomeBudgetMonth === month
-      ) {
-        amount = transaction.inflow - transaction.outflow;
-      }
-
-      if (amount !== 0) {
-        result.set(month, roundMoney((result.get(month) ?? 0) + amount));
-      }
+    if (amount !== 0) {
+      result.set(month, roundMoney((result.get(month) ?? 0) + amount));
     }
   }
 
@@ -1058,35 +1086,36 @@ function mapActualBudgetMonthViews(
     }
   }
 
-  const activityByMonthCategory = buildActualActivityByMonthCategoryFromRegisters(registers);
-  const incomeByMonth = buildActualIncomeByMonthFromRegisters(registers);
+  // Derive budget semantics from the Actual source preview, not from our
+  // register presentation. In particular, our register model intentionally
+  // presents transfers as transfers and may clear their category, while Actual
+  // legitimately retains category activity for budget-boundary transfers.
+  const activityByMonthCategory = buildActualActivityByMonthCategoryFromPreview(preview, maps);
+  const incomeByMonth = buildActualIncomeByMonthFromPreview(preview, maps);
   const budgetDataByMonthCategory = buildActualBudgetDataByMonthCategory(preview, maps.categoryIdBySourceId);
   const views = new Map<string, BudgetMonthView>();
 
   const previousAvailableByCategory = new Map<string, number>();
+  const previousCarryoverByCategory = new Map<string, boolean>();
   let previousReadyToAssign = 0;
 
   const sortedMonths = [...months].sort();
 
-  for (const [monthIndex, month] of sortedMonths.entries()) {
-    const nextMonth = sortedMonths[monthIndex + 1];
+  for (const month of sortedMonths) {
     const groups = cloneCategoryGroups(templateGroups);
     const categoryById = new Map(groups.flatMap((group) => group.categories.map((category) => [category.id, category] as const)));
     const activityByCategory = activityByMonthCategory.get(month) ?? new Map<string, number>();
     const budgetDataByCategory = budgetDataByMonthCategory.get(month) ?? new Map<string, ActualBudgetCategoryMonthData>();
-    const nextBudgetDataByCategory = nextMonth
-      ? budgetDataByMonthCategory.get(nextMonth) ?? new Map<string, ActualBudgetCategoryMonthData>()
-      : new Map<string, ActualBudgetCategoryMonthData>();
 
     let previousOverspending = 0;
 
     for (const category of categoryById.values()) {
       const budgetData = budgetDataByCategory.get(category.id);
-      const nextBudgetData = nextBudgetDataByCategory.get(category.id);
       const previousAvailable = roundMoney(previousAvailableByCategory.get(category.id) ?? 0);
-      const shouldCarryForward = previousAvailable > 0 || Boolean(budgetData?.carryover);
+      const previousCarryover = previousCarryoverByCategory.get(category.id) ?? false;
+      const shouldCarryForward = previousAvailable > 0 || previousCarryover;
 
-      if (previousAvailable < 0 && !budgetData?.carryover) {
+      if (previousAvailable < 0 && !previousCarryover) {
         previousOverspending = roundMoney(previousOverspending + previousAvailable);
       }
 
@@ -1096,13 +1125,15 @@ function mapActualBudgetMonthViews(
       category.available = normaliseMoney(category.previousAvailable + category.assigned + category.activity);
       category.isOverspent = isMoneyNegative(category.available);
 
-      // Actual stores carryover on the destination month. The projection
-      // engine stores the rollover policy on the closing/source month.
-      category.overspendingHandling = nextBudgetData?.carryover
+      // Actual stores the carryover flag on the closing/source month. It
+      // controls whether this month's leftover (including a negative one)
+      // rolls into the next month.
+      category.overspendingHandling = budgetData?.carryover
         ? "carry-category"
         : "reduce-next-month";
 
       previousAvailableByCategory.set(category.id, category.available);
+      previousCarryoverByCategory.set(category.id, Boolean(budgetData?.carryover));
     }
 
     for (const group of groups) {
@@ -1173,32 +1204,52 @@ function buildActualBudgetDataByMonthCategory(
   return result;
 }
 
-function buildActualActivityByMonthCategoryFromRegisters(
-  registers: Record<string, AccountRegisterView>,
+function buildActualActivityByMonthCategoryFromPreview(
+  preview: FullBudgetImportPreview,
+  maps: ActualImportMaps,
 ): Map<string, Map<string, number>> {
   const result = new Map<string, Map<string, number>>();
+  const onBudgetSourceAccountIds = new Set(
+    preview.accounts.filter((account) => !account.offBudget).map((account) => account.id),
+  );
 
-  for (const register of Object.values(registers)) {
-    for (const transaction of register.transactions) {
-      if (!transaction.date || !/^\d{4}-\d{2}/.test(transaction.date)) continue;
-      const month = transaction.date.slice(0, 7);
-      const byCategory = result.get(month) ?? new Map<string, number>();
-
-      if (transaction.splitLines?.length) {
-        for (const splitLine of transaction.splitLines) {
-          if (!splitLine.categoryId) continue;
-          const amount = splitLine.inflow - splitLine.outflow;
-          byCategory.set(splitLine.categoryId, roundMoney((byCategory.get(splitLine.categoryId) ?? 0) + amount));
-        }
-        result.set(month, byCategory);
-        continue;
-      }
-
-      if (!transaction.categoryId) continue;
-      const amount = transaction.inflow - transaction.outflow;
-      byCategory.set(transaction.categoryId, roundMoney((byCategory.get(transaction.categoryId) ?? 0) + amount));
-      result.set(month, byCategory);
+  for (const transaction of preview.transactions) {
+    if (
+      !transaction.accountId ||
+      !onBudgetSourceAccountIds.has(transaction.accountId) ||
+      !transaction.date ||
+      !/^\d{4}-\d{2}/.test(transaction.date)
+    ) {
+      continue;
     }
+
+    const month = transaction.date.slice(0, 7);
+    const byCategory = result.get(month) ?? new Map<string, number>();
+
+    if (transaction.splitLines?.length) {
+      for (const splitLine of transaction.splitLines) {
+        if (!splitLine.categoryId) continue;
+        const categoryId = maps.categoryIdBySourceId.get(splitLine.categoryId);
+        if (!categoryId) continue;
+        const amount = minorUnitsToDisplayAmount(splitLine.amount);
+        byCategory.set(
+          categoryId,
+          roundMoney((byCategory.get(categoryId) ?? 0) + amount),
+        );
+      }
+      result.set(month, byCategory);
+      continue;
+    }
+
+    if (!transaction.categoryId) continue;
+    const categoryId = maps.categoryIdBySourceId.get(transaction.categoryId);
+    if (!categoryId) continue;
+    const amount = minorUnitsToDisplayAmount(transaction.amount);
+    byCategory.set(
+      categoryId,
+      roundMoney((byCategory.get(categoryId) ?? 0) + amount),
+    );
+    result.set(month, byCategory);
   }
 
   return result;

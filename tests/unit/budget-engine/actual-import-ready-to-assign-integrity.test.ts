@@ -86,6 +86,59 @@ test("Actual import must not default every unmapped transaction category to Read
   );
 });
 
+test("Actual local-first persistence retains source categories on transfers for budget projection", () => {
+  const start = importerSource.indexOf("function mapActualBudgetForLocalFirst(");
+  assert.notEqual(start, -1);
+
+  const end = importerSource.indexOf(
+    "function displayAmountToMinorUnits(",
+    start,
+  );
+  assert.notEqual(end, -1);
+
+  const body = importerSource.slice(start, end);
+
+  assert.match(
+    body,
+    /sourceTransactionById/,
+    "local-first persistence must retain access to the source Actual transaction",
+  );
+  assert.match(
+    body,
+    /transaction\.transferAccountId\s*&&\s*sourceTransaction\?\.categoryId/,
+    "categorized Actual transfers must restore their source category before SQLite persistence",
+  );
+  assert.match(
+    body,
+    /categoryId:\s*persistedCategoryId/,
+    "the restored source category must be written into the canonical local transaction",
+  );
+});
+
+test("Actual local-first persistence preserves imported income classification", () => {
+  const start = importerSource.indexOf("function mapActualBudgetForLocalFirst(");
+  assert.notEqual(start, -1);
+
+  const end = importerSource.indexOf(
+    "function displayAmountToMinorUnits(",
+    start,
+  );
+  assert.notEqual(end, -1);
+
+  const body = importerSource.slice(start, end);
+
+  assert.match(
+    body,
+    /inflowClassification:\s*transaction\.inflowClassification\s*\?\?\s*null/,
+    "source Actual income classification must survive into SQLite projection facts",
+  );
+  assert.match(
+    body,
+    /inflowClassification:\s*split\.inflowClassification\s*\?\?\s*null/,
+    "split Actual income classification must survive into SQLite projection facts",
+  );
+});
+
 test("Actual carryover rows preserve carry-category overspending policy", () => {
   const start = importerSource.indexOf("function mapActualBudgetMonthViews(");
   assert.notEqual(start, -1);
@@ -100,7 +153,12 @@ test("Actual carryover rows preserve carry-category overspending policy", () => 
 
   assert.match(
     body,
-    /overspendingHandling\s*=\s*nextBudgetData\?\.carryover\s*\?\s*"carry-category"\s*:\s*"reduce-next-month"/,
+    /overspendingHandling\s*=\s*budgetData\?\.carryover\s*\?\s*"carry-category"\s*:\s*"reduce-next-month"/,
     "Actual carryover semantics must survive normalization into the budget projection policy",
+  );
+  assert.match(
+    body,
+    /previousCarryoverByCategory/,
+    "Actual carryover must be read from the closing/source month when rolling availability forward",
   );
 });

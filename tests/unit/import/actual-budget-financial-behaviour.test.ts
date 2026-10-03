@@ -192,11 +192,11 @@ test("Actual import derives Ready to Assign from income and preserves uncategori
   assert.equal(expense.outflow, 50);
 });
 
-test("Actual carryover preserves negative category balance without reducing next month's RTA", () => {
+test("Actual carryover is controlled by the closing/source month", () => {
   const storage = createMemoryStorage();
 
   const result = createActualBudgetLauncherImport(storage, {
-    now: new Date("2026-02-28T00:00:00.000Z"),
+    now: new Date("2026-03-31T00:00:00.000Z"),
     preview: basePreview({
       transactions: [
         {
@@ -236,14 +236,21 @@ test("Actual carryover preserves negative category balance without reducing next
           month: "2026-01",
           categoryId: "source-groceries",
           assigned: 10_000,
-          carryover: 0,
+          carryover: 1,
         },
         {
           id: "feb-groceries",
           month: "2026-02",
           categoryId: "source-groceries",
           assigned: 0,
-          carryover: 1,
+          carryover: 0,
+        },
+        {
+          id: "mar-groceries",
+          month: "2026-03",
+          categoryId: "source-groceries",
+          assigned: 0,
+          carryover: 0,
         },
       ],
     }),
@@ -251,6 +258,7 @@ test("Actual carryover preserves negative category balance without reducing next
 
   const january = readMonth(storage, result.budget.id, "2026-01");
   const february = readMonth(storage, result.budget.id, "2026-02");
+  const march = readMonth(storage, result.budget.id, "2026-03");
 
   const januaryGroceries =
     january.categoryGroups
@@ -262,18 +270,95 @@ test("Actual carryover preserves negative category balance without reducing next
       .flatMap((group) => group.categories)
       .find((category) => category.name === "Groceries");
 
+  const marchGroceries =
+    march.categoryGroups
+      .flatMap((group) => group.categories)
+      .find((category) => category.name === "Groceries");
+
   assert.ok(januaryGroceries);
   assert.ok(februaryGroceries);
+  assert.ok(marchGroceries);
 
   assert.equal(januaryGroceries.available, -100);
   assert.equal(januaryGroceries.overspendingHandling, "carry-category");
   assert.equal(februaryGroceries.previousAvailable, -100);
+  assert.equal(februaryGroceries.available, -100);
   assert.equal(februaryGroceries.overspendingHandling, "reduce-next-month");
   assert.equal(february.previousOverspending, 0);
+
+  assert.equal(marchGroceries.previousAvailable, 0);
+  assert.equal(march.previousOverspending, -100);
 
   assert.equal(january.readyToAssign, 900);
   assert.equal(february.carriedForwardReadyToAssign, 900);
   assert.equal(february.readyToAssign, 900);
+  assert.equal(march.carriedForwardReadyToAssign, 900);
+  assert.equal(march.readyToAssign, 800);
+});
+
+
+test("Actual October overspending reaches November and remains in December", () => {
+  const storage = createMemoryStorage();
+
+  const result = createActualBudgetLauncherImport(storage, {
+    now: new Date("2026-12-31T00:00:00.000Z"),
+    preview: basePreview({
+      transactions: [
+        {
+          id: "october-overspending",
+          accountId: "source-checking",
+          accountName: "Checking",
+          date: "2026-10-15",
+          amount: -6_281_533,
+          payeeId: null,
+          payeeName: "October spending",
+          categoryId: "source-groceries",
+          categoryName: "Groceries",
+          memo: null,
+          cleared: true,
+          transferId: null,
+          isTransfer: false,
+        },
+      ],
+      budgetMonths: [
+        {
+          id: "oct-groceries",
+          month: "2026-10",
+          categoryId: "source-groceries",
+          assigned: 0,
+          carryover: 0,
+        },
+        {
+          id: "nov-groceries",
+          month: "2026-11",
+          categoryId: "source-groceries",
+          assigned: 0,
+          carryover: 0,
+        },
+        {
+          id: "dec-groceries",
+          month: "2026-12",
+          categoryId: "source-groceries",
+          assigned: 0,
+          carryover: 0,
+        },
+      ],
+    }),
+  });
+
+  const october = readMonth(storage, result.budget.id, "2026-10");
+  const november = readMonth(storage, result.budget.id, "2026-11");
+  const december = readMonth(storage, result.budget.id, "2026-12");
+
+  assert.equal(october.readyToAssign, 0);
+  assert.equal(october.previousOverspending, 0);
+
+  assert.equal(november.previousOverspending, -62_815.33);
+  assert.equal(november.readyToAssign, -62_815.33);
+
+  assert.equal(december.previousOverspending, 0);
+  assert.equal(december.carriedForwardReadyToAssign, -62_815.33);
+  assert.equal(december.readyToAssign, -62_815.33);
 });
 
 
@@ -345,4 +430,238 @@ test("Actual import persists payee default categories and category notes", () =>
   const coles = projectPayee(colesEntity);
   assert.equal(coles.defaultCategoryName, "Groceries");
   assert.ok(coles.defaultCategoryId);
+});
+
+
+test("Actual categorized budget-boundary transfer affects category activity without becoming income", () => {
+  const storage = createMemoryStorage();
+
+  const result = createActualBudgetLauncherImport(storage, {
+    now: new Date("2026-10-31T00:00:00.000Z"),
+    preview: basePreview({
+      accounts: [
+        {
+          id: "source-checking",
+          name: "Checking",
+          type: "checking",
+          closed: false,
+          offBudget: false,
+        },
+        {
+          id: "source-mortgage",
+          name: "Mortgage Loan",
+          type: "mortgage",
+          closed: false,
+          offBudget: true,
+        },
+      ],
+      categories: [
+        {
+          id: "source-income",
+          name: "Salary",
+          groupId: "source-income-group",
+          groupName: "Income",
+          hidden: false,
+          isIncome: true,
+        },
+        {
+          id: "source-mortgage-category",
+          name: "Mortgage",
+          groupId: "source-spending-group",
+          groupName: "Living",
+          hidden: false,
+          isIncome: false,
+        },
+      ],
+      transactions: [
+        {
+          id: "mortgage-transfer",
+          accountId: "source-checking",
+          accountName: "Checking",
+          date: "2026-10-15",
+          amount: -87_800,
+          payeeId: null,
+          payeeName: "Transfer: Mortgage Loan",
+          categoryId: "source-mortgage-category",
+          categoryName: "Mortgage",
+          memo: null,
+          cleared: true,
+          transferId: "source-mortgage",
+          isTransfer: true,
+        },
+        {
+          id: "mortgage-transfer-counterpart",
+          accountId: "source-mortgage",
+          accountName: "Mortgage Loan",
+          date: "2026-10-15",
+          amount: 87_800,
+          payeeId: null,
+          payeeName: "Transfer: Checking",
+          categoryId: null,
+          categoryName: null,
+          memo: null,
+          cleared: true,
+          transferId: "source-checking",
+          isTransfer: true,
+        },
+      ],
+      budgetMonths: [
+        {
+          id: "oct-mortgage",
+          month: "2026-10",
+          categoryId: "source-mortgage-category",
+          assigned: 147_800,
+          carryover: 0,
+        },
+      ],
+      transferCount: 2,
+    }),
+  });
+
+  const october = readMonth(storage, result.budget.id, "2026-10");
+  const mortgage = october.categoryGroups
+    .flatMap((group) => group.categories)
+    .find((category) => category.name === "Mortgage");
+
+  assert.ok(mortgage);
+  assert.equal(mortgage.assigned, 1_478);
+  assert.equal(mortgage.activity, -878);
+  assert.equal(mortgage.available, 600);
+  assert.equal(october.incomeForMonth, 0);
+
+  const registers = readTransactionRegisters(
+    createFixedBudgetScopedStorage(storage, result.budget.id),
+  );
+  const imported = Object.values(registers)
+    .flatMap((register) => register.transactions)
+    .find((transaction) => transaction.id === "mortgage-transfer");
+
+  assert.ok(imported);
+  assert.equal(imported.category, "Transfer");
+  assert.equal(imported.categoryId, undefined);
+  assert.ok(imported.transferAccountId);
+});
+
+test("Actual hidden categories remain archived projection facts and balance Ready to Assign", () => {
+  const storage = createMemoryStorage();
+
+  const result = createActualBudgetLauncherImport(storage, {
+    now: new Date("2026-01-31T00:00:00.000Z"),
+    preview: basePreview({
+      categoryGroups: [
+        {
+          id: "source-income-group",
+          name: "Income",
+          hidden: false,
+          isIncome: true,
+        },
+        {
+          id: "source-spending-group",
+          name: "Living",
+          hidden: false,
+          isIncome: false,
+        },
+        {
+          id: "source-hidden-group",
+          name: "Hidden Categories",
+          hidden: false,
+          isIncome: false,
+        },
+      ],
+      categories: [
+        {
+          id: "source-income",
+          name: "Salary",
+          groupId: "source-income-group",
+          groupName: "Income",
+          hidden: false,
+          isIncome: true,
+        },
+        {
+          id: "source-groceries",
+          name: "Groceries",
+          groupId: "source-spending-group",
+          groupName: "Living",
+          hidden: false,
+          isIncome: false,
+        },
+        {
+          id: "source-old-debt",
+          name: "Old Debt",
+          groupId: "source-hidden-group",
+          groupName: "Hidden Categories",
+          hidden: false,
+          isIncome: false,
+        },
+      ],
+      transactions: [
+        {
+          id: "income-1",
+          accountId: "source-checking",
+          accountName: "Checking",
+          date: "2026-01-01",
+          amount: 10_000,
+          payeeId: null,
+          payeeName: "Employer",
+          categoryId: "source-income",
+          categoryName: "Salary",
+          memo: null,
+          cleared: true,
+          transferId: null,
+          isTransfer: false,
+        },
+      ],
+      budgetMonths: [
+        {
+          id: "jan-hidden",
+          month: "2026-01",
+          categoryId: "source-old-debt",
+          assigned: 10_000,
+          carryover: 0,
+        },
+      ],
+    }),
+  });
+
+  const january = readMonth(storage, result.budget.id, "2026-01");
+  assert.equal(january.incomeForMonth, 100);
+  assert.equal(january.totalAssigned, 100);
+  assert.equal(january.readyToAssign, 0);
+
+  const hidden = january.categoryGroups
+    .flatMap((group) => group.categories)
+    .find((category) => category.name === "Old Debt");
+  assert.ok(hidden);
+  assert.equal(hidden.isArchived, true);
+});
+
+test("Actual positive uncategorised inflow is not guessed to be budget income", () => {
+  const storage = createMemoryStorage();
+
+  const result = createActualBudgetLauncherImport(storage, {
+    now: new Date("2026-10-31T00:00:00.000Z"),
+    preview: basePreview({
+      transactions: [
+        {
+          id: "uncategorised-positive",
+          accountId: "source-checking",
+          accountName: "Checking",
+          date: "2026-10-05",
+          amount: 100_000,
+          payeeId: null,
+          payeeName: "Unknown inflow",
+          categoryId: null,
+          categoryName: null,
+          memo: null,
+          cleared: true,
+          transferId: null,
+          isTransfer: false,
+        },
+      ],
+    }),
+  });
+
+  const october = readMonth(storage, result.budget.id, "2026-10");
+  assert.equal(october.incomeForMonth, 0);
+  assert.equal(october.readyToAssign, 0);
 });

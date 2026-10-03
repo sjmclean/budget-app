@@ -162,3 +162,48 @@ test("Actual complex or conflicting rules remain explicitly unsupported instead 
   assert.equal(mapped.unsupportedRuleCount, 3);
   assert.ok(mapped.issues.some(({ code }) => code === "ActualConflictingPayeeCategoryRules"));
 });
+
+
+test("Actual transaction categories are resolved through category_mapping before preview mapping", () => {
+  const tables = baseTables();
+  tables.accounts = [
+    row({
+      id: "account-checking",
+      name: "Checking",
+      type: "checking",
+      offbudget: 0,
+      closed: 0,
+    }),
+  ];
+  tables.category_mapping = [
+    row({
+      id: "stored-category-id",
+      transferId: "category-groceries",
+    }),
+  ];
+  tables.transactions = [
+    row({
+      id: "transaction-1",
+      acct: "account-checking",
+      category: "stored-category-id",
+      amount: -5_000,
+      description: null,
+      notes: null,
+      date: 20261001,
+      cleared: 1,
+      isParent: 0,
+      isChild: 0,
+    }),
+  ];
+
+  const mapped = mapActualSQLiteRepositoryToFullBudgetPreview(repository(tables));
+  const transaction = mapped.transactions.find(({ id }) => id === "transaction-1");
+
+  assert.ok(transaction);
+  assert.equal(transaction.categoryId, "category-groceries");
+  assert.equal(transaction.categoryName, "Groceries");
+  assert.equal(
+    mapped.issues.some(({ code }) => code === "ActualUnknownCategoryReference"),
+    false,
+  );
+});
