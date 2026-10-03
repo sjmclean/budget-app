@@ -415,7 +415,7 @@ function mapActualBudgetForLocalFirst(
         categoryId: persistedCategoryId,
         categoryName: persistedCategoryName,
         incomeBudgetMonth: transaction.incomeBudgetMonth ?? null,
-        inflowClassification: null,
+        inflowClassification: transaction.inflowClassification ?? null,
         transferAccountId: transaction.transferAccountId ?? null,
         transferTransactionId: null,
         generatedFromSchedule: false,
@@ -728,10 +728,9 @@ function isActualBudgetCategoryImportable(
   category: FullBudgetImportPreview["categories"][number],
   group: FullBudgetImportPreview["categoryGroups"][number] | null,
 ): boolean {
-  if (category.hidden || category.isIncome === true) return false;
+  if (category.isIncome === true) return false;
   if (!group) return true;
-  if (group.hidden || group.isIncome === true) return false;
-  if (isActualHiddenCategoryGroupName(group.name)) return false;
+  if (group.isIncome === true) return false;
   return true;
 }
 
@@ -765,7 +764,10 @@ function mapActualCategoryGroups(preview: FullBudgetImportPreview, maps: ActualI
           activity: 0,
           available: 0,
           isOverspent: false,
-          isArchived: group.hidden || category.hidden,
+          isArchived:
+            group.hidden ||
+            category.hidden ||
+            isActualHiddenCategoryGroupName(group.name),
           note: category.note ?? "",
         };
       });
