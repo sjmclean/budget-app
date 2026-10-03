@@ -360,9 +360,27 @@ function mapActualBudgetForLocalFirst(
   );
 
   const transactions: LocalTransactionRecord[] = [];
+  const sourceTransactionById = new Map(
+    preview.transactions.map((transaction) => [transaction.id, transaction] as const),
+  );
 
   for (const [accountId, register] of Object.entries(registers)) {
     for (const transaction of register.transactions) {
+      const sourceTransaction = sourceTransactionById.get(transaction.id);
+      // The register presentation intentionally clears a category from transfers,
+      // but Actual legitimately retains a category on budget-boundary transfers.
+      // Persist that source category as a canonical projection fact while the
+      // register UI continues to render the row as "Transfer" via transferAccountId.
+      const persistedCategoryId =
+        transaction.transferAccountId && sourceTransaction?.categoryId
+          ? maps.categoryIdBySourceId.get(sourceTransaction.categoryId) ?? null
+          : transaction.categoryId ?? null;
+      const persistedCategoryName = persistedCategoryId
+        ? maps.categoryNameById.get(persistedCategoryId) ?? null
+        : transaction.transferAccountId
+          ? null
+          : transaction.category ?? null;
+
       const splitLines: LocalTransactionSplitRecord[] =
         (transaction.splitLines ?? []).map((split) => ({
           id: split.id,
@@ -394,8 +412,8 @@ function mapActualBudgetForLocalFirst(
         payeeId: transaction.payeeId ?? null,
         payeeName: transaction.payee ?? null,
         rawPayeeName: transaction.payee ?? null,
-        categoryId: transaction.categoryId ?? null,
-        categoryName: transaction.category ?? null,
+        categoryId: persistedCategoryId,
+        categoryName: persistedCategoryName,
         incomeBudgetMonth: transaction.incomeBudgetMonth ?? null,
         inflowClassification: null,
         transferAccountId: transaction.transferAccountId ?? null,
