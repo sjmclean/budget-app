@@ -196,7 +196,6 @@ function mapCategoryGroup(row: ActualSQLiteTableRow, index: number): FullBudgetI
     hidden: readBoolean(row, ["hidden", "is_hidden", "isHidden"]),
     isIncome: readBoolean(row, ["is_income", "isIncome", "income"]),
     sortOrder: readOptionalNumber(row, ["sort_order", "sortOrder", "sort"]),
-    note,
   };
 }
 
@@ -216,6 +215,7 @@ function mapCategory(
     hidden: readBoolean(row, ["hidden", "is_hidden", "isHidden"]),
     isIncome: readBoolean(row, ["is_income", "isIncome", "income"]),
     sortOrder: readOptionalNumber(row, ["sort_order", "sortOrder", "sort"]),
+    note,
   };
 }
 
@@ -282,7 +282,6 @@ function mapSimplePayeeCategoryRules(
       continue;
     }
 
-    const rowId = readString(row, ["id"], String(row.rowId ?? "unknown"));
     const stage = readOptionalString(row, ["stage"]);
     const conditionsOp = (readOptionalString(row, ["conditions_op", "conditionsOp"]) ?? "and").toLowerCase();
     const conditions = parseActualRuleArray(readOptionalString(row, ["conditions"]));
@@ -335,7 +334,7 @@ function mapSimplePayeeCategoryRules(
         rowNumber: null,
         severity: "warning",
         code: "ActualConflictingPayeeCategoryRules",
-        message: \`Actual payee \${payeeId} has conflicting default-category rules; \${candidates.length} rules were left unsupported.\`,
+        message: `Actual payee ${payeeId} has conflicting default-category rules; ${candidates.length} rules were left unsupported.`,
       });
       continue;
     }
