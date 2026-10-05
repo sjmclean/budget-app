@@ -16,6 +16,13 @@ const styleSource = fs.readFileSync(
   ),
   "utf8",
 );
+const registerPageSource = fs.readFileSync(
+  new URL(
+    "../../../apps/web/src/pages/AccountRegisterPage.tsx",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 test("bank review row always renders immutable source values", () => {
   assert.match(
