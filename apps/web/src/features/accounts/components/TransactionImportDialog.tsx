@@ -550,44 +550,97 @@ export function TransactionImportDialog({
     importSessionRestoreRef.current = selectedAccountId;
     const saved = readTransactionImportSession(selectedAccountId);
     if (!saved) return;
-    const repairedReview = repairRestoredRegisterMatchOwnership(saved);
 
-    setFileName(saved.fileName);
-    setFileType(saved.fileType);
-    setFileHash(saved.fileHash);
-    setCsvText(saved.csvText);
-    setQifText(saved.qifText);
-    setOfxText(saved.ofxText);
-    setOfxInspection(saved.ofxInspection);
-    setQifDetection(saved.qifDetection);
-    setQifDateFormat(saved.qifDateFormat);
-    setQifAmountFormat(saved.qifAmountFormat);
-    setAnalysis(saved.analysis);
-    setMapping(saved.mapping);
-    setPreview(saved.preview);
-    setCandidates(repairedReview.candidates);
-    setPreparedCandidates(
-      saved.preparedCandidates ??
-        capturePreparedTransactionImportCandidates(repairedReview.candidates),
-    );
-    setBankCandidateDetails(saved.bankCandidateDetails);
-    setSourceIdentities(saved.sourceIdentities);
-    setProcessedCandidates(repairedReview.processedCandidates);
-    setManualCandidateEdits(saved.manualCandidateEdits ?? {});
-    setHistoricalRegisterPayeeUpdates(
-      saved.historicalRegisterPayeeUpdates ?? [],
-    );
-    setMatchEditorOrigins(saved.matchEditorOrigins);
-    setMatchedTransactionOrigins(saved.matchedTransactionOrigins);
-    setPreviouslyImportedCount(saved.previouslyImportedCount);
-    setAlreadyRepresentedCount(saved.alreadyRepresentedCount);
-    setExcludeMemos(saved.excludeMemos);
-    setUpdateMatchedTransactionDates(saved.updateMatchedTransactionDates);
-    setStep("review");
-    setMessage(repairedReview.repairedConflictCount > 0
-      ? "Restored the saved review. Conflicting saved matches were returned to review."
-      : `Restored your saved review for ${saved.fileName ?? "this import"}.`);
-  }, [selectedAccountId]);
+    let cancelled = false;
+
+    void (async () => {
+      const acceptedProcessedCandidates = saved.processedCandidates.filter(
+        (entry) => entry.action === "imported" || entry.action === "matched",
+      );
+      const needsInterruptedCommitRecovery =
+        saved.candidates.length === 0 &&
+        acceptedProcessedCandidates.length > 0;
+
+      if (needsInterruptedCommitRecovery) {
+        try {
+          const persistedOccurrenceCounts =
+            await loadImportedTransactionSourceOccurrences(
+              saved.accountId,
+              saved.fileType,
+            );
+          const alreadyCommitted = acceptedProcessedCandidates.every((entry) => {
+            const sourceIdentity =
+              saved.sourceIdentities[entry.candidate.id];
+            return Boolean(
+              sourceIdentity &&
+              sourceIdentity.occurrence <=
+                (persistedOccurrenceCounts[sourceIdentity.identity] ?? 0),
+            );
+          });
+
+          if (alreadyCommitted) {
+            deleteTransactionImportSession(saved.accountId);
+            if (!cancelled) {
+              setStep("upload");
+              setMessage(
+                `The previous import for ${saved.fileName ?? "this file"} was already committed. Its stale saved review was cleared.`,
+              );
+              setError(null);
+            }
+            return;
+          }
+        } catch (error) {
+          console.warn(
+            "Could not reconcile the restored import session with persisted import provenance.",
+            error,
+          );
+        }
+      }
+
+      if (cancelled) return;
+      const repairedReview = repairRestoredRegisterMatchOwnership(saved);
+
+      setFileName(saved.fileName);
+      setFileType(saved.fileType);
+      setFileHash(saved.fileHash);
+      setCsvText(saved.csvText);
+      setQifText(saved.qifText);
+      setOfxText(saved.ofxText);
+      setOfxInspection(saved.ofxInspection);
+      setQifDetection(saved.qifDetection);
+      setQifDateFormat(saved.qifDateFormat);
+      setQifAmountFormat(saved.qifAmountFormat);
+      setAnalysis(saved.analysis);
+      setMapping(saved.mapping);
+      setPreview(saved.preview);
+      setCandidates(repairedReview.candidates);
+      setPreparedCandidates(
+        saved.preparedCandidates ??
+          capturePreparedTransactionImportCandidates(repairedReview.candidates),
+      );
+      setBankCandidateDetails(saved.bankCandidateDetails);
+      setSourceIdentities(saved.sourceIdentities);
+      setProcessedCandidates(repairedReview.processedCandidates);
+      setManualCandidateEdits(saved.manualCandidateEdits ?? {});
+      setHistoricalRegisterPayeeUpdates(
+        saved.historicalRegisterPayeeUpdates ?? [],
+      );
+      setMatchEditorOrigins(saved.matchEditorOrigins);
+      setMatchedTransactionOrigins(saved.matchedTransactionOrigins);
+      setPreviouslyImportedCount(saved.previouslyImportedCount);
+      setAlreadyRepresentedCount(saved.alreadyRepresentedCount);
+      setExcludeMemos(saved.excludeMemos);
+      setUpdateMatchedTransactionDates(saved.updateMatchedTransactionDates);
+      setStep("review");
+      setMessage(repairedReview.repairedConflictCount > 0
+        ? "Restored the saved review. Conflicting saved matches were returned to review."
+        : `Restored your saved review for ${saved.fileName ?? "this import"}.`);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadImportedTransactionSourceOccurrences, selectedAccountId]);
 
   useEffect(() => {
     if (step !== "review" || !preview || !["csv", "qif", "ofx", "qfx"].includes(fileType)) {
@@ -2684,6 +2737,11 @@ export function TransactionImportDialog({
         },
       );
 
+      // The financial batch is committed at this point. Clear the persisted
+      // review immediately so a renderer/refresh failure cannot resurrect the
+      // same accepted transactions as a second commit attempt.
+      deleteTransactionImportSession(selectedAccountId);
+
       const importedTransactionIds = result.additions.flatMap(
         (transaction) => transaction.id ? [transaction.id] : [],
       );
@@ -2763,7 +2821,6 @@ export function TransactionImportDialog({
             ? ` ${historicalPayeesUpdated} existing payee${historicalPayeesUpdated === 1 ? "" : "s"} updated.`
             : ""),
       );
-      deleteTransactionImportSession(selectedAccountId);
       const completedDiagnostics = uniqueProcessedCandidates.map((entry) => ({
         ...entry,
         candidate: appendTransactionImportTrace(entry.candidate, {

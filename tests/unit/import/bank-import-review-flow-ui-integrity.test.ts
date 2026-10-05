@@ -16,6 +16,13 @@ const styleSource = fs.readFileSync(
   ),
   "utf8",
 );
+const registerPageSource = fs.readFileSync(
+  new URL(
+    "../../../apps/web/src/pages/AccountRegisterPage.tsx",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 test("bank review row always renders immutable source values", () => {
   assert.match(
@@ -183,5 +190,45 @@ test("transaction editor autocomplete menus stack above the nested modal", () =>
   assert.match(
     styleSource,
     /\.transaction-import-transaction-editor \.register-autocomplete-popup \{[\s\S]*?z-index:\s*1200;/,
+  );
+});
+
+
+test("restored completed import sessions reconcile persisted provenance before review is restored", () => {
+  assert.match(
+    dialogSource,
+    /saved\.candidates\.length === 0[\s\S]*?loadImportedTransactionSourceOccurrences\([\s\S]*?sourceIdentity\.occurrence <=[\s\S]*?persistedOccurrenceCounts\[sourceIdentity\.identity\]/,
+  );
+  assert.match(
+    dialogSource,
+    /if \(alreadyCommitted\) \{[\s\S]*?deleteTransactionImportSession\(saved\.accountId\)[\s\S]*?stale saved review was cleared/,
+  );
+});
+
+test("successful import clears the persisted review immediately after the commit engine returns", () => {
+  const commitIndex = dialogSource.indexOf("const result = await commitImportSession(");
+  const cleanupIndex = dialogSource.indexOf(
+    "deleteTransactionImportSession(selectedAccountId);",
+    commitIndex,
+  );
+  const callbackIndex = dialogSource.indexOf(
+    "onImportCommitComplete?.({",
+    commitIndex,
+  );
+
+  assert.ok(commitIndex >= 0);
+  assert.ok(cleanupIndex > commitIndex);
+  assert.ok(callbackIndex > cleanupIndex);
+});
+
+
+test("exact-file re-import treats zero authoritative history writes as an idempotent success", () => {
+  assert.match(
+    registerPageSource,
+    /result\.reason === "failed"[\s\S]*?Import history capture requires at least one authoritative write\.[\s\S]*?return;/,
+  );
+  assert.match(
+    registerPageSource,
+    /executeHistory\(createImportTransactionsCommand\([\s\S]*?if \(!result\.performed\)/,
   );
 });

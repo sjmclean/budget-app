@@ -15,6 +15,10 @@ import {
 } from "./registerCategoryMatching";
 import { getRegisterLoadMoreContinuation } from "./registerPagination";
 import {
+  loadConsistentRegisterSnapshot,
+  RegisterRefreshRevisionChurnError,
+} from "./registerRefreshConsistency";
+import {
   calculateAttachmentContentHash,
   getAttachmentContentStore,
 } from "../attachments/attachmentContentStore";
@@ -230,31 +234,54 @@ export function useAccountRegister(
     }
     await ensureSqliteReady();
     const generation = ++loadGenerationRef.current;
-    for (;;) {
-      const beforeRevision = getPersistenceRevisionForInterest(persistenceInterest);
-      const { summary, page } = await accountRegisterQueries.getAccountRegisterBootstrap({
-        budgetId,
-        accountId,
-        limit: 150,
-        offset: 0,
-        search: registerViewQuery.search ?? undefined,
-        categoryFilter: registerViewQuery.categoryFilter,
-        sort: registerViewQuery.sort,
+    try {
+      const consistent = await loadConsistentRegisterSnapshot({
+        readRevision: () =>
+          getPersistenceRevisionForInterest(persistenceInterest),
+        load: () =>
+          accountRegisterQueries.getAccountRegisterBootstrap({
+            budgetId,
+            accountId,
+            limit: 150,
+            offset: 0,
+            search: registerViewQuery.search ?? undefined,
+            categoryFilter: registerViewQuery.categoryFilter,
+            sort: registerViewQuery.sort,
+          }),
+        onRevisionChurn: (attempt) => {
+          console.warn("Account register refresh observed persistence revision churn.", {
+            budgetId,
+            accountId,
+            ...attempt,
+          });
+        },
       });
+
       if (generation !== loadGenerationRef.current) return;
-      const afterRevision = getPersistenceRevisionForInterest(persistenceInterest);
-      if (beforeRevision !== afterRevision) continue;
-      const next = { summary, rows: page.rows, totalCount: page.totalCount ?? summary.transactionCount };
+      const { summary, page } = consistent.result;
+      const next = {
+        summary,
+        rows: page.rows,
+        totalCount: page.totalCount ?? summary.transactionCount,
+      };
       sqlitePageRef.current = next;
       setSqlitePage(next);
-      appliedRevisionRef.current = afterRevision;
+      appliedRevisionRef.current = consistent.revision;
       registerCursorRef.current = page.nextCursor;
       setHasMoreTransactions(page.hasMore);
       loadedTransactionCountRef.current = page.rows.length;
       setTotalTransactionCount(next.totalCount);
       setStorageMode("sqlite");
       hasLoadedDataRef.current = true;
-      return;
+    } catch (cause) {
+      if (cause instanceof RegisterRefreshRevisionChurnError) {
+        console.error("Account register refresh stopped after repeated persistence revision churn.", {
+          budgetId,
+          accountId,
+          attempts: cause.attempts,
+        });
+      }
+      throw cause;
     }
   }, [
     accountId,

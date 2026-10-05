@@ -2380,6 +2380,19 @@ export function AccountRegisterPage() {
                   attachmentCreations,
                 }));
                 if (!result.performed) {
+                  if (
+                    result.reason === "failed" &&
+                    result.error ===
+                      "Import history capture requires at least one authoritative write."
+                  ) {
+                    // Exact-file re-imports can reconcile entirely to already
+                    // persisted state. The history controller deliberately
+                    // does not record failed/no-op commands, so treat this
+                    // worker integrity signal as a successful idempotent
+                    // commit and allow import knowledge/session cleanup to
+                    // finish normally.
+                    return;
+                  }
                   throw new Error(result.error ?? "Import history command failed.");
                 }
                 return;
