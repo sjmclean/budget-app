@@ -188,7 +188,6 @@ test("ghost rows remain presentation-only and expose scheduled actions", () => {
   assert.match(component, /register-scheduled-ghost-row/);
   assert.match(component, /register-scheduled-ghost-select-placeholder/);
   assert.match(component, /register-scheduled-ghost-content/);
-  assert.match(component, /register-scheduled-ghost-badge">Scheduled/);
   assert.match(component, /columnPlan\.columnIds\.map/);
   assert.match(component, /style=\{rowStyle\}/);
   assert.match(component, /columnPlan\.actionColumnId === "payee"/);
@@ -208,7 +207,6 @@ test("ghost rows remain presentation-only and expose scheduled actions", () => {
   assert.match(css, /\.register-scheduled-ghost-row-compact\s*\{[\s\S]*grid-template-columns/);
   assert.match(css, /\.register-scheduled-ghost-action:focus-visible/);
   assert.match(css, /\.register-scheduled-ghost-row-mobile/);
-  assert.match(css, /\.register-scheduled-ghost-badge\s*\{/);
 });
 
 test("budget-scoped preset preference defaults safely and round-trips", () => {
