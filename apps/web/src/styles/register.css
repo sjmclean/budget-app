@@ -6038,6 +6038,20 @@ button.register-status:disabled {
   flex: 1 1 auto;
 }
 
+.register-scheduled-ghost-badge {
+  flex: 0 0 auto;
+  padding: 0.08rem 0.3rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--border-soft));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  color: var(--accent-strong);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
 .register-scheduled-ghost-detail {
   min-width: 0;
   overflow: hidden;
