@@ -185,3 +185,31 @@ test("transaction editor autocomplete menus stack above the nested modal", () =>
     /\.transaction-import-transaction-editor \.register-autocomplete-popup \{[\s\S]*?z-index:\s*1200;/,
   );
 });
+
+
+test("restored completed import sessions reconcile persisted provenance before review is restored", () => {
+  assert.match(
+    dialogSource,
+    /saved\.candidates\.length === 0[\s\S]*?loadImportedTransactionSourceOccurrences\([\s\S]*?sourceIdentity\.occurrence <=[\s\S]*?persistedOccurrenceCounts\[sourceIdentity\.identity\]/,
+  );
+  assert.match(
+    dialogSource,
+    /if \(alreadyCommitted\) \{[\s\S]*?deleteTransactionImportSession\(saved\.accountId\)[\s\S]*?stale saved review was cleared/,
+  );
+});
+
+test("successful import clears the persisted review immediately after the commit engine returns", () => {
+  const commitIndex = dialogSource.indexOf("const result = await commitImportSession(");
+  const cleanupIndex = dialogSource.indexOf(
+    "deleteTransactionImportSession(selectedAccountId);",
+    commitIndex,
+  );
+  const callbackIndex = dialogSource.indexOf(
+    "onImportCommitComplete?.({",
+    commitIndex,
+  );
+
+  assert.ok(commitIndex >= 0);
+  assert.ok(cleanupIndex > commitIndex);
+  assert.ok(callbackIndex > cleanupIndex);
+});
