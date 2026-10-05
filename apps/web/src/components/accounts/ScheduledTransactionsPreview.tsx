@@ -208,10 +208,7 @@ export function ScheduledTransactionsPreview({
         </>
       ) : null}
       <div className="register-scheduled-ghost-content">
-        <span className="register-scheduled-ghost-payee-line">
-          <strong>{payee}</strong>
-          <span className="register-scheduled-ghost-badge">Scheduled</span>
-        </span>
+        <strong>{payee}</strong>
         <span>
           {item.category ? <>{item.category} · </> : null}
           {getScheduledPreviewRelativeLabel(item.nextDueDate, today)}
@@ -253,7 +250,6 @@ export function ScheduledTransactionsPreview({
               <div className="register-scheduled-ghost-content" key={columnId}>
                 <span className="register-scheduled-ghost-payee-line">
                   <strong>{payee}</strong>
-                  <span className="register-scheduled-ghost-badge">Scheduled</span>
                   {columnPlan.actionColumnId === "payee"
                     ? actionMenu(item, payee)
                     : null}
