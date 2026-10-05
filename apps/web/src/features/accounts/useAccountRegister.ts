@@ -8,6 +8,7 @@ import { getPersistenceChangesSince, getPersistenceRevisionForInterest, usePersi
 import { reconcileRegisterDelta, type LoadedRegisterPage } from "./registerDeltaReconciliation";
 import type { AccountTransactionRow } from "../../../../../packages/application/src/accountRegister/AccountRegisterQueryPort";
 import { generateDueScheduledTransactionsForBudget } from "./scheduledTransactionMaintenance";
+import { loadRegisterAfterScheduledGeneration } from "./registerLoadConsistency";
 import { createRuntimeUuid } from "../ids/createRuntimeUuid";
 import {
   resolveRegisterSplitCategory,
@@ -318,8 +319,11 @@ export function useAccountRegister(
           provider.syncArchitecture === "local-first-relay"
         ) {
           await ensureSqliteReady();
-          void generateDueScheduledTransactionsForBudget(provider, budgetId).catch(() => undefined);
-          await reloadSqliteRegister();
+          await loadRegisterAfterScheduledGeneration({
+            generateScheduledTransactions: () =>
+              generateDueScheduledTransactionsForBudget(provider, budgetId),
+            reloadRegister: reloadSqliteRegister,
+          });
           if (!isMounted) return;
           setIsLoading(false);
           return;
@@ -329,8 +333,11 @@ export function useAccountRegister(
             .getBudgetStatus(budgetId)
             .catch(() => null);
           if (status?.capabilities.accountRegisters) {
-            void generateDueScheduledTransactionsForBudget(provider, budgetId).catch(() => undefined);
-            await reloadSqliteRegister();
+            await loadRegisterAfterScheduledGeneration({
+              generateScheduledTransactions: () =>
+                generateDueScheduledTransactionsForBudget(provider, budgetId),
+              reloadRegister: reloadSqliteRegister,
+            });
             if (!isMounted) return;
             setIsLoading(false);
             return;
