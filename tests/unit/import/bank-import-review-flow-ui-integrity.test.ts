@@ -213,3 +213,15 @@ test("successful import clears the persisted review immediately after the commit
   assert.ok(cleanupIndex > commitIndex);
   assert.ok(callbackIndex > cleanupIndex);
 });
+
+
+test("exact-file re-import treats zero authoritative history writes as an idempotent success", () => {
+  assert.match(
+    registerPageSource,
+    /result\.reason === "failed"[\s\S]*?Import history capture requires at least one authoritative write\.[\s\S]*?return;/,
+  );
+  assert.match(
+    registerPageSource,
+    /executeHistory\(createImportTransactionsCommand\([\s\S]*?if \(!result\.performed\)/,
+  );
+});
