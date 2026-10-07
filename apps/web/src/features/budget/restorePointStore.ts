@@ -13,8 +13,6 @@ export type RestorePointCapturePerformanceStage =
   | "source-read"
   | "chunk-hash"
   | "existing-chunk-verify"
-  | "temporary-write"
-  | "temporary-verify"
   | "final-write"
   | "final-verify"
   | "manifest-write"
@@ -234,8 +232,6 @@ export function createRestorePointStore(filesForBudget: (budgetId: string) => Re
       "source-read": 0,
       "chunk-hash": 0,
       "existing-chunk-verify": 0,
-      "temporary-write": 0,
-      "temporary-verify": 0,
       "final-write": 0,
       "final-verify": 0,
       "manifest-write": 0,
@@ -292,16 +288,12 @@ export function createRestorePointStore(filesForBudget: (budgetId: string) => Re
           }
         }
         if (!known.has(name)) {
-          const temporary = `${createRuntimeUuid()}.partial`;
-          await measure("temporary-write", () =>
-            files.write("chunks", temporary, bytes(content)),
-          );
-          const verified = await measure("temporary-verify", () =>
-            verifiedChunk(files, temporary, chunkHash, length),
-          );
           try {
+            // RestorePointFiles.write is required to publish atomically on close.
+            // The manifest is not committed until this final identity verifies,
+            // so a crash or failed close can only leave an unreferenced chunk.
             await measure("final-write", () =>
-              files.write("chunks", name, bytes(verified)),
+              files.write("chunks", name, bytes(content)),
             );
           }
           catch (error) {
@@ -318,7 +310,6 @@ export function createRestorePointStore(filesForBudget: (budgetId: string) => Re
             verifiedChunk(files, name, chunkHash, length),
           );
           known.add(name); newBytesStored += length; newChunkCount++;
-          await files.remove("chunks", temporary).catch(() => undefined);
         }
         chunks.push({ hash: chunkHash, length });
       }
