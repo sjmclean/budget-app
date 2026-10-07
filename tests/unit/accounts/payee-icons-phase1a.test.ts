@@ -55,7 +55,7 @@ describe("payee icon reference and resolver", () => {
       kind: "sprite", href: "/merchant-icons/base-reviewed.svg#aldi-au",
     });
     assert.deepEqual(resolvePayeeIcon({ payee: payee("target", "Target") }), {
-      kind: "sprite", href: "/merchant-icons/base-merchants.svg#target-au",
+      kind: "sprite", href: "/merchant-icons/base-reviewed.svg#target-au",
     });
     assert.equal(resolvePayeeIcon({ payee: payee("aldi-uk", "Aldi UK") }).kind, "sprite");
     assert.equal(resolvePayeeIcon({ payee: payee("aldi-us", "Aldi US") }).kind, "sprite");
