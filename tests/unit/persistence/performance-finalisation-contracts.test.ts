@@ -133,8 +133,6 @@ test("Actual backend import exposes diagnostic-only stage timings", () => {
     "restore-store-source-read",
     "restore-store-chunk-hash",
     "restore-store-existing-chunk-verify",
-    "restore-store-temporary-write",
-    "restore-store-temporary-verify",
     "restore-store-final-write",
     "restore-store-final-verify",
     "restore-store-manifest-write",
