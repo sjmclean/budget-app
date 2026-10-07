@@ -65,3 +65,80 @@ test("behavioural tests use synthetic payees rather than real catalogue merchant
 
   assert.deepEqual(violations, []);
 });
+
+
+test("repository fixtures do not contain obvious personal identifiers or local-user paths", () => {
+  const violations: string[] = [];
+  const emailPattern = /\b[A-Z0-9._%+-]+@([A-Z0-9.-]+\.[A-Z]{2,})\b/giu;
+  const homePatterns = [
+    /(?:^|["'\s])\/Users\/([^/"'\s]+)\//gu,
+    /(?:^|["'\s])\/home\/([^/"'\s]+)\//gu,
+    /(?:^|["'\s])[A-Z]:\\\\Users\\\\([^\\\\/"'\s]+)\\\\/giu,
+  ];
+  const sensitiveAssignments = [
+    /\b(?:accountNumber|cardNumber|routingNumber|bsb)\b\s*[:=]\s*["'`]([0-9][0-9 -]{5,})["'`]/giu,
+    /<(?:ACCTID|BANKID|ROUTINGNUM)>\s*([0-9][0-9 -]{5,})/giu,
+  ];
+
+  for (const root of ["apps", "tests", "tools", "docs"]) {
+    for (const filePath of walk(root)) {
+      if (!textExtensions.test(filePath) || filePath.endsWith("repository-personal-data-hygiene.test.ts")) continue;
+      const source = readFileSync(filePath, "utf8");
+
+      for (const match of source.matchAll(emailPattern)) {
+        const domain = match[1]!.toLocaleLowerCase();
+        if (!["example.com", "example.org", "example.net", "localhost"].includes(domain)) {
+          violations.push(`${filePath}: non-example email ${match[0]}`);
+        }
+      }
+
+      for (const pattern of homePatterns) {
+        for (const match of source.matchAll(pattern)) {
+          const user = match[1]!.toLocaleLowerCase();
+          if (!["runner", "root", "user", "example", "developer"].includes(user)) {
+            violations.push(`${filePath}: local user path for ${match[1]}`);
+          }
+        }
+      }
+
+      for (const pattern of sensitiveAssignments) {
+        for (const match of source.matchAll(pattern)) {
+          violations.push(`${filePath}: sensitive financial identifier ${match[1]}`);
+        }
+      }
+    }
+  }
+
+  assert.deepEqual(violations, []);
+});
+
+test("import-style fixtures do not embed real catalogue merchant payees", async () => {
+  await preloadExtendedMerchantIconCatalogue();
+  const violations: string[] = [];
+
+  function checkPayee(filePath: string, payee: string) {
+    const value = payee.trim().replace(/^["']|["']$/gu, "");
+    if (!value || /^example\b/iu.test(value) || value.startsWith("Transfer:")) return;
+    const merchant = findMerchantIconByPayeeName(value, "AU");
+    if (merchant) violations.push(`${filePath}: "${value}" resolves to ${merchant.key}`);
+  }
+
+  for (const filePath of walk("tests")) {
+    if (!textExtensions.test(filePath) || filePath.endsWith("repository-personal-data-hygiene.test.ts")) continue;
+    const source = readFileSync(filePath, "utf8");
+
+    for (const match of source.matchAll(/^P([^\r\n]+)$/gmu)) checkPayee(filePath, match[1]!);
+    for (const match of source.matchAll(/<NAME>\s*([^<\r\n]+)/giu)) checkPayee(filePath, match[1]!);
+    for (const match of source.matchAll(/<PAYEE>\s*([^<\r\n]+)/giu)) checkPayee(filePath, match[1]!);
+
+    for (const line of source.split(/\r?\n/u)) {
+      if (!line.includes(",")) continue;
+      const columns = line.split(",");
+      if (columns.length >= 2 && /^\s*\d{4}-\d{2}-\d{2}\s*$/u.test(columns[0] ?? "")) {
+        checkPayee(filePath, columns[1] ?? "");
+      }
+    }
+  }
+
+  assert.deepEqual(violations, []);
+});
