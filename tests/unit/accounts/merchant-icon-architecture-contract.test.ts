@@ -23,7 +23,8 @@ test("extended brand identities stay out of the static catalogue graph and prelo
   assert.doesNotMatch(catalogue, /^import .*merchantIconBundledExpansion/mu);
   assert.match(catalogue, /import\("\.\/merchantIconBundledExpansion\.js"\)/u);
   assert.match(catalogue, /import\("\.\/merchantIconSimpleBrands\.js"\)/u);
-  assert.match(main, /await preloadExtendedMerchantIconCatalogue\(\);[\s\S]*?await import\("\.\/App"\)/u);
+  assert.match(main, /preloadExtendedMerchantIconCatalogue\(\)/u);
+  assert.match(main, /await extendedMerchantCataloguePromise;[\s\S]*?await import\("\.\/App"\)/u);
 });
 
 test("live catalogue expansion is distinct from planning manifest inventory", async () => {
