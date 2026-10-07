@@ -87,7 +87,9 @@ test("repository fixtures do not contain obvious personal identifiers or local-u
 
       for (const match of source.matchAll(emailPattern)) {
         const domain = match[1]!.toLocaleLowerCase();
-        if (!["example.com", "example.org", "example.net", "localhost"].includes(domain)) {
+        const tld = domain.split(".").at(-1) ?? "";
+        if (!["example.com", "example.org", "example.net", "example.test", "localhost"].includes(domain)
+          && !["png", "jpg", "jpeg", "svg", "webp", "gif", "ico"].includes(tld)) {
           violations.push(`${filePath}: non-example email ${match[0]}`);
         }
       }
