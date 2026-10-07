@@ -73,6 +73,14 @@ export type ActualBudgetImportPerformanceStage =
   | "map"
   | "provision"
   | "begin-staged-import"
+  | "begin-sqlite-runtime"
+  | "begin-capacity-reserve"
+  | "begin-remove-stage-file"
+  | "begin-open-database"
+  | "begin-initialise-schema"
+  | "begin-defer-indexes"
+  | "begin-metadata"
+  | "begin-manifest"
   | "entities"
   | "transactions"
   | "budget-months"
@@ -202,11 +210,28 @@ export async function createActualBudgetLauncherImportWithBackend(
     database = new LocalBudgetDatabaseClient(undefined, storage);
 
     stageStartedAt = actualImportPerformanceNow();
-    await database.beginStagedImport({
+    const stagedImportInput = {
       budgetId: budget.id,
       syncEpoch: provisioned.syncEpoch,
       deviceId: getOrCreateLocalFirstDeviceId(storage),
-    });
+    };
+    if (input.onPerformanceSample) {
+      const diagnostic = await database.beginStagedImportWithDiagnostics(stagedImportInput);
+      for (const [stage, elapsedMs] of [
+        ["begin-sqlite-runtime", diagnostic.timingsMs.sqliteRuntime],
+        ["begin-capacity-reserve", diagnostic.timingsMs.capacityReserve],
+        ["begin-remove-stage-file", diagnostic.timingsMs.removeStageFile],
+        ["begin-open-database", diagnostic.timingsMs.openDatabase],
+        ["begin-initialise-schema", diagnostic.timingsMs.initialiseSchema],
+        ["begin-defer-indexes", diagnostic.timingsMs.deferIndexes],
+        ["begin-metadata", diagnostic.timingsMs.metadata],
+        ["begin-manifest", diagnostic.timingsMs.manifest],
+      ] as const) {
+        input.onPerformanceSample({ stage, elapsedMs });
+      }
+    } else {
+      await database.beginStagedImport(stagedImportInput);
+    }
     recordActualImportPerformance(input, "begin-staged-import", stageStartedAt);
     staged = true;
 
