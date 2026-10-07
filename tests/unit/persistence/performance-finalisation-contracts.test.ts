@@ -141,7 +141,7 @@ test("Actual backend import exposes diagnostic-only stage timings", () => {
     "restore-store-cleanup",
     "restore-store-total-store",
   ]) {
-    assert.match(importer, new RegExp(`\\|${stage}`));
+    assert.match(importer, new RegExp(`"${stage}"`));
   }
 
   const recordStart = importer.indexOf("function createActualImportRecord(");
