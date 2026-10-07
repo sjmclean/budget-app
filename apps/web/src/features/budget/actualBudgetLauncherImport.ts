@@ -193,6 +193,11 @@ export async function createActualBudgetLauncherImportWithBackend(
       now,
     });
 
+    // Start the SQLite worker as soon as the import budget exists so module
+    // startup can overlap source mapping and fresh relay provisioning. The
+    // worker does not open or mutate a database until beginStagedImport().
+    database = new LocalBudgetDatabaseClient(undefined, storage);
+
     let stageStartedAt = actualImportPerformanceNow();
     const mapped = mapActualBudgetForLocalFirst(
       budget,
@@ -206,8 +211,6 @@ export async function createActualBudgetLauncherImportWithBackend(
       apiBaseUrl: input.apiBaseUrl,
     });
     recordActualImportPerformance(input, "provision", stageStartedAt);
-
-    database = new LocalBudgetDatabaseClient(undefined, storage);
 
     stageStartedAt = actualImportPerformanceNow();
     const stagedImportInput = {
