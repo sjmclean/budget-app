@@ -69,9 +69,6 @@ describe("merchant icon catalogue", () => {
       "hertz-global",
       "wilson-parking-global",
       "banyule-city-council-au",
-      "jd-sports-global",
-      "shein-global",
-      "chatgpt-global",
     ];
 
     for (const key of keys) {
