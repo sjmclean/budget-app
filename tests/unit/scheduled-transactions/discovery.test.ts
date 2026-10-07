@@ -17,8 +17,8 @@ function tx(
   return {
     id,
     date,
-    payee: "Netflix",
-    payeeId: "payee-netflix",
+    payee: "Example Streaming Service",
+    payeeId: "payee-example-streaming-service",
     category: "Entertainment",
     categoryId: "category-entertainment",
     amount,
@@ -163,14 +163,14 @@ test("generated schedules, transfers, splits, and old transactions do not contri
 
 test("an existing equivalent schedule suppresses the suggestion", () => {
   const existing: ScheduledTransactionView = {
-    id: "schedule-netflix",
+    id: "schedule-example-streaming-service",
     accountId: "checking",
     nextDueDate: "2026-10-18",
     frequency: "monthly",
     recurrenceInterval: 1,
     recurrenceUnit: "month",
-    payee: "Netflix",
-    payeeId: "payee-netflix",
+    payee: "Example Streaming Service",
+    payeeId: "payee-example-streaming-service",
     category: "Entertainment",
     categoryId: "category-entertainment",
     outflow: 25.99,
