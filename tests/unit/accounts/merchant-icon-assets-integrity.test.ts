@@ -38,6 +38,17 @@ test("merchant catalogue entries have unique identities and real lazy assets", a
       );
       assert.ok(!symbols.has(entry.asset.symbolId), `duplicate sprite symbol: ${entry.asset.symbolId}`);
       symbols.add(entry.asset.symbolId);
+    if (entry.provenance?.kind === "bundled") {
+      const start = sprite.indexOf(`<symbol id="${entry.asset.symbolId}"`);
+      const end = sprite.indexOf("</symbol>", start);
+      const symbol = start >= 0 && end >= 0 ? sprite.slice(start, end + "</symbol>".length) : "";
+      assert.match(
+        symbol,
+        /<image\b[^>]*href="data:image\/(?:webp|png|jpeg);base64,[A-Za-z0-9+/=]+"/u,
+        `bundled merchant artwork is missing or malformed: ${entry.key}`,
+      );
+    }
+
     }
 
     for (const identity of [entry.name, ...entry.aliases]) {
@@ -50,5 +61,5 @@ test("merchant catalogue entries have unique identities and real lazy assets", a
     }
   }
 
-  assert.equal(spriteCache.size, 57);
+  assert.equal(spriteCache.size, 60);
 });

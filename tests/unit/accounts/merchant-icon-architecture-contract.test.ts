@@ -20,6 +20,8 @@ test("catalogue references lazy static assets without bundling image payloads", 
 
 test("extended brand identities stay out of the static catalogue graph and preload before App", () => {
   assert.doesNotMatch(catalogue, /^import .*merchantIconSimpleBrands/mu);
+  assert.doesNotMatch(catalogue, /^import .*merchantIconBundledExpansion/mu);
+  assert.match(catalogue, /import\("\.\/merchantIconBundledExpansion\.js"\)/u);
   assert.match(catalogue, /import\("\.\/merchantIconSimpleBrands\.js"\)/u);
   assert.match(main, /await preloadExtendedMerchantIconCatalogue\(\);[\s\S]*?await import\("\.\/App"\)/u);
 });
@@ -27,7 +29,7 @@ test("extended brand identities stay out of the static catalogue graph and prelo
 test("live catalogue expansion is distinct from planning manifest inventory", async () => {
   const { MAJOR_MERCHANT_ICON_EXPANSION } = await import("../../../apps/web/src/features/icons/merchantIconMajorExpansion.js");
   assert.equal(planning.entries.length, 123);
-  assert.equal(MAJOR_MERCHANT_ICON_EXPANSION.length, 650);
+  assert.equal(MAJOR_MERCHANT_ICON_EXPANSION.length, 622);
   assert.notEqual(MAJOR_MERCHANT_ICON_EXPANSION.length, planning.entries.length);
   const { FUEL_MERCHANT_ICON_EXPANSION } = await import("../../../apps/web/src/features/icons/merchantIconFuelExpansion.js");
   assert.equal(FUEL_MERCHANT_ICON_EXPANSION.length, 9);

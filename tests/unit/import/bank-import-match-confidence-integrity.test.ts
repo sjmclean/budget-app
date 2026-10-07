@@ -12,13 +12,13 @@ const mapping = {
   2: "outflow",
 } as const;
 
-test("APPLE.COM/BILL can manually see a same-date iTunes transaction", () => {
+test("APPLE.COM/BILL can manually see a same-date Example Media transaction", () => {
   const preview = previewTransactionCsvImport(
     ["Date,Payee,Outflow", "2026-08-17,APPLE.COM/BILL,14.99"].join("\n"),
     [buildRegisterTransaction({
-      id: "itunes",
+      id: "example media",
       date: "2026-08-17",
-      payee: "itunes",
+      payee: "example media",
       outflow: 14.99,
     })],
     mapping,
@@ -28,7 +28,7 @@ test("APPLE.COM/BILL can manually see a same-date iTunes transaction", () => {
   assert.doesNotMatch(preview.candidates[0]?.reason ?? "", /no compatible merchant/i);
   assert.deepEqual(
     preview.candidates[0]?.matchCandidates?.map((entry) => entry.transaction.id),
-    ["itunes"],
+    ["example media"],
   );
   assert.equal(preview.candidates[0]?.matchCandidates?.[0]?.automaticMatch, false);
 });
@@ -37,7 +37,7 @@ test("all low-similarity exact-amount transactions inside seven days remain manu
   const preview = previewTransactionCsvImport(
     ["Date,Payee,Outflow", "2026-08-17,APPLE.COM/BILL,14.99"].join("\n"),
     [
-      buildRegisterTransaction({ id: "same-day", date: "2026-08-17", payee: "itunes", outflow: 14.99 }),
+      buildRegisterTransaction({ id: "same-day", date: "2026-08-17", payee: "example media", outflow: 14.99 }),
       buildRegisterTransaction({ id: "three-days", date: "2026-08-14", payee: "Streaming", outflow: 14.99 }),
       buildRegisterTransaction({ id: "seven-days", date: "2026-08-10", payee: "Media Store", outflow: 14.99 }),
     ],
@@ -56,9 +56,9 @@ test("manual candidates still exclude different amounts and dates beyond seven d
   const preview = previewTransactionCsvImport(
     ["Date,Payee,Outflow", "2026-08-17,APPLE.COM/BILL,14.99"].join("\n"),
     [
-      buildRegisterTransaction({ id: "eligible", date: "2026-08-13", payee: "itunes", outflow: 14.99 }),
-      buildRegisterTransaction({ id: "different-amount", date: "2026-08-17", payee: "itunes", outflow: 15 }),
-      buildRegisterTransaction({ id: "eight-days", date: "2026-08-09", payee: "itunes", outflow: 14.99 }),
+      buildRegisterTransaction({ id: "eligible", date: "2026-08-13", payee: "example media", outflow: 14.99 }),
+      buildRegisterTransaction({ id: "different-amount", date: "2026-08-17", payee: "example media", outflow: 15 }),
+      buildRegisterTransaction({ id: "eight-days", date: "2026-08-09", payee: "example media", outflow: 14.99 }),
     ],
     mapping,
   );
@@ -69,31 +69,31 @@ test("manual candidates still exclude different amounts and dates beyond seven d
   );
 });
 
-test("Montmorency automatically matches while unrelated same-amount rows remain manual options", () => {
+test("Example Secondary College automatically matches while unrelated same-amount rows remain manual options", () => {
   const csv = [
     "Date,Payee,Outflow",
-    "2026-08-17,COM*MONTMORENCY SC MONTMORENCY,25.00",
+    "2026-08-17,EXAMPLE SECONDARY COLLEGE,25.00",
   ].join("\n");
 
   const preview = previewTransactionCsvImport(
     csv,
     [
       buildRegisterTransaction({
-        id: "montmorency",
+        id: "example-school",
         date: "2026-08-17",
-        payee: "Montmorency Secondary College",
+        payee: "Example Local Secondary College",
         outflow: 25,
       }),
       buildRegisterTransaction({
-        id: "belong-13",
+        id: "telecom-13",
         date: "2026-08-13",
-        payee: "Belong",
+        payee: "Example Telecom",
         outflow: 25,
       }),
       buildRegisterTransaction({
-        id: "belong-11",
+        id: "telecom-11",
         date: "2026-08-11",
-        payee: "Belong",
+        payee: "Example Telecom",
         outflow: 25,
       }),
     ],
@@ -105,27 +105,27 @@ test("Montmorency automatically matches while unrelated same-amount rows remain 
   const candidate = preview.candidates[0];
   assert.ok(candidate);
   assert.equal(candidate.status, "exact-match");
-  assert.equal(candidate.matchedTransactionId, "montmorency");
+  assert.equal(candidate.matchedTransactionId, "example-school");
 
   assert.deepEqual(
     candidate.matchCandidates?.map((entry) => entry.transaction.id),
-    ["montmorency", "belong-13", "belong-11"],
+    ["example-school", "telecom-13", "telecom-11"],
   );
 });
 
 test("one shared merchant token does not auto-match a different display payee without trusted merchant knowledge", () => {
   const csv = [
     "Date,Payee,Outflow",
-    "2026-08-17,RACV MELBOURNE,1211.76",
+    "2026-08-17,EXAMPLE SERVICES MELBOURNE,1211.76",
   ].join("\n");
 
   const preview = previewTransactionCsvImport(
     csv,
     [
       buildRegisterTransaction({
-        id: "racv",
+        id: "example-insurance",
         date: "2026-08-17",
-        payee: "RACV Car Insurance",
+        payee: "Example Car Insurance",
         outflow: 1211.76,
       }),
     ],
@@ -138,14 +138,14 @@ test("one shared merchant token does not auto-match a different display payee wi
     preview.candidates[0]?.matchCandidates?.map(
       (entry) => entry.transaction.id,
     ),
-    ["racv"],
+    ["example-insurance"],
   );
 });
 
 test("same amount and exact date alone allow manual review without automatic matching", () => {
   const csv = [
     "Date,Payee,Outflow",
-    "2026-08-17,MONTMORENCY SECONDARY COLLEGE,25.00",
+    "2026-08-17,EXAMPLE SECONDARY COLLEGE,25.00",
   ].join("\n");
 
   const preview = previewTransactionCsvImport(
@@ -154,7 +154,7 @@ test("same amount and exact date alone allow manual review without automatic mat
       buildRegisterTransaction({
         id: "belong",
         date: "2026-08-17",
-        payee: "Belong",
+        payee: "Example Telecom",
         outflow: 25,
       }),
     ],
@@ -169,19 +169,19 @@ test("same amount and exact date alone allow manual review without automatic mat
   );
 });
 
-test("RACV posted-date shift auto-matches when amount is exact and merchant identity remains strong", () => {
+test("Example Insurance posted-date shift auto-matches when amount is exact and merchant identity remains strong", () => {
   const csv = [
     "Date,Payee,Outflow",
-    "2026-08-17,RACV MELBOURNE,1211.76",
+    "2026-08-17,EXAMPLE INSURANCE MELBOURNE,1211.76",
   ].join("\n");
 
   const preview = previewTransactionCsvImport(
     csv,
     [
       buildRegisterTransaction({
-        id: "racv-authorised",
+        id: "insurance-authorised",
         date: "2026-08-14",
-        payee: "RACV MELBOURNE 036",
+        payee: "EXAMPLE INSURANCE MELBOURNE 036",
         outflow: 1211.76,
       }),
     ],
@@ -189,22 +189,22 @@ test("RACV posted-date shift auto-matches when amount is exact and merchant iden
   );
 
   assert.equal(preview.summary.exactMatches, 1);
-  assert.equal(preview.candidates[0]?.matchedTransactionId, "racv-authorised");
+  assert.equal(preview.candidates[0]?.matchedTransactionId, "insurance-authorised");
 });
 
-test("VICROADS posted-date shift auto-matches despite trailing bank-detail change", () => {
+test("Example Registration Office posted-date shift auto-matches despite trailing bank-detail change", () => {
   const csv = [
     "Date,Payee,Outflow",
-    "2026-08-17,VICROADS ONLINE PAYMEN KEW,963.40",
+    "2026-08-17,EXAMPLE REGISTRATION OFFICE ONLINE,963.40",
   ].join("\n");
 
   const preview = previewTransactionCsvImport(
     csv,
     [
       buildRegisterTransaction({
-        id: "vicroads-authorised",
+        id: "registration-authorised",
         date: "2026-08-14",
-        payee: "VICROADS ONLINE PAYMEN KEW 036",
+        payee: "EXAMPLE REGISTRATION OFFICE ONLINE 036",
         outflow: 963.4,
       }),
     ],
@@ -214,23 +214,23 @@ test("VICROADS posted-date shift auto-matches despite trailing bank-detail chang
   assert.equal(preview.summary.exactMatches, 1);
   assert.equal(
     preview.candidates[0]?.matchedTransactionId,
-    "vicroads-authorised",
+    "registration-authorised",
   );
 });
 
-test("Northern Motor Group posted-date shift auto-matches when merchant and amount remain stable", () => {
+test("Example Auto Dealer posted-date shift auto-matches when merchant and amount remain stable", () => {
   const csv = [
     "Date,Payee,Outflow",
-    "2026-08-17,NORTHERN MOTOR GROUP BUNDOORA,761.04",
+    "2026-08-17,EXAMPLE AUTO DEALER NORTH,761.04",
   ].join("\n");
 
   const preview = previewTransactionCsvImport(
     csv,
     [
       buildRegisterTransaction({
-        id: "northern-authorised",
+        id: "dealer-authorised",
         date: "2026-08-14",
-        payee: "NORTHERN MOTOR GROUP BUNDOORA",
+        payee: "EXAMPLE AUTO DEALER NORTH",
         outflow: 761.04,
       }),
     ],
@@ -240,14 +240,14 @@ test("Northern Motor Group posted-date shift auto-matches when merchant and amou
   assert.equal(preview.summary.exactMatches, 1);
   assert.equal(
     preview.candidates[0]?.matchedTransactionId,
-    "northern-authorised",
+    "dealer-authorised",
   );
 });
 
 test("date proximity and exact amount still do not override a contradictory merchant", () => {
   const csv = [
     "Date,Payee,Outflow",
-    "2026-08-17,RACV MELBOURNE,1211.76",
+    "2026-08-17,EXAMPLE INSURANCE MELBOURNE,1211.76",
   ].join("\n");
 
   const preview = previewTransactionCsvImport(
@@ -274,16 +274,16 @@ test("date proximity and exact amount still do not override a contradictory merc
 test("shared location token does not auto-match distinct merchants on the same date and amount", () => {
   const csv = [
     "Date,Payee,Outflow",
-    "2026-08-17,MONTMORENCY CAFE,25.00",
+    "2026-08-17,EXAMPLE LOCAL CAFE,25.00",
   ].join("\n");
 
   const preview = previewTransactionCsvImport(
     csv,
     [
       buildRegisterTransaction({
-        id: "montmorency-school",
+        id: "example-school",
         date: "2026-08-17",
-        payee: "Montmorency Secondary College",
+        payee: "Example Secondary College",
         outflow: 25,
       }),
     ],
@@ -297,28 +297,28 @@ test("shared location token does not auto-match distinct merchants on the same d
 test("recurring same-merchant same-amount transactions remain ambiguous when the two best dates are too close", () => {
   const csv = [
     "Date,Payee,Outflow",
-    "2026-08-17,BELONG,25.00",
+    "2026-08-17,EXAMPLE TELECOM,25.00",
   ].join("\n");
 
   const preview = previewTransactionCsvImport(
     csv,
     [
       buildRegisterTransaction({
-        id: "belong-same-day",
+        id: "telecom-same-day",
         date: "2026-08-17",
-        payee: "Belong",
+        payee: "Example Telecom",
         outflow: 25,
       }),
       buildRegisterTransaction({
-        id: "belong-one-day",
+        id: "telecom-one-day",
         date: "2026-08-16",
-        payee: "Belong",
+        payee: "Example Telecom",
         outflow: 25,
       }),
       buildRegisterTransaction({
-        id: "belong-six-days",
+        id: "telecom-six-days",
         date: "2026-08-11",
-        payee: "Belong",
+        payee: "Example Telecom",
         outflow: 25,
       }),
     ],
@@ -330,7 +330,7 @@ test("recurring same-merchant same-amount transactions remain ambiguous when the
 
   const candidates = preview.candidates[0]?.matchCandidates ?? [];
   assert.equal(candidates.length, 3);
-  assert.equal(candidates[0]?.transaction.id, "belong-same-day");
+  assert.equal(candidates[0]?.transaction.id, "telecom-same-day");
   assert.equal(candidates[0]?.amountCompetitionCount, 3);
   assert.ok(
     (candidates[0]?.matchScore ?? 0) >
@@ -341,22 +341,22 @@ test("recurring same-merchant same-amount transactions remain ambiguous when the
 test("a materially closer same-merchant candidate wins when it clears the confidence margin", () => {
   const csv = [
     "Date,Payee,Outflow",
-    "2026-08-17,BELONG,25.00",
+    "2026-08-17,EXAMPLE TELECOM,25.00",
   ].join("\n");
 
   const preview = previewTransactionCsvImport(
     csv,
     [
       buildRegisterTransaction({
-        id: "belong-same-day",
+        id: "telecom-same-day",
         date: "2026-08-17",
-        payee: "Belong",
+        payee: "Example Telecom",
         outflow: 25,
       }),
       buildRegisterTransaction({
-        id: "belong-six-days",
+        id: "telecom-six-days",
         date: "2026-08-11",
-        payee: "Belong",
+        payee: "Example Telecom",
         outflow: 25,
       }),
     ],
@@ -366,23 +366,23 @@ test("a materially closer same-merchant candidate wins when it clears the confid
   assert.equal(preview.summary.exactMatches, 1);
   assert.equal(
     preview.candidates[0]?.matchedTransactionId,
-    "belong-same-day",
+    "telecom-same-day",
   );
 });
 
 test("same-amount transactions outside the match window still contribute local competition context", () => {
   const csv = [
     "Date,Payee,Outflow",
-    "2026-08-17,RACV MELBOURNE,1211.76",
+    "2026-08-17,EXAMPLE INSURANCE MELBOURNE,1211.76",
   ].join("\n");
 
   const preview = previewTransactionCsvImport(
     csv,
     [
       buildRegisterTransaction({
-        id: "racv-match",
+        id: "insurance-match",
         date: "2026-08-17",
-        payee: "RACV MELBOURNE",
+        payee: "EXAMPLE INSURANCE MELBOURNE",
         outflow: 1211.76,
       }),
       buildRegisterTransaction({
@@ -399,14 +399,14 @@ test("same-amount transactions outside the match window still contribute local c
 
   const candidates = preview.candidates[0]?.matchCandidates ?? [];
   assert.equal(candidates.length, 1);
-  assert.equal(candidates[0]?.transaction.id, "racv-match");
+  assert.equal(candidates[0]?.transaction.id, "insurance-match");
   assert.equal(candidates[0]?.amountCompetitionCount, 2);
 });
 
 test("local amount uniqueness cannot override contradictory merchant evidence", () => {
   const csv = [
     "Date,Payee,Outflow",
-    "2026-08-17,RACV MELBOURNE,963.40",
+    "2026-08-17,EXAMPLE INSURANCE MELBOURNE,963.40",
   ].join("\n");
 
   const preview = previewTransactionCsvImport(
@@ -415,7 +415,7 @@ test("local amount uniqueness cannot override contradictory merchant evidence", 
       buildRegisterTransaction({
         id: "unrelated-rare-amount",
         date: "2026-08-17",
-        payee: "Harvey Norman",
+        payee: "Example Electronics",
         outflow: 963.4,
       }),
     ],
@@ -433,7 +433,7 @@ test("local amount uniqueness cannot override contradictory merchant evidence", 
 test("a review-only merchant candidate cannot veto a strong automatic match", () => {
   const csv = [
     "Date,Payee,Outflow",
-    "2026-08-17,MONTMORENCY SECONDARY COLLEGE,25.00",
+    "2026-08-17,EXAMPLE SECONDARY COLLEGE,25.00",
   ].join("\n");
 
   const preview = previewTransactionCsvImport(
@@ -442,13 +442,13 @@ test("a review-only merchant candidate cannot veto a strong automatic match", ()
       buildRegisterTransaction({
         id: "school",
         date: "2026-08-17",
-        payee: "Montmorency Secondary College",
+        payee: "Example Secondary College",
         outflow: 25,
       }),
       buildRegisterTransaction({
         id: "review-only",
         date: "2026-08-17",
-        payee: "Montmorency Cafe",
+        payee: "Example Local Cafe",
         outflow: 25,
       }),
     ],

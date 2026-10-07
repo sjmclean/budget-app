@@ -1,0 +1,18 @@
+import type { MerchantIconCatalogueEntry } from "./merchantIconCatalogue.js";
+
+export const BASE_MERCHANT_ICON_EXPANSION: readonly MerchantIconCatalogueEntry[] = [
+  { key: "aldi-au", name: "ALDI", regions: ["AU"], aliases: ["Aldi Australia"], category: "groceries", provenance: { kind: "bundled", reviewed: true }, asset: { kind: "sprite", spritePath: "bundled-merchants-01.svg", symbolId: "aldi-au" } },
+  { key: "target-au", name: "Target", regions: ["AU"], aliases: ["Target Australia"], category: "shopping", provenance: { kind: "community", reviewed: true }, asset: { kind: "sprite", spritePath: "base-reviewed.svg", symbolId: "target-au" } },
+  { key: "woolworths-au", name: "Woolworths", regions: ["AU"], aliases: ["Woolworths Metro", "Woolworths Online"], category: "groceries", provenance: { kind: "community", reviewed: true }, asset: { kind: "sprite", spritePath: "base-reviewed.svg", symbolId: "woolworths-au" } },
+  { key: "coles-au", name: "Coles", regions: ["AU"], aliases: ["Coles Supermarkets", "Coles Online"], category: "groceries", provenance: { kind: "bundled", reviewed: true }, asset: { kind: "sprite", spritePath: "bundled-merchants-03.svg", symbolId: "coles-au" } },
+  { key: "bunnings-au", name: "Bunnings", regions: ["AU"], aliases: ["Bunnings Warehouse"], category: "home", provenance: { kind: "bundled", reviewed: true }, asset: { kind: "sprite", spritePath: "bundled-merchants-03.svg", symbolId: "bunnings-au" } },
+  { key: "amazon-global", name: "Amazon", regions: ["GLOBAL"], aliases: ["Amazon Marketplace", "Amazon.com.au"], category: "marketplace", provenance: { kind: "community", reviewed: true }, asset: { kind: "sprite", spritePath: "base-reviewed.svg", symbolId: "amazon-global" } },
+  { key: "netflix-global", name: "Netflix", regions: ["GLOBAL"], aliases: [], category: "streaming-video", provenance: { kind: "community", reviewed: true }, asset: { kind: "sprite", spritePath: "base-reviewed.svg", symbolId: "netflix-global" } },
+  { key: "spotify-global", name: "Spotify", regions: ["GLOBAL"], aliases: [], category: "streaming-music", provenance: { kind: "community", reviewed: true }, asset: { kind: "sprite", spritePath: "base-reviewed.svg", symbolId: "spotify-global" } },
+  { key: "mcdonalds-global", name: "McDonald's", regions: ["GLOBAL"], aliases: ["McDonalds", "McDonald's Australia"], category: "food", provenance: { kind: "community", reviewed: true }, asset: { kind: "sprite", spritePath: "base-reviewed.svg", symbolId: "mcdonalds-global" } },
+  { key: "myer-au", name: "Myer", regions: ["AU"], aliases: [], category: "shopping", provenance: { kind: "bundled", reviewed: true }, asset: { kind: "sprite", spritePath: "bundled-merchants-06.svg", symbolId: "myer-au" } },
+  { key: "anaconda-au", name: "Anaconda", regions: ["AU"], aliases: ["Anaconda Stores"], category: "shopping", provenance: { kind: "community", reviewed: true }, asset: { kind: "sprite", spritePath: "retail-reviewed.svg", symbolId: "anaconda-au" } },
+  { key: "jb-hi-fi-au", name: "JB Hi-Fi", regions: ["AU"], aliases: ["JB Hifi", "JBHiFi"], category: "electronics", provenance: { kind: "bundled", reviewed: true }, asset: { kind: "sprite", spritePath: "bundled-merchants-04.svg", symbolId: "jb-hi-fi-au" } },
+  { key: "officeworks-au", name: "Officeworks", regions: ["AU"], aliases: [], category: "shopping", provenance: { kind: "bundled", reviewed: true }, asset: { kind: "sprite", spritePath: "bundled-merchants-06.svg", symbolId: "officeworks-au" } },
+  { key: "kmart-au", name: "Kmart", regions: ["AU"], aliases: ["Kmart Australia"], category: "shopping", provenance: { kind: "bundled", reviewed: true }, asset: { kind: "sprite", spritePath: "bundled-merchants-05.svg", symbolId: "kmart-au" } },
+] as const;

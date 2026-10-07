@@ -298,7 +298,7 @@ test("editing a ten-line split preserves every split and emits a split parent", 
 
   const transaction = row({
     id: "ten-line-split",
-    payee: "Department Of Education",
+    payee: "Example Employer",
     category: "Uncategorised",
     categoryId: undefined,
     inflow: 100,

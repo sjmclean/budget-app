@@ -17,7 +17,7 @@ function register(id: string): RegisterTransactionView {
   return {
     id,
     date: "2026-09-01",
-    payee: "Coles",
+    payee: "Example Grocer",
     category: "Groceries",
     outflow: 10.9,
     inflow: 0,
@@ -42,16 +42,16 @@ function candidate(id: string, rowNumber: number, date: string, matches: string[
   }));
   return {
     id,
-    parsed: { rowNumber, date, payee: "Coles", outflow: 10.9, inflow: 0, raw: {} },
+    parsed: { rowNumber, date, payee: "Example Grocer", outflow: 10.9, inflow: 0, raw: {} },
     status: "new",
     reason: "Review",
     matchCandidates,
     selected: true,
     errors: [],
     lifecycle: {
-      source: { rowNumber, date, rawPayee: "Coles", outflow: 10.9, inflow: 0 },
-      merchant: { canonicalPayee: "Coles", suggestedCategoryName: "Groceries", transferAccountName: null },
-      proposal: { payee: "Coles", categoryName: "Groceries", transferAccountName: null },
+      source: { rowNumber, date, rawPayee: "Example Grocer", outflow: 10.9, inflow: 0 },
+      merchant: { canonicalPayee: "Example Grocer", suggestedCategoryName: "Groceries", transferAccountName: null },
+      proposal: { payee: "Example Grocer", categoryName: "Groceries", transferAccountName: null },
     },
   };
 }
@@ -171,7 +171,7 @@ test("returning to match options may reclaim R when it remains unclaimed", () =>
   assert.equal(ownership.get("register-r"), "import-a");
 });
 
-test("two Coles rows one day apart cannot accept the same processed register match", () => {
+test("two Example Grocer rows one day apart cannot accept the same processed register match", () => {
   const first = matched(candidate("coles-1", 1, "2026-09-01", ["register-coles"]), "register-coles");
   const second = candidate("coles-2", 2, "2026-09-02", ["register-coles"]);
   const ownership = getRegisterMatchOwnership({ candidates: [second], processedCandidates: [processed(first)] });

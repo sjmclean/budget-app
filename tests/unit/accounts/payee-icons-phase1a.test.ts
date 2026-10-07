@@ -36,11 +36,11 @@ describe("payee icon reference and resolver", () => {
     const first = resolvePayeeIcon({ payee: payee("p-1", "Woolworths") });
     const second = resolvePayeeIcon({ payee: { ...payee("p-1", "Woolworths"), rawPayee: "ignored" } as never });
     assert.deepEqual(first, second);
-    assert.deepEqual(first, { kind: "sprite", href: "/merchant-icons/user-seed-08.svg#woolworths-au" });
+    assert.deepEqual(first, { kind: "sprite", href: "/merchant-icons/base-reviewed.svg#woolworths-au" });
     assert.equal(resolvePayeeIcon({ payee: payee("p-1", "Woolworths", "builtin:v1:groceries") }).kind, "builtin");
     assert.deepEqual(
       resolvePayeeIcon({ payee: payee("p-1", "Woolworths", "merchant:v1:coles-au") }),
-      { kind: "sprite", href: "/merchant-icons/user-seed-03.svg#coles-au" },
+      { kind: "sprite", href: "/merchant-icons/bundled-merchants-03.svg#coles-au" },
     );
     assert.equal(resolvePayeeIcon({ payee: payee("p-1", "Unknown merchant") }).kind, "initials");
     assert.equal(resolvePayeeIcon({ payee: payee("p-1", "Woolworths", `content:v1:${"b".repeat(64)}`) }).kind, "initials");
@@ -52,10 +52,10 @@ describe("payee icon reference and resolver", () => {
 
   it("preserves Australian automatic matches while respecting regional identities", () => {
     assert.deepEqual(resolvePayeeIcon({ payee: payee("aldi", "ALDI") }), {
-      kind: "sprite", href: "/merchant-icons/user-seed-01.svg#aldi-au",
+      kind: "sprite", href: "/merchant-icons/bundled-merchants-01.svg#aldi-au",
     });
     assert.deepEqual(resolvePayeeIcon({ payee: payee("target", "Target") }), {
-      kind: "sprite", href: "/merchant-icons/user-seed-07.svg#target-au",
+      kind: "sprite", href: "/merchant-icons/base-reviewed.svg#target-au",
     });
     assert.equal(resolvePayeeIcon({ payee: payee("aldi-uk", "Aldi UK") }).kind, "sprite");
     assert.equal(resolvePayeeIcon({ payee: payee("aldi-us", "Aldi US") }).kind, "sprite");

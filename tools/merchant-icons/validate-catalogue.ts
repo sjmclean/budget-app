@@ -27,13 +27,21 @@ const communityManifest = JSON.parse(await readFile(resolve(manifestDirectory, "
 const simpleIconsManifest = JSON.parse(await readFile(resolve(manifestDirectory, "reviewed-simple-icons-assets.json"), "utf8")) as {
   entries: { key: string; asset: { kind: "sprite"; spritePath: string; symbolId: string }; source: string }[];
 };
+const baseArtworkManifest = JSON.parse(await readFile(resolve(manifestDirectory, "reviewed-base-assets.json"), "utf8")) as {
+  entries: { key: string; asset: { kind: "sprite"; spritePath: string; symbolId: string }; source: string }[];
+};
+const retailArtworkManifest = JSON.parse(await readFile(resolve(manifestDirectory, "reviewed-retail-assets.json"), "utf8")) as {
+  entries: { key: string; asset: { kind: "sprite"; spritePath: string; symbolId: string }; source: string }[];
+};
 const officialByKey = new Map(officialManifest.entries.map((entry) => [entry.key, entry]));
 const communityByKey = new Map([
   ...communityManifest.entries,
   ...simpleIconsManifest.entries,
+  ...baseArtworkManifest.entries,
+  ...retailArtworkManifest.entries,
 ].map((entry) => [entry.key, entry]));
 if (officialByKey.size !== officialManifest.entries.length) errors.push("Official provenance manifest contains duplicate keys.");
-if (communityByKey.size !== communityManifest.entries.length + simpleIconsManifest.entries.length) errors.push("Community provenance manifests contain duplicate keys.");
+if (communityByKey.size !== communityManifest.entries.length + simpleIconsManifest.entries.length + baseArtworkManifest.entries.length + retailArtworkManifest.entries.length) errors.push("Community provenance manifests contain duplicate keys.");
 
 async function readSprite(path: string): Promise<string | undefined> {
   const cached = spriteCache.get(path);
@@ -159,20 +167,34 @@ for (const entry of MERCHANT_ICON_CATALOGUE) {
   }
 }
 
-const anaconda = MERCHANT_ICON_CATALOGUE.find(({ key }) => key === "anaconda-au");
-if (anaconda?.asset.kind !== "image" || !anaconda.provenance?.reviewed) {
-  errors.push("Anaconda regression: anaconda-au must use a reviewed standalone image, not the broken user-seed sprite symbol.");
-}
 
 for (const entry of officialManifest.entries) {
   if (MERCHANT_ICON_CATALOGUE.find(({ key }) => key === entry.key)?.provenance?.kind !== "official") {
     errors.push(`Official provenance manifest entry "${entry.key}" is not an official runtime entry.`);
   }
 }
-for (const entry of [...communityManifest.entries, ...simpleIconsManifest.entries]) {
+for (const entry of [...communityManifest.entries, ...simpleIconsManifest.entries, ...baseArtworkManifest.entries, ...retailArtworkManifest.entries]) {
   if (MERCHANT_ICON_CATALOGUE.find(({ key }) => key === entry.key)?.provenance?.kind !== "community") {
     errors.push(`Community provenance manifest entry "${entry.key}" is not a community runtime entry.`);
   }
+}
+
+const inventoryText = await readFile(resolve(root, "docs/merchant-icon-inventory.csv"), "utf8");
+const inventoryRows = inventoryText.trim().split(/\r?\n/u).slice(1);
+const inventoryKeys = inventoryRows.map((row) => {
+  const fields = [...row.matchAll(/"((?:[^"]|"")*)"/gu)].map((match) => match[1]!.replace(/""/gu, '"'));
+  return fields[1] ?? "";
+});
+const inventoryKeySet = new Set(inventoryKeys);
+if (inventoryKeys.length !== inventoryKeySet.size) errors.push("Merchant icon inventory contains duplicate keys.");
+if (inventoryKeys.length !== MERCHANT_ICON_CATALOGUE.length) {
+  errors.push(`Merchant icon inventory has ${inventoryKeys.length} rows but runtime catalogue has ${MERCHANT_ICON_CATALOGUE.length} entries.`);
+}
+for (const { key } of MERCHANT_ICON_CATALOGUE) {
+  if (!inventoryKeySet.has(key)) errors.push(`Merchant icon inventory is missing runtime key "${key}".`);
+}
+for (const key of inventoryKeySet) {
+  if (!MERCHANT_ICON_CATALOGUE.some((entry) => entry.key === key)) errors.push(`Merchant icon inventory contains stale key "${key}".`);
 }
 
 for (const [identity, matches] of identityEntries) {

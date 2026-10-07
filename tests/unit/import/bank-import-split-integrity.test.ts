@@ -70,13 +70,13 @@ function importedSplitCandidate(): TransactionImportCandidate {
     parsed: {
       rowNumber: 1,
       date: "2026-08-20",
-      payee: "WOOLWORTHS 1234",
+      payee: "EXAMPLE GROCER 1234",
       memo: "Bank purchase",
       inflow: 0,
       outflow: 150,
       raw: {
         date: "2026-08-20",
-        payee: "WOOLWORTHS 1234",
+        payee: "EXAMPLE GROCER 1234",
         amount: "-150.00",
       },
     },
@@ -89,18 +89,18 @@ function importedSplitCandidate(): TransactionImportCandidate {
       source: {
         rowNumber: 1,
         date: "2026-08-20",
-        rawPayee: "WOOLWORTHS 1234",
+        rawPayee: "EXAMPLE GROCER 1234",
         memo: "Bank purchase",
         inflow: 0,
         outflow: 150,
       },
       merchant: {
-        canonicalPayee: "Woolworths",
+        canonicalPayee: "Example Grocer",
         suggestedCategoryName: "Groceries",
         transferAccountName: null,
       },
       proposal: {
-        payee: "Woolworths",
+        payee: "Example Grocer",
         categoryName: "Split",
         transferAccountName: null,
         splitLines: balancedSplitLines(),
@@ -147,8 +147,8 @@ function matchedSplitTransaction(): RegisterTransactionView {
     id: "register-split-1",
     date: "2026-08-20",
     attachmentCount: 0,
-    payee: "Woolworths",
-    rawPayee: "WOOLWORTHS 1234",
+    payee: "Example Grocer",
+    rawPayee: "EXAMPLE GROCER 1234",
     category: "Split...",
     inflow: 0,
     outflow: 150,
@@ -177,7 +177,7 @@ function matchedSplitCandidate(): TransactionImportCandidate {
     parsed: {
       rowNumber: 1,
       date: "2026-08-20",
-      payee: "WOOLWORTHS 1234",
+      payee: "EXAMPLE GROCER 1234",
       inflow: 0,
       outflow: 150,
       raw: {},
@@ -192,17 +192,17 @@ function matchedSplitCandidate(): TransactionImportCandidate {
       source: {
         rowNumber: 1,
         date: "2026-08-20",
-        rawPayee: "WOOLWORTHS 1234",
+        rawPayee: "EXAMPLE GROCER 1234",
         inflow: 0,
         outflow: 150,
       },
       merchant: {
-        canonicalPayee: "Woolworths",
+        canonicalPayee: "Example Grocer",
         suggestedCategoryName: null,
         transferAccountName: null,
       },
       proposal: {
-        payee: "Woolworths",
+        payee: "Example Grocer",
         categoryName: "Split",
         transferAccountName: null,
         splitLines: balancedSplitLines(),
@@ -352,7 +352,7 @@ test("new imported splits learn merchant identity and account but no category ev
   const plan = prepareImportCommit(importedSession(candidate));
 
   const merchant = plan.merchantKnowledge.merchants.find(
-    (entry) => entry.preferredName === "Woolworths",
+    (entry) => entry.preferredName === "Example Grocer",
   );
 
   assert.ok(merchant, "merchant identity should still be learned");
@@ -415,8 +415,8 @@ test("historical split presentation is canonicalized before the atomic update", 
   const historical: RegisterTransactionView = {
     ...matchedSplitTransaction(),
     id: "historical-split-1",
-    payee: "Old Woolworths",
-    rawPayee: "WOOLWORTHS 1234",
+    payee: "Old Example Grocer",
+    rawPayee: "EXAMPLE GROCER 1234",
     category: "Split...",
   };
   const session = matchedSession(candidate);
@@ -468,7 +468,7 @@ test("edited matched splits also produce no merchant category evidence", () => {
   assert.equal(plan.matchedTransactionUpdates.length, 1);
 
   const merchant = plan.merchantKnowledge.merchants.find(
-    (entry) => entry.preferredName === "Woolworths",
+    (entry) => entry.preferredName === "Example Grocer",
   );
 
   assert.ok(merchant);

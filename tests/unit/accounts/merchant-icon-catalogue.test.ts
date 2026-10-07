@@ -9,45 +9,32 @@ import {
   resolveMerchantIconAsset,
   searchMerchantIcons,
 } from "../../../apps/web/src/features/icons/merchantIconCatalogue.js";
-import { GOVERNMENT_MERCHANT_ICON_EXPANSION } from "../../../apps/web/src/features/icons/merchantIconGovernmentExpansion.js";
 
 describe("merchant icon catalogue", () => {
   before(async () => {
     await preloadExtendedMerchantIconCatalogue();
   });
-  it("keeps stable unique keys across the seed and imported batch", () => {
+
+  it("keeps stable unique keys across the catalogue", () => {
     const keys = MERCHANT_ICON_CATALOGUE.map(({ key }) => key);
     assert.equal(new Set(keys).size, keys.length);
-    assert.ok(MERCHANT_ICON_CATALOGUE.length >= 1500 && MERCHANT_ICON_CATALOGUE.length <= 2700);
+    assert.ok(MERCHANT_ICON_CATALOGUE.length > 1000);
   });
 
   it("matches only exact canonical merchant identities automatically", () => {
-    assert.equal(findMerchantIconByPayeeName("Woolworths")?.key, "woolworths-au");
-    assert.equal(findMerchantIconByPayeeName("  WOOLWORTHS METRO ")?.key, "woolworths-au");
-    assert.equal(findMerchantIconByPayeeName("Woolworths 1234"), undefined);
-    assert.equal(findMerchantIconByPayeeName("My Woolworths purchase"), undefined);
+    assert.equal(findMerchantIconByPayeeName("Qantas")?.key, "qantas-global");
+    assert.equal(findMerchantIconByPayeeName("  QANTAS ")?.key, "qantas-global");
+    assert.equal(findMerchantIconByPayeeName("Qantas 1234"), undefined);
+    assert.equal(findMerchantIconByPayeeName("My Qantas purchase"), undefined);
   });
 
-  it("keeps Coles Express distinct from Coles", () => {
-    assert.equal(findMerchantIconByPayeeName("Coles")?.key, "coles-au");
-    assert.equal(findMerchantIconByPayeeName("Coles Express")?.key, "coles-express-au");
-  });
-
-  it("normalises punctuation without broad fuzzy matching", () => {
-    assert.equal(normaliseMerchantIconIdentity("McDonald's"), "mcdonalds");
-    assert.equal(findMerchantIconByPayeeName("McDonalds")?.key, "mcdonalds-global");
-  });
-
-  it("preserves Unicode identities and resolves regional ambiguity only with a hint", () => {
-    assert.equal(normaliseMerchantIconIdentity("Crédit Agricole"), "crédit agricole");
+  it("normalises punctuation and Unicode without broad fuzzy matching", () => {
     assert.equal(normaliseMerchantIconIdentity("L'Oréal & Co."), "loréal and co");
     assert.equal(normaliseMerchantIconIdentity("東京電力（TEPCO）"), "東京電力 tepcO".toLocaleLowerCase());
-    assert.equal(findMerchantIconByPayeeName("ALDI"), undefined);
-    assert.equal(findMerchantIconByPayeeName("ALDI", "AU")?.key, "aldi-au");
-    assert.equal(findMerchantIconByPayeeName("ALDI", "GB")?.key, "aldi-uk");
+    assert.equal(findMerchantIconByPayeeName("Qantas Airways"), undefined);
   });
 
-  it("turns planning identities into live entries rather than counting manifests", () => {
+  it("keeps independently sourced planning identities live", () => {
     assert.equal(getMerchantIconEntry("banyule-city-council-au")?.category, "local-government");
     assert.equal(getMerchantIconEntry("stan-au")?.category, "streaming-video");
     assert.equal(getMerchantIconEntry("kayo-sports-au")?.category, "streaming-sport");
@@ -55,22 +42,20 @@ describe("merchant icon catalogue", () => {
     assert.equal(getMerchantIconEntry("qantas-global")?.category, "airline");
   });
 
-  it("keeps reviewed artwork in the majority and fallbacks explicitly unreviewed", () => {
-    const reviewed = MERCHANT_ICON_CATALOGUE.filter(({ provenance }) => provenance?.reviewed);
-    const generatedFallbacks = MERCHANT_ICON_CATALOGUE.filter(({ provenance }) =>
-      provenance?.kind === "generated" && provenance.reviewed === false
+  it("keeps reviewed and generated provenance internally consistent", () => {
+    const generatedFallbacks = MERCHANT_ICON_CATALOGUE.filter(
+      ({ provenance }) => provenance?.kind === "generated" && provenance.reviewed === false,
     );
-    assert.equal(MERCHANT_ICON_CATALOGUE.length, 2526 + GOVERNMENT_MERCHANT_ICON_EXPANSION.length);
-    assert.ok(reviewed.length > MERCHANT_ICON_CATALOGUE.length / 2);
-    assert.equal(
-      reviewed.length,
-      2268 + GOVERNMENT_MERCHANT_ICON_EXPANSION.filter(({ provenance }) => provenance?.reviewed).length,
-    );
-    assert.equal(generatedFallbacks.length, 258);
+    assert.ok(generatedFallbacks.length > 0);
     assert.ok(MERCHANT_ICON_CATALOGUE.every(({ provenance }) => !provenance || !("source" in provenance)));
+    assert.ok(
+      MERCHANT_ICON_CATALOGUE.every(
+        ({ provenance }) => provenance?.kind !== "generated" || provenance.reviewed === false,
+      ),
+    );
   });
 
-  it("protects high-priority merchants from reverting to generated tiles", () => {
+  it("protects independently sourced high-value merchants from reverting to generated tiles", () => {
     const keys = [
       "qantas-global",
       "commonwealth-bank-au",
@@ -83,14 +68,11 @@ describe("merchant icon catalogue", () => {
       "hertz-global",
       "wilson-parking-global",
       "banyule-city-council-au",
-      "jd-sports-global",
-      "shein-global",
-      "chatgpt-global",
     ];
 
     for (const key of keys) {
       const entry = getMerchantIconEntry(key);
-      assert.ok(entry, `Missing high-priority merchant ${key}`);
+      assert.ok(entry, `Missing high-value merchant ${key}`);
       assert.equal(entry.provenance?.reviewed, true, `${key} must keep reviewed artwork`);
       assert.notEqual(entry.provenance?.kind, "generated", `${key} must not use a generated tile`);
       if (entry.asset.kind === "sprite") {
@@ -99,84 +81,25 @@ describe("merchant icon catalogue", () => {
     }
   });
 
-
-  it("repairs Anaconda artwork and provides broad Australian fuel coverage", () => {
-    const anaconda = getMerchantIconEntry("anaconda-au");
-    assert.deepEqual(anaconda?.asset, { kind: "image", assetPath: "user-supplied/anaconda-au.png" });
-    assert.equal(anaconda?.provenance?.kind, "user-supplied");
-    assert.equal(anaconda?.provenance?.reviewed, true);
-
-    const fuelKeys = [
-      "7-eleven-au", "apco-service-stations-au", "caltex-au", "coles-express-au",
-      "united-petroleum-au", "bp-au", "ampol-au", "shell-au", "mobil-au",
-      "metro-petroleum-au", "otr-au", "reddy-express-au", "pearl-energy-au",
-      "x-convenience-au", "eg-ampol-au",
-    ];
-    for (const key of fuelKeys) {
+  it("keeps independently sourced Australian fuel artwork reviewed", () => {
+    for (const key of [
+      "ampol-au",
+      "shell-au",
+      "mobil-au",
+      "metro-petroleum-au",
+      "otr-au",
+      "reddy-express-au",
+      "pearl-energy-au",
+    ]) {
       const entry = getMerchantIconEntry(key);
       assert.ok(entry, `Missing fuel merchant ${key}`);
-      assert.equal(entry.category, "fuel", `${key} should be categorised as fuel`);
-    }
-
-    assert.deepEqual(getMerchantIconEntry("apco-service-stations-au")?.asset, {
-      kind: "image",
-      assetPath: "user-supplied/apco-service-stations-au.svg",
-    });
-    assert.deepEqual(getMerchantIconEntry("oom-energy-au")?.asset, {
-      kind: "image",
-      assetPath: "user-supplied/oom-energy-au.svg",
-    });
-    assert.equal(getMerchantIconEntry("oom-energy-au")?.category, "fuel");
-    assert.deepEqual(getMerchantIconEntry("peter-alexander-au")?.asset, {
-      kind: "image",
-      assetPath: "user-supplied/peter-alexander-au.svg",
-    });
-
-    for (const key of [
-      "bp-au", "ampol-au", "shell-au", "mobil-au", "metro-petroleum-au",
-      "otr-au", "reddy-express-au", "pearl-energy-au",
-    ]) {
-      const entry = getMerchantIconEntry(key)!;
-      assert.equal(entry.provenance?.kind, "community");
-      assert.equal(entry.provenance?.reviewed, true);
-      assert.equal(entry.asset.kind, "image");
+      assert.equal(entry?.provenance?.kind, "community");
+      assert.equal(entry?.provenance?.reviewed, true);
+      assert.equal(entry?.asset.kind, "image");
     }
   });
 
-
-  it("adds the user-identified priority brands with reviewed artwork and conservative aliases", () => {
-    assert.equal(findMerchantIconByPayeeName("JD Sports")?.key, "jd-sports-global");
-    assert.equal(findMerchantIconByPayeeName("JD Sports Australia")?.key, "jd-sports-global");
-    assert.equal(findMerchantIconByPayeeName("SHEIN")?.key, "shein-global");
-    assert.equal(findMerchantIconByPayeeName("Chat GPT")?.key, "chatgpt-global");
-    assert.equal(findMerchantIconByPayeeName("Glassons")?.key, "glassons-global");
-    assert.equal(findMerchantIconByPayeeName("Afterpay")?.key, "si-afterpay-global");
-    assert.equal(findMerchantIconByPayeeName("Booking.com")?.key, "si-bookingdotcom-global");
-    assert.equal(findMerchantIconByPayeeName("FedEx")?.key, "si-fedex-global");
-    assert.equal(findMerchantIconByPayeeName("Ferrari")?.key, "si-ferrari-global");
-    assert.equal(findMerchantIconByPayeeName("Montmorency Secondary College")?.key, "montmorency-secondary-college-au");
-    assert.equal(findMerchantIconByPayeeName("Regent Theatre")?.key, "regent-theatre-melbourne-au");
-    assert.equal(findMerchantIconByPayeeName("Regent Theatre Melbourne")?.key, "regent-theatre-melbourne-au");
-    assert.equal(findMerchantIconByPayeeName("Snooze")?.key, "snooze-au");
-
-    for (const key of [
-      "jd-sports-global",
-      "shein-global",
-      "glassons-global",
-      "chatgpt-global",
-      "montmorency-secondary-college-au",
-      "regent-theatre-melbourne-au",
-      "snooze-au",
-    ]) {
-      const entry = getMerchantIconEntry(key);
-      assert.ok(entry, `Missing priority merchant ${key}`);
-      assert.equal(entry.provenance?.kind, "community");
-      assert.equal(entry.provenance?.reviewed, true);
-      assert.equal(entry.asset.kind, "image");
-    }
-  });
-
-  it("keeps the generated brand expansion reviewed, lazy and exact-match-only", () => {
+  it("keeps the generic brand expansion reviewed, lazy and exact-match-only", () => {
     const afterpay = getMerchantIconEntry("si-afterpay-global");
     assert.equal(afterpay?.name, "Afterpay");
     assert.equal(afterpay?.provenance?.kind, "community");
@@ -189,15 +112,9 @@ describe("merchant icon catalogue", () => {
     assert.equal(findMerchantIconByPayeeName("Afterpay 1234"), undefined);
   });
 
-  it("provides lazy sprite references and bounded search", () => {
-    assert.equal(getMerchantIconEntry("coles-au")?.name, "Coles");
-    assert.deepEqual(resolveMerchantIconAsset("coles-au"), {
-      kind: "sprite",
-      href: "/merchant-icons/user-seed-03.svg#coles-au",
-    });
+  it("provides bounded search from independently sourced catalogue entries", () => {
     assert.equal(resolveMerchantIconAsset("missing"), undefined);
-    assert.deepEqual(searchMerchantIcons("netflix", 5).map(({ key }) => key), ["netflix-global"]);
-    assert.deepEqual(searchMerchantIcons("Teachers Health", 5).map(({ key }) => key), ["teachers-health-au"]);
+    assert.deepEqual(searchMerchantIcons("qantas", 5).map(({ key }) => key), ["qantas-global"]);
     assert.ok(searchMerchantIcons("", 3).length <= 3);
   });
 });

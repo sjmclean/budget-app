@@ -1,7 +1,6 @@
-import { IMPORTED_MERCHANT_ICON_BATCH } from "./merchantIconImportedBatch.js";
+import { BASE_MERCHANT_ICON_EXPANSION } from "./merchantIconBaseExpansion.js";
 import { MAJOR_MERCHANT_ICON_EXPANSION } from "./merchantIconMajorExpansion.js";
 import { FUEL_MERCHANT_ICON_EXPANSION, MERCHANT_ICON_ENTRY_OVERRIDES } from "./merchantIconFuelExpansion.js";
-import { PRIORITY_MERCHANT_ICON_EXPANSION } from "./merchantIconPriorityExpansion.js";
 import { GOVERNMENT_MERCHANT_ICON_EXPANSION } from "./merchantIconGovernmentExpansion.js";
 
 export type MerchantIconAsset =
@@ -17,7 +16,7 @@ export type MerchantIconCategory =
   | "streaming-video" | "streaming-music" | "streaming-sport" | "gaming-subscription"
   | "digital" | "marketplace" | "automotive" | "services" | "local-government" | "other";
 
-export type MerchantIconProvenanceKind = "official" | "community" | "user-supplied" | "generated";
+export type MerchantIconProvenanceKind = "official" | "community" | "bundled" | "generated";
 
 export interface MerchantIconProvenance {
   readonly kind: MerchantIconProvenanceKind;
@@ -34,39 +33,14 @@ export interface MerchantIconCatalogueEntry {
   readonly asset: MerchantIconAsset;
 }
 
-const USER_SEED_SPRITE = (spritePath: string, symbolId: string): MerchantIconAsset => ({
-  kind: "sprite",
-  spritePath,
-  symbolId,
-});
-
-const SEED_MERCHANT_ICONS: readonly MerchantIconCatalogueEntry[] = [
-  { key: "coles-au", name: "Coles", regions: ["AU"], aliases: ["Coles Supermarkets", "Coles Online"], asset: USER_SEED_SPRITE("user-seed-03.svg", "coles-au") },
-  { key: "woolworths-au", name: "Woolworths", regions: ["AU"], aliases: ["Woolworths Metro", "Woolworths Online"], asset: USER_SEED_SPRITE("user-seed-08.svg", "woolworths-au") },
-  { key: "aldi-au", name: "ALDI", regions: ["AU"], aliases: ["Aldi Australia"], asset: USER_SEED_SPRITE("user-seed-01.svg", "aldi-au") },
-  { key: "bunnings-au", name: "Bunnings", regions: ["AU"], aliases: ["Bunnings Warehouse"], asset: USER_SEED_SPRITE("user-seed-03.svg", "bunnings-au") },
-  { key: "amazon-global", name: "Amazon", regions: ["GLOBAL"], aliases: ["Amazon Marketplace", "Amazon.com.au"], asset: USER_SEED_SPRITE("user-seed-01.svg", "amazon-global") },
-  { key: "netflix-global", name: "Netflix", regions: ["GLOBAL"], aliases: [], asset: USER_SEED_SPRITE("user-seed-06.svg", "netflix-global") },
-  { key: "spotify-global", name: "Spotify", regions: ["GLOBAL"], aliases: [], asset: USER_SEED_SPRITE("user-seed-07.svg", "spotify-global") },
-  { key: "mcdonalds-global", name: "McDonald's", regions: ["GLOBAL"], aliases: ["McDonalds", "McDonald's Australia"], asset: USER_SEED_SPRITE("user-seed-05.svg", "mcdonalds-global") },
-] as const;
-
 function applyMerchantIconOverride(entry: MerchantIconCatalogueEntry): MerchantIconCatalogueEntry {
   const override = MERCHANT_ICON_ENTRY_OVERRIDES[entry.key];
   return override ? { ...entry, ...override } : entry;
 }
 
 const merchantIconCatalogue: MerchantIconCatalogueEntry[] = [
-  ...[...SEED_MERCHANT_ICONS, ...IMPORTED_MERCHANT_ICON_BATCH].map((entry) => applyMerchantIconOverride({
-    ...entry,
-    category: entry.category ?? "other" as const,
-    provenance: entry.provenance ?? {
-      kind: "user-supplied" as const,
-      reviewed: true,
-    },
-  })),
+  ...BASE_MERCHANT_ICON_EXPANSION,
   ...MAJOR_MERCHANT_ICON_EXPANSION.map(applyMerchantIconOverride),
-  ...PRIORITY_MERCHANT_ICON_EXPANSION,
   ...GOVERNMENT_MERCHANT_ICON_EXPANSION,
   ...FUEL_MERCHANT_ICON_EXPANSION,
 ];
@@ -91,8 +65,12 @@ for (const entry of merchantIconCatalogue) indexMerchantIconEntry(entry);
 let extendedCataloguePromise: Promise<void> | null = null;
 
 export function preloadExtendedMerchantIconCatalogue(): Promise<void> {
-  extendedCataloguePromise ??= import("./merchantIconSimpleBrands.js").then(({ SIMPLE_BRAND_ICON_EXPANSION }) => {
-    for (const entry of SIMPLE_BRAND_ICON_EXPANSION) {
+  extendedCataloguePromise ??= Promise.all([
+    import("./merchantIconBundledExpansion.js"),
+    import("./merchantIconRetailExpansion.js"),
+    import("./merchantIconSimpleBrands.js"),
+  ]).then(([{ BUNDLED_MERCHANT_ICON_EXPANSION }, { RETAIL_MERCHANT_ICON_EXPANSION }, { SIMPLE_BRAND_ICON_EXPANSION }]) => {
+    for (const entry of [...BUNDLED_MERCHANT_ICON_EXPANSION, ...RETAIL_MERCHANT_ICON_EXPANSION, ...SIMPLE_BRAND_ICON_EXPANSION]) {
       if (entriesByKey.has(entry.key)) {
         throw new TypeError(`Extended merchant icon key collides with the core catalogue: ${entry.key}`);
       }

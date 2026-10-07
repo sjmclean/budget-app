@@ -100,7 +100,7 @@ test("editing a possible match converts the secondary row to the proposal while 
       ...possible.lifecycle,
       proposal: {
         ...possible.lifecycle.proposal,
-        payee: "STAN",
+        payee: "EXAMPLE STREAMING",
         categoryName: "Streaming",
       },
     },

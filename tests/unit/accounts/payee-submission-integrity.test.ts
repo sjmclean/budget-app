@@ -9,12 +9,12 @@ test("unknown payee resolves only when submission resolver is invoked", async ()
 
   const resolved = await resolvePayeeForSubmission(
     {
-      payee: "  Ho   Hum Pty  ",
+      payee: "  Example   Trading Pty  ",
       payeeId: undefined,
     },
     async (name) => {
       calls += 1;
-      assert.equal(name, "  Ho   Hum Pty  ");
+      assert.equal(name, "  Example   Trading Pty  ");
       return {
         id: "payee-ho-hum",
         name: "Ho Hum Pty",

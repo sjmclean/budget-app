@@ -4,8 +4,8 @@ import type { PayeeView } from "../../../apps/web/src/features/accounts/payeeSer
 import { resolveRegisterPayee } from "../../../apps/web/src/features/accounts/registerMerchantIcons.js";
 
 const payee: PayeeView = {
-  id: "payee-aldi",
-  name: "ALDI",
+  id: "payee-example-grocer",
+  name: "Example Grocer",
   createdAt: "2026-08-29T00:00:00.000Z",
   lastUsedAt: "2026-08-29T00:00:00.000Z",
   useCount: 1,
@@ -14,9 +14,9 @@ const payee: PayeeView = {
 const payeesById = new Map([[payee.id, payee]]);
 
 test("register merchant icon lookup uses only canonical payee identity", () => {
-  assert.equal(resolveRegisterPayee(payeesById, { payee: "ALDI", payeeId: payee.id }), payee);
-  assert.equal(resolveRegisterPayee(payeesById, { payee: "ALDI" }), undefined);
-  assert.equal(resolveRegisterPayee(payeesById, { payee: "ALDI", payeeId: "missing" }), undefined);
+  assert.equal(resolveRegisterPayee(payeesById, { payee: "Example Grocer", payeeId: payee.id }), payee);
+  assert.equal(resolveRegisterPayee(payeesById, { payee: "Example Grocer" }), undefined);
+  assert.equal(resolveRegisterPayee(payeesById, { payee: "Example Grocer", payeeId: "missing" }), undefined);
   assert.equal(resolveRegisterPayee(payeesById, { payee: "", payeeId: payee.id }), undefined);
 });
 

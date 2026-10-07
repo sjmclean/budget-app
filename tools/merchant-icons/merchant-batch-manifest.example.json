@@ -1,18 +1,24 @@
 {
-  "batch": "user-seed",
+  "batch": "example-public-batch",
   "entries": [
     {
       "sourceFile": "merchant-logo.png",
       "key": "merchant-name-au",
       "name": "Merchant Name",
-      "regions": ["AU"],
-      "aliases": ["Merchant Name Online"]
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Merchant Name Online"
+      ]
     },
     {
       "sourceFile": "needs-review.png",
       "key": "needs-review-au",
       "name": "Needs Review",
-      "regions": ["AU"],
+      "regions": [
+        "AU"
+      ],
       "aliases": [],
       "include": false
     }
