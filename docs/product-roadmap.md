@@ -1,6 +1,6 @@
 # Product Roadmap
 
-*Last reconciled: 4 October 2026 against `master` at `1f844a7b5fc704d09b592364c783793b7c83babf`.*
+*Last reconciled: 7 October 2026 against `master` at `1d3d7432d63047b29148ab9f3df990fc2100a82e`.*
 
 This is the **single authoritative product roadmap** for Budget App.
 
@@ -259,7 +259,14 @@ Verify:
 Fix only concrete defects found. Do not redesign the importer merely for code
 cleanliness.
 
-## 1 — Performance/navigation/tab-lifecycle close-out review — PLANNED
+## 1 — Full-application performance review + navigation/tab-lifecycle close-out — PLANNED
+
+Perform an explicit application-wide performance review rather than treating
+performance as permanently finished once the current optimisation programme
+closes. Establish representative budgets/datasets and measure the user-visible
+critical paths across startup, Budget, Register, imports, Scheduled Transactions,
+Reports and common navigation flows. Record regressions and keep benchmark
+evidence repeatable so future feature work can be checked against the baseline.
 
 Regression-review the finished performance programme in the VM/browser.
 
@@ -432,6 +439,28 @@ Cross-cutting polish after the major workflows:
 Also perform the dedicated Settings UX review that was present in the older
 roadmap and should remain explicit.
 
+## 1 — Privacy and repository data-sanitisation audit — PLANNED
+
+Audit the repository and test/runtime assets so the project contains no
+developer/user-specific private financial data or other personal material.
+
+Review:
+
+- unit, integration and browser test fixtures;
+- seed/demo budgets and transaction datasets;
+- snapshots and golden files;
+- import samples and archived test exports;
+- documentation examples and screenshots;
+- logs, diagnostics and checked-in debugging artifacts;
+- names, payees, account names, balances, transaction descriptions, identifiers
+  and other data that may have originated from a real personal budget;
+- git-tracked generated artifacts where personal data may have been copied.
+
+Replace personal material with realistic but entirely synthetic/generic data.
+Add lightweight guardrails where practical so future tests and fixtures remain
+generic. This audit is about repository/product privacy hygiene and must not
+weaken financial correctness coverage.
+
 ## 1 — Codebase health / runtime close-out — PLANNED, BOUNDED
 
 Do not turn this into another architecture rewrite.
@@ -508,6 +537,30 @@ Any future automatic bank feed must flow through the existing
 proposal/matching/provenance architecture rather than create a second import
 authority.
 
+### Personal bank connectivity / local bank connectors — CANDIDATE
+
+Consider a user-owned local bank-transaction retrieval system as an alternative
+to requiring a commercial aggregation provider.
+
+The preferred model is:
+
+- a local connector/agent runs on infrastructure controlled by the user;
+- bank credentials are never stored by Budget App itself;
+- supported structured downloads/APIs are preferred over browser scraping;
+- browser automation may be evaluated only where it does not bypass MFA,
+  CAPTCHA or other bank security controls;
+- retrieved transactions are normalised into the existing bank-import contract;
+- matching, deduplication, provenance, review and commit continue through the
+  existing importer rather than writing directly to the financial database;
+- pending-to-posted transaction transitions must avoid duplicates;
+- connectors should be isolated behind a stable interface so individual banks
+  can be added or repaired independently;
+- repository fixtures/tests must use synthetic data only.
+
+Prototype with a small number of banks before deciding whether scheduled
+background retrieval, a connector SDK/community model, or tighter desktop/mobile
+integration is justified.
+
 ## Planning
 
 - forecasting;
@@ -519,22 +572,74 @@ Multicurrency is a domain-level feature, not a display toggle. It would require
 explicit base/native currency, transfer/conversion, historical-rate, reporting
 and import semantics.
 
-## Self-hosting / deployment / multi-user productisation
+## Easy deployment / self-hosting / multi-user productisation
 
 Development-service operability is already complete.
 
+The product goal is that a normal user can deploy the application with full
+supported functionality without needing to understand the development
+environment or assemble multiple undocumented services manually.
+
 Outstanding:
 
+- a supported, low-friction deployment path with sensible defaults;
 - production build/serving model;
+- guided configuration and first-run setup;
 - reverse proxy/TLS where appropriate;
-- environment/configuration model;
+- environment/secrets/configuration model;
 - deployment and upgrade workflow;
 - backup/restore operational UX;
 - diagnostics/observability;
-- packaging/containerisation if useful;
+- packaging/containerisation where it materially simplifies installation;
+- documented data location, persistence and recovery expectations;
 - password/account lifecycle UX;
 - fuller member/role management;
 - shared-budget activity history.
+
+Treat deployability as a product capability, not merely deployment
+documentation.
+
+## Mobile application — PLANNED
+
+Provide a first-class mobile application experience after the core adaptive web
+flows and deployment model are mature.
+
+Before implementation, choose the delivery architecture deliberately (for
+example native shell around shared application code versus a more native client)
+and define:
+
+- iOS and Android scope;
+- authentication/session handling;
+- local-first SQLite/OPFS-equivalent storage strategy;
+- offline behaviour and sync/ownership semantics;
+- notifications where they provide clear value, especially Scheduled
+  Transactions;
+- mobile transaction entry, reconciliation and attachment workflows;
+- app-store packaging, signing, upgrades and release process;
+- reuse boundaries with the existing web application so there is not a second
+  financial engine.
+
+The mobile application must preserve the same financial authority and
+correctness rules as the web product.
+
+## Desktop application — CANDIDATE
+
+Consider a packaged desktop application for Windows/macOS/Linux, but do not
+commit to implementation until there is a clear benefit over the deployable web
+application.
+
+Evaluate whether a desktop app materially improves:
+
+- offline/local-first installation;
+- filesystem/backup integration;
+- native notifications;
+- automatic updates;
+- attachment/file workflows;
+- performance or SQLite integration;
+- user deployment simplicity.
+
+Prefer sharing the existing financial engine and UI where practical. Do not
+create a separate desktop accounting implementation merely for packaging.
 
 ## Security / hardening
 
@@ -563,7 +668,6 @@ Keep parked unless evidence or user value changes the priority:
 - category merge undo/redo;
 - deleting assigned tags as a compound history command;
 - richer Scheduled Transaction transfer/split discovery;
-- automatic bank sync;
 - Developer API / CLI;
 - PWA/install experience;
 - privacy/scramble mode;
