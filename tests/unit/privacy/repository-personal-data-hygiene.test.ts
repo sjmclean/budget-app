@@ -44,7 +44,7 @@ test("repository has no personal merchant-source artifacts or provenance markers
 test("behavioural tests use synthetic payees rather than real catalogue merchants", async () => {
   await preloadExtendedMerchantIconCatalogue();
   const violations: string[] = [];
-  const payeeLiteral = /\bpayee\s*:\s*["'`]([^"'\`$]+)["'`]/gu;
+  const payeeLiteral = /\bpayee\s*:\s*["'`]([^"'`$]+)["'`]/gu;
 
   for (const path of walk("tests")) {
     if (!/\.(?:ts|tsx)$/iu.test(path)) continue;
