@@ -132,6 +132,7 @@ export type LocalBudgetWorkerRequest =
       readonly requestId: string;
       readonly type: "captureRestorePoint";
       readonly input: import("../../budget/restorePointTypes").CaptureRestorePointInput;
+      readonly includePerformanceTimings?: boolean;
     }
   | {
       readonly requestId: string;
