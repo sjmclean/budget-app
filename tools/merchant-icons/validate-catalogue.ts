@@ -179,6 +179,24 @@ for (const entry of [...communityManifest.entries, ...simpleIconsManifest.entrie
   }
 }
 
+const inventoryText = await readFile(resolve(root, "docs/merchant-icon-inventory.csv"), "utf8");
+const inventoryRows = inventoryText.trim().split(/\r?\n/u).slice(1);
+const inventoryKeys = inventoryRows.map((row) => {
+  const fields = [...row.matchAll(/"((?:[^"]|"")*)"/gu)].map((match) => match[1]!.replace(/""/gu, '"'));
+  return fields[1] ?? "";
+});
+const inventoryKeySet = new Set(inventoryKeys);
+if (inventoryKeys.length !== inventoryKeySet.size) errors.push("Merchant icon inventory contains duplicate keys.");
+if (inventoryKeys.length !== MERCHANT_ICON_CATALOGUE.length) {
+  errors.push(`Merchant icon inventory has ${inventoryKeys.length} rows but runtime catalogue has ${MERCHANT_ICON_CATALOGUE.length} entries.`);
+}
+for (const { key } of MERCHANT_ICON_CATALOGUE) {
+  if (!inventoryKeySet.has(key)) errors.push(`Merchant icon inventory is missing runtime key "${key}".`);
+}
+for (const key of inventoryKeySet) {
+  if (!MERCHANT_ICON_CATALOGUE.some((entry) => entry.key === key)) errors.push(`Merchant icon inventory contains stale key "${key}".`);
+}
+
 for (const [identity, matches] of identityEntries) {
   if (matches.length < 2) continue;
   for (let index = 0; index < matches.length; index += 1) {
