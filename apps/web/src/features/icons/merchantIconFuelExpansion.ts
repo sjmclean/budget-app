@@ -12,10 +12,4 @@ export const FUEL_MERCHANT_ICON_EXPANSION: readonly MerchantIconCatalogueEntry[]
   { key: "eg-ampol-au", name: "EG Ampol", regions: ["AU"], aliases: ["EG Australia"], category: "fuel", provenance: { kind: "generated", reviewed: false }, asset: { kind: "sprite", spritePath: "fuel-fallbacks.svg", symbolId: "eg-ampol-au" } },
 ] as const;
 
-export const MERCHANT_ICON_ENTRY_OVERRIDES: Readonly<Record<string, Partial<MerchantIconCatalogueEntry>>> = {
-  "bp-au": {
-    category: "fuel",
-    provenance: { kind: "community", reviewed: true },
-    asset: { kind: "image", assetPath: "fuel/bp.svg" },
-  },
-} as const;
+export const MERCHANT_ICON_ENTRY_OVERRIDES: Readonly<Record<string, Partial<MerchantIconCatalogueEntry>>> = {} as const;
