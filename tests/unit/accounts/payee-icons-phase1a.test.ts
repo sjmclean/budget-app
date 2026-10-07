@@ -40,7 +40,7 @@ describe("payee icon reference and resolver", () => {
     assert.equal(resolvePayeeIcon({ payee: payee("p-1", "Woolworths", "builtin:v1:groceries") }).kind, "builtin");
     assert.deepEqual(
       resolvePayeeIcon({ payee: payee("p-1", "Woolworths", "merchant:v1:coles-au") }),
-      { kind: "sprite", href: "/merchant-icons/base-merchants.svg#coles-au" },
+      { kind: "sprite", href: "/merchant-icons/bundled-merchants-03.svg#coles-au" },
     );
     assert.equal(resolvePayeeIcon({ payee: payee("p-1", "Unknown merchant") }).kind, "initials");
     assert.equal(resolvePayeeIcon({ payee: payee("p-1", "Woolworths", `content:v1:${"b".repeat(64)}`) }).kind, "initials");
