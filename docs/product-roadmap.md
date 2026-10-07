@@ -537,6 +537,30 @@ Any future automatic bank feed must flow through the existing
 proposal/matching/provenance architecture rather than create a second import
 authority.
 
+### Personal bank connectivity / local bank connectors — CANDIDATE
+
+Consider a user-owned local bank-transaction retrieval system as an alternative
+to requiring a commercial aggregation provider.
+
+The preferred model is:
+
+- a local connector/agent runs on infrastructure controlled by the user;
+- bank credentials are never stored by Budget App itself;
+- supported structured downloads/APIs are preferred over browser scraping;
+- browser automation may be evaluated only where it does not bypass MFA,
+  CAPTCHA or other bank security controls;
+- retrieved transactions are normalised into the existing bank-import contract;
+- matching, deduplication, provenance, review and commit continue through the
+  existing importer rather than writing directly to the financial database;
+- pending-to-posted transaction transitions must avoid duplicates;
+- connectors should be isolated behind a stable interface so individual banks
+  can be added or repaired independently;
+- repository fixtures/tests must use synthetic data only.
+
+Prototype with a small number of banks before deciding whether scheduled
+background retrieval, a connector SDK/community model, or tighter desktop/mobile
+integration is justified.
+
 ## Planning
 
 - forecasting;
@@ -644,7 +668,6 @@ Keep parked unless evidence or user value changes the priority:
 - category merge undo/redo;
 - deleting assigned tags as a compound history command;
 - richer Scheduled Transaction transfer/split discovery;
-- automatic bank sync;
 - Developer API / CLI;
 - PWA/install experience;
 - privacy/scramble mode;
