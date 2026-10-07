@@ -61,9 +61,7 @@ const identity = (value) => value.normalize("NFKC").toLocaleLowerCase().replace(
 const iconSlug = (value) => value.normalize("NFKD").toLocaleLowerCase().replace(/[^a-z0-9]+/gu, "-").replace(/^-|-$/gu, "");
 const palettes = { "local-government": ["#334155", "#e2e8f0"], water: ["#0369a1", "#e0f2fe"], electricity: ["#ca8a04", "#fef9c3"], utilities: ["#0f766e", "#ccfbf1"], internet: ["#4f46e5", "#e0e7ff"], mobile: ["#7c3aed", "#ede9fe"], telecom: ["#6d28d9", "#ede9fe"], airline: ["#1d4ed8", "#dbeafe"], bank: ["#166534", "#dcfce7"], "credit-union": ["#047857", "#d1fae5"], "health-insurance": ["#be123c", "#ffe4e6"], "car-rental": ["#c2410c", "#ffedd5"], parking: ["#1e40af", "#dbeafe"], clothing: ["#9d174d", "#fce7f3"], shopping: ["#b45309", "#fef3c7"], "streaming-video": ["#b91c1c", "#fee2e2"], "streaming-sport": ["#15803d", "#dcfce7"], "streaming-music": ["#7e22ce", "#f3e8ff"], "gaming-subscription": ["#4338ca", "#e0e7ff"], digital: ["#475569", "#f1f5f9"], government: ["#334155", "#e2e8f0"], finance: ["#166534", "#dcfce7"], groceries: ["#15803d", "#dcfce7"], health: ["#be123c", "#ffe4e6"], marketplace: ["#b45309", "#fef3c7"], fuel: ["#a16207", "#fef9c3"], entertainment: ["#7e22ce", "#f3e8ff"], transport: ["#0369a1", "#e0f2fe"], insurance: ["#047857", "#d1fae5"], services: ["#475569", "#f1f5f9"] };
 
-const existingSource = await readFile(resolve(root, "apps/web/src/features/icons/merchantIconImportedBatch.ts"), "utf8");
-const existingKeys = new Set([...existingSource.matchAll(/key: "([^"]+)"/gu)].map((match) => match[1]));
-for (const key of ["coles-au", "woolworths-au", "aldi-au", "bunnings-au", "amazon-global", "netflix-global", "spotify-global", "mcdonalds-global"]) existingKeys.add(key);
+const existingKeys = new Set();
 
 const candidates = [];
 for (const file of manifests) {
