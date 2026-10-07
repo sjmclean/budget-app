@@ -12,6 +12,7 @@ const sheetSize = 60;
 const provenanceLabels = {
   official: "Official",
   community: "Community",
+  bundled: "Bundled reviewed artwork",
   generated: "Generated fallback — artwork still required",
 } as const;
 
@@ -134,6 +135,7 @@ const css = `
   .provenance { margin-top: 6px; padding: 2px 7px; border-radius: 999px; background: #e9edf3; color: #465269; font-size: 9px; font-weight: 700; }
   .provenance.official { background: #dff4e7; color: #17623a; }
   .provenance.community { background: #e6e7fb; color: #403a8a; }
+  .provenance.bundled { background: #e8f0fb; color: #294f7a; }
   .provenance.generated { background: #fff0d6; color: #80510b; }
   .review-sheet { width: 1440px; margin: 0 0 28px; padding: 28px 32px 32px; background: #f3f5f8; border: 1px solid #cdd4df; }
   .sheet-heading { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 18px; }
@@ -153,7 +155,7 @@ const sheetMarkup = sheets.map((sheet) => `<section class="review-sheet" id="she
 
 const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Merchant icon catalogue review</title><style>${css}</style></head><body>
   <h1>Merchant icon catalogue visual review</h1>
-  <p class="summary">760 identities · 503 reviewed artworks · 257 generated fallbacks · production assets rendered directly</p>
+  <p class="summary">${MERCHANT_ICON_CATALOGUE.length} identities · ${reviewedEntries.length} reviewed artworks · ${fallbackEntries.length} generated fallbacks · production assets rendered directly</p>
   <div class="filters">
     <label>Status<select id="status"><option value="">All</option><option value="reviewed">Reviewed</option><option value="fallback">Fallback</option></select></label>
     <label>Category<select id="category"><option value="">All</option>${optionMarkup(categories)}</select></label>
