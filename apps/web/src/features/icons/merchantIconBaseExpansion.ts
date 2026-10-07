@@ -1,0 +1,16 @@
+import type { MerchantIconCatalogueEntry } from "./merchantIconCatalogue.js";
+
+export const BASE_MERCHANT_ICON_EXPANSION: readonly MerchantIconCatalogueEntry[] = [
+  { key: "woolworths-au", name: "Woolworths", regions: ["AU"], aliases: ["Woolworths Metro", "Woolworths Online"], category: "groceries", provenance: { kind: "generated", reviewed: false }, asset: { kind: "sprite", spritePath: "base-merchants.svg", symbolId: "woolworths-au" } },
+  { key: "coles-au", name: "Coles", regions: ["AU"], aliases: ["Coles Supermarkets", "Coles Online"], category: "groceries", provenance: { kind: "generated", reviewed: false }, asset: { kind: "sprite", spritePath: "base-merchants.svg", symbolId: "coles-au" } },
+  { key: "bunnings-au", name: "Bunnings", regions: ["AU"], aliases: ["Bunnings Warehouse"], category: "home", provenance: { kind: "generated", reviewed: false }, asset: { kind: "sprite", spritePath: "base-merchants.svg", symbolId: "bunnings-au" } },
+  { key: "amazon-global", name: "Amazon", regions: ["GLOBAL"], aliases: ["Amazon Marketplace", "Amazon.com.au"], category: "marketplace", provenance: { kind: "generated", reviewed: false }, asset: { kind: "sprite", spritePath: "base-merchants.svg", symbolId: "amazon-global" } },
+  { key: "netflix-global", name: "Netflix", regions: ["GLOBAL"], aliases: [], category: "streaming-video", provenance: { kind: "generated", reviewed: false }, asset: { kind: "sprite", spritePath: "base-merchants.svg", symbolId: "netflix-global" } },
+  { key: "spotify-global", name: "Spotify", regions: ["GLOBAL"], aliases: [], category: "streaming-music", provenance: { kind: "generated", reviewed: false }, asset: { kind: "sprite", spritePath: "base-merchants.svg", symbolId: "spotify-global" } },
+  { key: "mcdonalds-global", name: "McDonald's", regions: ["GLOBAL"], aliases: ["McDonalds", "McDonald's Australia"], category: "food", provenance: { kind: "generated", reviewed: false }, asset: { kind: "sprite", spritePath: "base-merchants.svg", symbolId: "mcdonalds-global" } },
+  { key: "myer-au", name: "Myer", regions: ["AU"], aliases: [], category: "shopping", provenance: { kind: "generated", reviewed: false }, asset: { kind: "sprite", spritePath: "base-merchants.svg", symbolId: "myer-au" } },
+  { key: "anaconda-au", name: "Anaconda", regions: ["AU"], aliases: ["Anaconda Stores"], category: "shopping", provenance: { kind: "generated", reviewed: false }, asset: { kind: "sprite", spritePath: "base-merchants.svg", symbolId: "anaconda-au" } },
+  { key: "jb-hi-fi-au", name: "JB Hi-Fi", regions: ["AU"], aliases: ["JB Hifi", "JBHiFi"], category: "electronics", provenance: { kind: "generated", reviewed: false }, asset: { kind: "sprite", spritePath: "base-merchants.svg", symbolId: "jb-hi-fi-au" } },
+  { key: "officeworks-au", name: "Officeworks", regions: ["AU"], aliases: [], category: "shopping", provenance: { kind: "generated", reviewed: false }, asset: { kind: "sprite", spritePath: "base-merchants.svg", symbolId: "officeworks-au" } },
+  { key: "kmart-au", name: "Kmart", regions: ["AU"], aliases: ["Kmart Australia"], category: "shopping", provenance: { kind: "generated", reviewed: false }, asset: { kind: "sprite", spritePath: "base-merchants.svg", symbolId: "kmart-au" } },
+] as const;
