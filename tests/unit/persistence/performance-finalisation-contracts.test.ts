@@ -99,14 +99,6 @@ test("Actual backend import exposes diagnostic-only stage timings", () => {
     "map",
     "provision",
     "begin-staged-import",
-    "begin-sqlite-runtime",
-    "begin-capacity-reserve",
-    "begin-remove-stage-file",
-    "begin-open-database",
-    "begin-initialise-schema",
-    "begin-defer-indexes",
-    "begin-metadata",
-    "begin-manifest",
     "entities",
     "transactions",
     "budget-months",
@@ -118,6 +110,19 @@ test("Actual backend import exposes diagnostic-only stage timings", () => {
   ]) {
     assert.match(importer, new RegExp(`recordActualImportPerformance\\(input, "${stage}"`));
   }
+  for (const stage of [
+    "begin-sqlite-runtime",
+    "begin-capacity-reserve",
+    "begin-remove-stage-file",
+    "begin-open-database",
+    "begin-initialise-schema",
+    "begin-defer-indexes",
+    "begin-metadata",
+    "begin-manifest",
+  ]) {
+    assert.match(importer, new RegExp(`\\["${stage}"`));
+  }
+  assert.match(importer, /input\.onPerformanceSample\(\{ stage, elapsedMs \}\)/);
 
   const recordStart = importer.indexOf("function createActualImportRecord(");
   const recordEnd = importer.indexOf("\nexport function createActualBudgetLauncherImport(", recordStart);
