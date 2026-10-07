@@ -54,6 +54,24 @@
         "symbolId": "amazon-global"
       },
       "source": "https://github.com/selfhst/icons#amazon"
+    },
+    {
+      "key": "woolworths-au",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "base-reviewed.svg",
+        "symbolId": "woolworths-au"
+      },
+      "source": "https://github.com/imehr/design-extractor; extracted from woolworths.com.au"
+    },
+    {
+      "key": "kmart-au",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "base-reviewed.svg",
+        "symbolId": "kmart-au"
+      },
+      "source": "https://github.com/diegomoore/cv#assets/logos/kmart.svg"
     }
   ]
 }
