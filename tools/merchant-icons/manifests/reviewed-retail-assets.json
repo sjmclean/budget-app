@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "key": "tubi-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "retail-reviewed.svg",
+        "symbolId": "tubi-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://tubitv.com"
+    },
+    {
+      "key": "samsung-experience-store-au",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "retail-reviewed.svg",
+        "symbolId": "samsung-experience-store-au"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.samsung.com"
+    },
+    {
+      "key": "costco-au",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "retail-reviewed.svg",
+        "symbolId": "costco-au"
+      },
+      "source": "https://github.com/selfhst/icons#costco"
+    }
+  ]
+}
