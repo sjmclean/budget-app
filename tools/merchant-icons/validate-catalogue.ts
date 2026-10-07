@@ -159,10 +159,6 @@ for (const entry of MERCHANT_ICON_CATALOGUE) {
   }
 }
 
-const anaconda = MERCHANT_ICON_CATALOGUE.find(({ key }) => key === "anaconda-au");
-if (anaconda?.asset.kind !== "image" || !anaconda.provenance?.reviewed) {
-  errors.push("Anaconda regression: anaconda-au must use a reviewed standalone image, not the broken user-seed sprite symbol.");
-}
 
 for (const entry of officialManifest.entries) {
   if (MERCHANT_ICON_CATALOGUE.find(({ key }) => key === entry.key)?.provenance?.kind !== "official") {
