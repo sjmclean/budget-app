@@ -10,9 +10,7 @@ import { icons as communityBroadcastIcons } from "@iconify-json/cbi";
 
 const root = process.cwd();
 const manifests = [
-  "expansion-2-local-government-streaming.json",
-  "expansion-2-user-history-priority.json",
-];
+  "expansion-2-local-government-streaming.json",];
 const officialArtworkManifest = JSON.parse(await readFile(resolve(root, "tools/merchant-icons/manifests/reviewed-official-assets.json"), "utf8"));
 const officialArtworkByKey = new Map(officialArtworkManifest.entries.map((entry) => [entry.key, entry]));
 
