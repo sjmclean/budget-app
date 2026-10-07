@@ -5779,11 +5779,12 @@ async function captureRestorePoint(
 
   const timingsMs: Record<string, number> = {};
   const measure = async <T>(stage: string, operation: () => T | Promise<T>): Promise<T> => {
-    const startedAt = performance.now();
+    const startedAt = globalThis.performance?.now?.() ?? Date.now();
     try {
       return await operation();
     } finally {
-      timingsMs[stage] = Math.round((performance.now() - startedAt) * 100) / 100;
+      const finishedAt = globalThis.performance?.now?.() ?? Date.now();
+      timingsMs[stage] = Math.round((finishedAt - startedAt) * 100) / 100;
     }
   };
 
