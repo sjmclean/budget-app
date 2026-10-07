@@ -52,7 +52,7 @@ describe("payee icon reference and resolver", () => {
 
   it("preserves Australian automatic matches while respecting regional identities", () => {
     assert.deepEqual(resolvePayeeIcon({ payee: payee("aldi", "ALDI") }), {
-      kind: "sprite", href: "/merchant-icons/base-merchants.svg#aldi-au",
+      kind: "sprite", href: "/merchant-icons/base-reviewed.svg#aldi-au",
     });
     assert.deepEqual(resolvePayeeIcon({ payee: payee("target", "Target") }), {
       kind: "sprite", href: "/merchant-icons/base-merchants.svg#target-au",
