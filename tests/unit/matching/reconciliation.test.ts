@@ -14,14 +14,14 @@ test("amount and date without merchant identity remain manual-only review candid
   const assessment = assessTransactionImportMatch(
     buildParsedImportTransaction({
       date: "2026-06-30",
-      payee: "AFL RECORD SOUTHBANK",
+      payee: "EXAMPLE EVENT MERCH SOUTH",
       outflow: 6,
     }),
     [
       buildRegisterTransaction({
         id: "existing",
         date: "2026-06-26",
-        payee: "Bakers Delight",
+        payee: "Example Bakery",
         outflow: 6,
       }),
     ],
@@ -43,20 +43,20 @@ test("resolved merchant identity wins automatically while a closer unrelated can
   const assessment = assessTransactionImportMatch(
     buildParsedImportTransaction({
       date: "2026-06-30",
-      payee: "WOOLWORTHS 1234 AU",
+      payee: "EXAMPLE GROCER 1234 AU",
       outflow: 42.5,
     }),
     [
       buildRegisterTransaction({
         id: "closer-unrelated",
         date: "2026-06-30",
-        payee: "Local Pharmacy",
+        payee: "Example Pharmacy",
         outflow: 42.5,
       }),
       buildRegisterTransaction({
         id: "resolved-merchant",
         date: "2026-06-28",
-        payee: "Woolworths",
+        payee: "Example Grocer",
         outflow: 42.5,
       }),
     ],
