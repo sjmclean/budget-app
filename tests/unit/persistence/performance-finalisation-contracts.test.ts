@@ -59,3 +59,17 @@ test("Account Register bundle budget measures the route static graph rather than
   assert.match(analyzer, /filter\(\(key\) => !initialChunkKeys\.has\(key\)\)/);
   assert.match(analyzer, /accountRegisterJavaScriptBytes: sumBytes\(accountRegisterJavaScript\)/);
 });
+
+
+test("startup overlaps extended merchant catalogue loading with persistence initialization", () => {
+  const main = read("../../../apps/web/src/main.tsx");
+  const preloadStart = main.indexOf("const extendedMerchantCataloguePromise = import(");
+  const persistenceInitialize = main.indexOf("await persistenceProvider.initialize?.()");
+  const preloadAwait = main.indexOf("await extendedMerchantCataloguePromise");
+  const appImport = main.indexOf('const { App } = await import("./App")');
+
+  assert.ok(preloadStart >= 0);
+  assert.ok(persistenceInitialize > preloadStart);
+  assert.ok(preloadAwait > persistenceInitialize);
+  assert.ok(appImport > preloadAwait);
+});
