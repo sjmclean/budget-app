@@ -10,7 +10,6 @@ const merchantAssetDirectory = resolve(root, "apps/web/public/merchant-icons");
 const sheetSize = 60;
 
 const provenanceLabels = {
-  "user-supplied": "User supplied",
   official: "Official",
   community: "Community",
   generated: "Generated fallback — artwork still required",
@@ -19,7 +18,6 @@ const provenanceLabels = {
 type ReviewEntry = MerchantIconCatalogueEntry & { readonly bucket: string };
 
 function reviewedBucket(entry: MerchantIconCatalogueEntry): string {
-  if (entry.provenance?.kind === "user-supplied") return "01-user-history-and-australian-core";
   if (["utilities", "water", "gas", "electricity", "internet", "mobile", "telecom"].includes(entry.category ?? "")) return "02-utilities-and-telecom";
   if (["finance", "bank", "credit-union"].includes(entry.category ?? "")) return "03-banks-and-finance";
   if (["health", "health-insurance", "insurance"].includes(entry.category ?? "")) return "04-health-and-insurance";
@@ -136,7 +134,6 @@ const css = `
   .provenance { margin-top: 6px; padding: 2px 7px; border-radius: 999px; background: #e9edf3; color: #465269; font-size: 9px; font-weight: 700; }
   .provenance.official { background: #dff4e7; color: #17623a; }
   .provenance.community { background: #e6e7fb; color: #403a8a; }
-  .provenance.user-supplied { background: #e2effc; color: #245986; }
   .provenance.generated { background: #fff0d6; color: #80510b; }
   .review-sheet { width: 1440px; margin: 0 0 28px; padding: 28px 32px 32px; background: #f3f5f8; border: 1px solid #cdd4df; }
   .sheet-heading { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 18px; }
