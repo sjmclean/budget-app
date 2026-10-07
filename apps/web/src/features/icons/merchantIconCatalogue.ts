@@ -1,3 +1,4 @@
+import { BASE_MERCHANT_ICON_EXPANSION } from "./merchantIconBaseExpansion.js";
 import { MAJOR_MERCHANT_ICON_EXPANSION } from "./merchantIconMajorExpansion.js";
 import { FUEL_MERCHANT_ICON_EXPANSION, MERCHANT_ICON_ENTRY_OVERRIDES } from "./merchantIconFuelExpansion.js";
 import { GOVERNMENT_MERCHANT_ICON_EXPANSION } from "./merchantIconGovernmentExpansion.js";
@@ -38,6 +39,7 @@ function applyMerchantIconOverride(entry: MerchantIconCatalogueEntry): MerchantI
 }
 
 const merchantIconCatalogue: MerchantIconCatalogueEntry[] = [
+  ...BASE_MERCHANT_ICON_EXPANSION,
   ...MAJOR_MERCHANT_ICON_EXPANSION.map(applyMerchantIconOverride),
   ...GOVERNMENT_MERCHANT_ICON_EXPANSION,
   ...FUEL_MERCHANT_ICON_EXPANSION,
