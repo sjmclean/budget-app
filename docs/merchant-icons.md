@@ -7,6 +7,9 @@ Allowed catalogue sources are:
 
 - **official** merchant or organisation websites, with reviewed source metadata;
 - **community** open-source brand/icon projects with traceable provenance;
+- **bundled** reviewed artwork supplied directly for a public merchant identity,
+  stored under neutral project provenance with no linkage to a developer's or
+  user's transaction history, payee history, bank data, or private source list;
 - **generated** generic fallback artwork for public merchant identities selected
   from product requirements or broad generic catalogue coverage.
 
@@ -34,6 +37,8 @@ initials.
 
 ## Australian fuel coverage
 
-Fuel/service-station catalogue entries must use official, community, or generic
-generated assets only. Personal/user-supplied artwork is not an accepted source
-class.
+Fuel/service-station catalogue entries may use official, community, bundled, or
+generic generated assets. Bundled artwork must satisfy the same privacy rule as
+the rest of the catalogue: it may represent a public merchant, but its runtime
+metadata and repository documentation must not link it to a person's transaction
+history, payee history, bank data, or private merchant list.
