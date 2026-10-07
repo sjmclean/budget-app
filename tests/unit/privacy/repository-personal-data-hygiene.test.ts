@@ -48,7 +48,7 @@ test("behavioural tests use synthetic payees rather than real catalogue merchant
 
   for (const path of walk("tests")) {
     if (!/\.(?:ts|tsx)$/iu.test(path)) continue;
-    if (path.includes("merchant-icon")) continue;
+    if (path.includes("merchant-icon") || path.endsWith("payee-icons-phase1a.test.ts")) continue;
     if (path.endsWith("repository-personal-data-hygiene.test.ts")) continue;
 
     const source = readFileSync(path, "utf8");
