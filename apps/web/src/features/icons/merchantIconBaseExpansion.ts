@@ -1,7 +1,7 @@
 import type { MerchantIconCatalogueEntry } from "./merchantIconCatalogue.js";
 
 export const BASE_MERCHANT_ICON_EXPANSION: readonly MerchantIconCatalogueEntry[] = [
-  { key: "aldi-au", name: "ALDI", regions: ["AU"], aliases: ["Aldi Australia"], category: "groceries", provenance: { kind: "community", reviewed: true }, asset: { kind: "sprite", spritePath: "base-reviewed.svg", symbolId: "aldi-au" } },
+  { key: "aldi-au", name: "ALDI", regions: ["AU"], aliases: ["Aldi Australia"], category: "groceries", provenance: { kind: "bundled", reviewed: true }, asset: { kind: "sprite", spritePath: "bundled-merchants-01.svg", symbolId: "aldi-au" } },
   { key: "target-au", name: "Target", regions: ["AU"], aliases: ["Target Australia"], category: "shopping", provenance: { kind: "community", reviewed: true }, asset: { kind: "sprite", spritePath: "base-reviewed.svg", symbolId: "target-au" } },
   { key: "woolworths-au", name: "Woolworths", regions: ["AU"], aliases: ["Woolworths Metro", "Woolworths Online"], category: "groceries", provenance: { kind: "community", reviewed: true }, asset: { kind: "sprite", spritePath: "base-reviewed.svg", symbolId: "woolworths-au" } },
   { key: "coles-au", name: "Coles", regions: ["AU"], aliases: ["Coles Supermarkets", "Coles Online"], category: "groceries", provenance: { kind: "bundled", reviewed: true }, asset: { kind: "sprite", spritePath: "bundled-merchants-03.svg", symbolId: "coles-au" } },
