@@ -37,6 +37,18 @@ export async function bootstrapApp() {
     let attachmentNamespace: string | undefined;
     let hostedBudgets: readonly HostedBudgetCatalogueEntry[] = [];
     let hostedCatalogueAuthoritative = false;
+
+    // Start loading the extended merchant catalogue immediately so its async
+    // chunks overlap authentication and persistence startup. We still await
+    // completion before importing/rendering App, preserving exact merchant
+    // matching on first paint without serialising this work behind database
+    // initialization.
+    const extendedMerchantCataloguePromise = import(
+      "./features/icons/merchantIconCatalogue"
+    ).then(({ preloadExtendedMerchantIconCatalogue }) =>
+      preloadExtendedMerchantIconCatalogue(),
+    );
+
     const hostProvider = bootstrapHostBudgetPersistenceProvider();
     if (!hostProvider) {
       const session = await loadAuthStatus();
@@ -83,10 +95,7 @@ export async function bootstrapApp() {
       apiBaseUrl: (import.meta as ImportMeta & { env?: { VITE_BUDGET_API_URL?: string } }).env?.VITE_BUDGET_API_URL,
     });
 
-    // Preload the extended merchant identity index before application modules render.
-    // The index remains an async chunk, while exact automatic matching is ready for first paint.
-    const { preloadExtendedMerchantIconCatalogue } = await import("./features/icons/merchantIconCatalogue");
-    await preloadExtendedMerchantIconCatalogue();
+    await extendedMerchantCataloguePromise;
 
     // Import application modules only after runtime persistence is configured.
     // Zustand stores read registry and selection state during module creation.
