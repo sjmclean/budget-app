@@ -20,6 +20,8 @@ test("catalogue references lazy static assets without bundling image payloads", 
 
 test("extended brand identities stay out of the static catalogue graph and preload before App", () => {
   assert.doesNotMatch(catalogue, /^import .*merchantIconSimpleBrands/mu);
+  assert.doesNotMatch(catalogue, /^import .*merchantIconBundledExpansion/mu);
+  assert.match(catalogue, /import\("\.\/merchantIconBundledExpansion\.js"\)/u);
   assert.match(catalogue, /import\("\.\/merchantIconSimpleBrands\.js"\)/u);
   assert.match(main, /await preloadExtendedMerchantIconCatalogue\(\);[\s\S]*?await import\("\.\/App"\)/u);
 });
