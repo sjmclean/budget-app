@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "key": "aldi-au",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "base-reviewed.svg",
+        "symbolId": "aldi-au"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.aldi-sued.de"
+    },
+    {
+      "key": "target-au",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "base-reviewed.svg",
+        "symbolId": "target-au"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.target.com"
+    },
+    {
+      "key": "netflix-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "base-reviewed.svg",
+        "symbolId": "netflix-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://brand.netflix.com/en/assets/logos"
+    },
+    {
+      "key": "spotify-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "base-reviewed.svg",
+        "symbolId": "spotify-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://developer.spotify.com/documentation/general/design-and-branding/"
+    },
+    {
+      "key": "mcdonalds-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "base-reviewed.svg",
+        "symbolId": "mcdonalds-global"
+      },
+      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.mcdonalds.com"
+    },
+    {
+      "key": "amazon-global",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "base-reviewed.svg",
+        "symbolId": "amazon-global"
+      },
+      "source": "https://github.com/selfhst/icons#amazon"
+    }
+  ]
+}
