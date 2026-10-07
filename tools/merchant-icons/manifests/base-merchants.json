@@ -3,6 +3,36 @@
   "purpose": "Generic built-in merchant identities selected independently of any user's transaction history.",
   "entries": [
     {
+      "key": "target-au",
+      "name": "Target",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Target Australia"
+      ],
+      "category": "shopping",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
+      "key": "aldi-au",
+      "name": "ALDI",
+      "regions": [
+        "AU"
+      ],
+      "aliases": [
+        "Aldi Australia"
+      ],
+      "category": "groceries",
+      "provenance": {
+        "kind": "generated",
+        "reviewed": false
+      }
+    },
+    {
       "key": "woolworths-au",
       "name": "Woolworths",
       "regions": [
