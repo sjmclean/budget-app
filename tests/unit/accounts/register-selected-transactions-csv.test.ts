@@ -13,7 +13,7 @@ import {
 function transaction(overrides: Partial<RegisterTransactionView> = {}): RegisterTransactionView {
   return {
     id: "internal-id", date: "2026-08-19", attachmentCount: 0,
-    payee: "Woolworths, Richmond", category: "Groceries",
+    payee: "Example Grocer, Central", category: "Groceries",
     memo: "He said \"hello\"\nnext line", checkNumber: "", inflow: 0,
     outflow: 12.34, runningBalance: 987.65, cleared: true,
     reconciled: false, ...overrides,
@@ -38,7 +38,7 @@ test("CSV escaping handles comma, quote, CR and newline", () => {
 
 test("ordinary transaction exports intrinsic fields and decimal money only", () => {
   const csv = buildSelectedTransactionsCsv({ transactions: [transaction()] });
-  assert.match(csv, /"Woolworths, Richmond"/);
+  assert.match(csv, /"Example Grocer, Central"/);
   assert.match(csv, /12\.34,,Yes,No/);
   assert.doesNotMatch(csv, /internal-id|987\.65|runningBalance|budgetId|accountId/);
 });
