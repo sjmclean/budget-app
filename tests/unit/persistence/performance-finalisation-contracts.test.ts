@@ -73,3 +73,19 @@ test("startup overlaps extended merchant catalogue loading with persistence init
   assert.ok(preloadAwait > persistenceInitialize);
   assert.ok(appImport > preloadAwait);
 });
+
+
+test("Register defers archived payee loading until Payee Manager opens", () => {
+  const workflow = read("../../../apps/web/src/features/accounts/usePayeeManagerWorkflow.ts");
+  const initialLoad = workflow.slice(
+    workflow.indexOf("useEffect(() => {"),
+    workflow.indexOf("useEffect(() => {", workflow.indexOf("useEffect(() => {") + 1),
+  );
+
+  assert.match(initialLoad, /payeesPersistence\.listPayees\(\)/);
+  assert.doesNotMatch(initialLoad, /listArchivedPayees\(\)/);
+  assert.match(
+    workflow,
+    /if \(!isPayeeManagerOpen \|\| archivedPayeesLoaded\)[\s\S]*?listArchivedPayees\(\)/,
+  );
+});
