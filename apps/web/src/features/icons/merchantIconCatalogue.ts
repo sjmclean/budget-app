@@ -16,7 +16,7 @@ export type MerchantIconCategory =
   | "streaming-video" | "streaming-music" | "streaming-sport" | "gaming-subscription"
   | "digital" | "marketplace" | "automotive" | "services" | "local-government" | "other";
 
-export type MerchantIconProvenanceKind = "official" | "community" | "generated";
+export type MerchantIconProvenanceKind = "official" | "community" | "bundled" | "generated";
 
 export interface MerchantIconProvenance {
   readonly kind: MerchantIconProvenanceKind;
@@ -66,10 +66,11 @@ let extendedCataloguePromise: Promise<void> | null = null;
 
 export function preloadExtendedMerchantIconCatalogue(): Promise<void> {
   extendedCataloguePromise ??= Promise.all([
+    import("./merchantIconBundledExpansion.js"),
     import("./merchantIconRetailExpansion.js"),
     import("./merchantIconSimpleBrands.js"),
-  ]).then(([{ RETAIL_MERCHANT_ICON_EXPANSION }, { SIMPLE_BRAND_ICON_EXPANSION }]) => {
-    for (const entry of [...RETAIL_MERCHANT_ICON_EXPANSION, ...SIMPLE_BRAND_ICON_EXPANSION]) {
+  ]).then(([{ BUNDLED_MERCHANT_ICON_EXPANSION }, { RETAIL_MERCHANT_ICON_EXPANSION }, { SIMPLE_BRAND_ICON_EXPANSION }]) => {
+    for (const entry of [...BUNDLED_MERCHANT_ICON_EXPANSION, ...RETAIL_MERCHANT_ICON_EXPANSION, ...SIMPLE_BRAND_ICON_EXPANSION]) {
       if (entriesByKey.has(entry.key)) {
         throw new TypeError(`Extended merchant icon key collides with the core catalogue: ${entry.key}`);
       }
