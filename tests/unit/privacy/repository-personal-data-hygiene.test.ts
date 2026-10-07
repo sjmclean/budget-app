@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { findMerchantIconByPayeeName } from "../../../apps/web/src/features/icons/merchantIconCatalogue.js";
+import { findMerchantIconByPayeeName, preloadExtendedMerchantIconCatalogue } from "../../../apps/web/src/features/icons/merchantIconCatalogue.js";
 
 function walk(root: string): string[] {
   const files: string[] = [];
@@ -41,7 +41,8 @@ test("repository has no personal merchant-source artifacts or provenance markers
   assert.deepEqual(matches, []);
 });
 
-test("behavioural tests use synthetic payees rather than real catalogue merchants", () => {
+test("behavioural tests use synthetic payees rather than real catalogue merchants", async () => {
+  await preloadExtendedMerchantIconCatalogue();
   const violations: string[] = [];
   const payeeLiteral = /\bpayee\s*:\s*["'`]([^"'\`$]+)["'`]/gu;
 
