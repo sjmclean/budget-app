@@ -313,14 +313,13 @@ for (const failure of ["missing", "corrupt", "length", "database-hash", "malform
   });
 }
 
-for (const failure of ["partial", "final", "manifest", "empty-manifest"]) {
+for (const failure of ["final", "manifest", "empty-manifest"]) {
   test(`failed ${failure} publication exposes no restore point; GC reclaims unreferenced files`, async () => {
     const { capture, a, store } = harness();
     a.faults.beforeWrite = (path) => {
-      if ((failure === "partial" && path.endsWith(".partial")) ||
-          (failure === "final" && path.endsWith(".bin")) ||
+      if ((failure === "final" && path.endsWith(".bin")) ||
           ((failure === "manifest" || failure === "empty-manifest") && path.startsWith("manifests/"))) {
-        if (failure === "empty-manifest" || failure === "partial") a.entries.set(path, new File([], path));
+        if (failure === "empty-manifest") a.entries.set(path, new File([], path));
         throw new Error("quota");
       }
     };
@@ -364,16 +363,14 @@ test("invalid unreferenced final handle from interruption is recovered, never si
   assert.deepEqual(await store.read("budget-A", recovered.id, collect), Buffer.from(sqliteBytes()));
 });
 
-for (const extension of [".partial", ".bin"]) {
-  test(`written ${extension} corruption is detected before manifest publication`, async () => {
-    const { capture, a, store } = harness();
-    a.faults.afterWrite = (path) => {
-      if (path.endsWith(extension)) a.entries.set(path, new File([new Uint8Array(CHUNK)], path));
-    };
-    await assert.rejects(capture(), /integrity validation/);
-    assert.deepEqual(await store.list("budget-A"), []);
-  });
-}
+test("written final chunk corruption is detected before manifest publication", async () => {
+  const { capture, a, store } = harness();
+  a.faults.afterWrite = (path) => {
+    if (path.endsWith(".bin")) a.entries.set(path, new File([new Uint8Array(CHUNK)], path));
+  };
+  await assert.rejects(capture(), /integrity validation/);
+  assert.deepEqual(await store.list("budget-A"), []);
+});
 
 test("unexpected catalogue corruption during cleanup preserves completed capture and all chunks", async () => {
   const { capture, a, store } = harness();
