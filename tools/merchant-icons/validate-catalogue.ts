@@ -27,13 +27,17 @@ const communityManifest = JSON.parse(await readFile(resolve(manifestDirectory, "
 const simpleIconsManifest = JSON.parse(await readFile(resolve(manifestDirectory, "reviewed-simple-icons-assets.json"), "utf8")) as {
   entries: { key: string; asset: { kind: "sprite"; spritePath: string; symbolId: string }; source: string }[];
 };
+const baseArtworkManifest = JSON.parse(await readFile(resolve(manifestDirectory, "reviewed-base-assets.json"), "utf8")) as {
+  entries: { key: string; asset: { kind: "sprite"; spritePath: string; symbolId: string }; source: string }[];
+};
 const officialByKey = new Map(officialManifest.entries.map((entry) => [entry.key, entry]));
 const communityByKey = new Map([
   ...communityManifest.entries,
   ...simpleIconsManifest.entries,
+  ...baseArtworkManifest.entries,
 ].map((entry) => [entry.key, entry]));
 if (officialByKey.size !== officialManifest.entries.length) errors.push("Official provenance manifest contains duplicate keys.");
-if (communityByKey.size !== communityManifest.entries.length + simpleIconsManifest.entries.length) errors.push("Community provenance manifests contain duplicate keys.");
+if (communityByKey.size !== communityManifest.entries.length + simpleIconsManifest.entries.length + baseArtworkManifest.entries.length) errors.push("Community provenance manifests contain duplicate keys.");
 
 async function readSprite(path: string): Promise<string | undefined> {
   const cached = spriteCache.get(path);
@@ -165,7 +169,7 @@ for (const entry of officialManifest.entries) {
     errors.push(`Official provenance manifest entry "${entry.key}" is not an official runtime entry.`);
   }
 }
-for (const entry of [...communityManifest.entries, ...simpleIconsManifest.entries]) {
+for (const entry of [...communityManifest.entries, ...simpleIconsManifest.entries, ...baseArtworkManifest.entries]) {
   if (MERCHANT_ICON_CATALOGUE.find(({ key }) => key === entry.key)?.provenance?.kind !== "community") {
     errors.push(`Community provenance manifest entry "${entry.key}" is not a community runtime entry.`);
   }
