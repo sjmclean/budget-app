@@ -277,17 +277,6 @@ function upsertTransactionAttachment(
   );
 }
 
-function deferStagedTransactionIndexes(): void {
-  execute(`
-    DROP INDEX IF EXISTS local_transactions_register;
-    DROP INDEX IF EXISTS local_transactions_account_summary;
-    DROP INDEX IF EXISTS local_transactions_category_month;
-    DROP INDEX IF EXISTS local_transactions_budget_date;
-    DROP INDEX IF EXISTS local_transactions_budget_month;
-    DROP INDEX IF EXISTS local_transactions_payee;
-  `);
-}
-
 function initialiseSchema(options: { deferTransactionIndexes?: boolean } = {}): void {
   execute(`
     PRAGMA foreign_keys = ON;
