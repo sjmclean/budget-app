@@ -65,8 +65,11 @@ for (const entry of merchantIconCatalogue) indexMerchantIconEntry(entry);
 let extendedCataloguePromise: Promise<void> | null = null;
 
 export function preloadExtendedMerchantIconCatalogue(): Promise<void> {
-  extendedCataloguePromise ??= import("./merchantIconSimpleBrands.js").then(({ SIMPLE_BRAND_ICON_EXPANSION }) => {
-    for (const entry of SIMPLE_BRAND_ICON_EXPANSION) {
+  extendedCataloguePromise ??= Promise.all([
+    import("./merchantIconRetailExpansion.js"),
+    import("./merchantIconSimpleBrands.js"),
+  ]).then(([{ RETAIL_MERCHANT_ICON_EXPANSION }, { SIMPLE_BRAND_ICON_EXPANSION }]) => {
+    for (const entry of [...RETAIL_MERCHANT_ICON_EXPANSION, ...SIMPLE_BRAND_ICON_EXPANSION]) {
       if (entriesByKey.has(entry.key)) {
         throw new TypeError(`Extended merchant icon key collides with the core catalogue: ${entry.key}`);
       }
