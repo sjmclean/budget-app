@@ -196,6 +196,7 @@ export type LocalBudgetWorkerRequest =
       readonly budgetId: string;
       readonly syncEpoch: string;
       readonly deviceId: string;
+      readonly includePerformanceTimings?: boolean;
     }
   | {
       readonly requestId: string;
