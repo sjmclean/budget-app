@@ -21,7 +21,6 @@ import {
   WorkspaceStickyHeader,
 } from "../components/workspace";
 import { SelectionBar } from "../components/ui/SelectionBar";
-import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTransactionsPanel";
 import { ScheduledTransactionsPreview } from "../components/accounts/ScheduledTransactionsPreview";
 import { RegisterToolbar } from "../features/accounts/components/RegisterToolbar";
 import {
@@ -133,6 +132,11 @@ import {
 const AttachmentManager = lazy(() =>
   import("../features/accounts/components/AttachmentManager").then((module) => ({
     default: module.AttachmentManager,
+  })),
+);
+const ScheduledTransactionsPanel = lazy(() =>
+  import("../components/accounts/ScheduledTransactionsPanel").then((module) => ({
+    default: module.ScheduledTransactionsPanel,
   })),
 );
 const TransactionImportDialog = lazy(() =>
@@ -1838,22 +1842,26 @@ export function AccountRegisterPage() {
           />
         ) : null}
 
-        <ScheduledTransactionsPanel
-          key={accountId}
-          budgetId={activeBudgetId}
-          accountId={accountId}
-          isOpen={activeRegisterView === "scheduled"}
-          categoryOptions={categoryOptions}
-          transferAccounts={transferAccounts}
-          payeeOptions={payeeOptions}
-          tags={transactionTags}
-          onCreateTag={handleCreateTransactionTag}
-          onClose={() => setActiveRegisterView("register")}
-          presentation="workspace"
-          onDueCountChange={setScheduledDueCount}
-          editScheduleId={scheduleToEditId}
-          onEditScheduleHandled={() => setScheduleToEditId(null)}
-        />
+        {activeRegisterView === "scheduled" ? (
+          <Suspense fallback={<p role="status">Loading scheduled transactions…</p>}>
+            <ScheduledTransactionsPanel
+              key={accountId}
+              budgetId={activeBudgetId}
+              accountId={accountId}
+              isOpen
+              categoryOptions={categoryOptions}
+              transferAccounts={transferAccounts}
+              payeeOptions={payeeOptions}
+              tags={transactionTags}
+              onCreateTag={handleCreateTransactionTag}
+              onClose={() => setActiveRegisterView("register")}
+              presentation="workspace"
+              onDueCountChange={setScheduledDueCount}
+              editScheduleId={scheduleToEditId}
+              onEditScheduleHandled={() => setScheduleToEditId(null)}
+            />
+          </Suspense>
+        ) : null}
 
         {isTransactionTagManagerOpen ? (
           <div className="payee-manager-overlay" role="presentation">
