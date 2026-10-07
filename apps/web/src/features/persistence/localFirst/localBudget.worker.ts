@@ -17,6 +17,7 @@ import {
   type LocalBudgetWorkerResponse,
 } from "./contracts";
 import {
+  LOCAL_REGISTER_BASE_SCHEMA_SQL,
   LOCAL_REGISTER_SCHEMA_SQL,
   LOCAL_TRANSACTION_UPSERT_SQL,
   localTransactionUpsertBindings,
@@ -287,7 +288,7 @@ function deferStagedTransactionIndexes(): void {
   `);
 }
 
-function initialiseSchema(): void {
+function initialiseSchema(options: { deferTransactionIndexes?: boolean } = {}): void {
   execute(`
     PRAGMA foreign_keys = ON;
     CREATE TABLE IF NOT EXISTS local_budget_metadata (
@@ -420,7 +421,11 @@ function initialiseSchema(): void {
       "ALTER TABLE local_budget_outbox ADD COLUMN base_cursor INTEGER NOT NULL DEFAULT 0",
     );
   }
-  execute(LOCAL_REGISTER_SCHEMA_SQL);
+  execute(
+    options.deferTransactionIndexes
+      ? LOCAL_REGISTER_BASE_SCHEMA_SQL
+      : LOCAL_REGISTER_SCHEMA_SQL,
+  );
   const transactionColumns = new Set(
     resultRows<{ name: string }>("PRAGMA table_info(local_transactions)")
       .map(({ name }) => name),
@@ -2141,8 +2146,10 @@ async function beginStagedImport(
       database = openPersistentDatabase(stage.filename);
       durable = true;
     });
-    await measure("initialiseSchema", () => initialiseSchema());
-    await measure("deferIndexes", () => deferStagedTransactionIndexes());
+    await measure("initialiseSchema", () =>
+      initialiseSchema({ deferTransactionIndexes: true }),
+    );
+    timingsMs.deferIndexes = 0;
 
     await measure("metadata", () => {
       writeMetadata("budgetId", stage.budgetId);
