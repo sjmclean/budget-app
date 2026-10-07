@@ -12,7 +12,7 @@ function imported(date: string): ParsedImportTransaction {
   return {
     rowNumber: 1,
     date,
-    payee: "Northern Motor Group",
+    payee: "Example Auto Dealer",
     outflow: 761.04,
     inflow: 0,
     raw: {},
@@ -44,7 +44,7 @@ test("import evidence loader requests the complete bounded register window", asy
   const sentinel = {
     id: "older-match",
     date: "2026-08-14",
-    payee: "Northern Motor Group",
+    payee: "Example Auto Dealer",
   } as RegisterTransactionView;
 
   const result = await loadTransactionImportEvidence(
@@ -88,7 +88,7 @@ test("import evidence continues beyond the first 250 register rows", async () =>
   const olderMatch = {
     id: "older-qif-overlap",
     date: "2026-08-14",
-    payeeName: "Northern Motor Group",
+    payeeName: "Example Auto Dealer",
     amount: -76_104,
   } as AccountTransactionRow;
 
@@ -156,7 +156,7 @@ test("QIF matching finds an existing register transaction beyond row 250", async
   const matchedRegisterTransaction = buildRegisterTransaction({
     id: "older-qif-overlap",
     date: "2026-08-14",
-    payee: "Northern Motor Group",
+    payee: "Example Auto Dealer",
     outflow: 761.04,
     inflow: 0,
   });
@@ -227,7 +227,7 @@ test("QIF matching finds an existing register transaction beyond row 250", async
     "!Type:Bank",
     "D17/08/26",
     "T-761.04",
-    "PNorthern Motor Group",
+    "PExample Auto Dealer",
     "^",
   ].join("\n");
 
