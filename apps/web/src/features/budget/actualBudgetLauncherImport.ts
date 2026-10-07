@@ -87,6 +87,22 @@ export type ActualBudgetImportPerformanceStage =
   | "commit"
   | "publish-baseline"
   | "restore-point"
+  | "restore-module-import"
+  | "restore-quick-check"
+  | "restore-manifest"
+  | "restore-export-prepare"
+  | "restore-store-capture"
+  | "restore-store-catalogue"
+  | "restore-store-source-read"
+  | "restore-store-chunk-hash"
+  | "restore-store-existing-chunk-verify"
+  | "restore-store-temporary-write"
+  | "restore-store-temporary-verify"
+  | "restore-store-final-write"
+  | "restore-store-final-verify"
+  | "restore-store-manifest-write"
+  | "restore-store-cleanup"
+  | "restore-store-total-store"
   | "finalize-storage"
   | "total";
 
@@ -298,7 +314,22 @@ export async function createActualBudgetLauncherImportWithBackend(
     recordActualImportPerformance(input, "publish-baseline", stageStartedAt);
 
     stageStartedAt = actualImportPerformanceNow();
-    await database.captureRestorePoint({ budgetName: budget.name, reason: "initial-import", mutationCount: 0 });
+    const restorePointInput = {
+      budgetName: budget.name,
+      reason: "initial-import" as const,
+      mutationCount: 0,
+    };
+    if (input.onPerformanceSample) {
+      const diagnostic = await database.captureRestorePointWithDiagnostics(restorePointInput);
+      for (const [stage, elapsedMs] of Object.entries(diagnostic.timingsMs)) {
+        input.onPerformanceSample({
+          stage: stage as ActualBudgetImportPerformanceStage,
+          elapsedMs,
+        });
+      }
+    } else {
+      await database.captureRestorePoint(restorePointInput);
+    }
     recordActualImportPerformance(input, "restore-point", stageStartedAt);
     await database.close();
     database = null;
