@@ -89,3 +89,30 @@ test("Register defers archived payee loading until Payee Manager opens", () => {
     /if \(!isPayeeManagerOpen \|\| archivedPayeesLoaded\)[\s\S]*?listArchivedPayees\(\)/,
   );
 });
+
+
+test("Actual backend import exposes diagnostic-only stage timings", () => {
+  const importer = read("../../../apps/web/src/features/budget/actualBudgetLauncherImport.ts");
+
+  assert.match(importer, /onPerformanceSample\?:/);
+  for (const stage of [
+    "map",
+    "provision",
+    "begin-staged-import",
+    "entities",
+    "transactions",
+    "budget-months",
+    "commit",
+    "publish-baseline",
+    "restore-point",
+    "finalize-storage",
+    "total",
+  ]) {
+    assert.match(importer, new RegExp(`recordActualImportPerformance\\(input, "${stage}"`));
+  }
+
+  const recordStart = importer.indexOf("function createActualImportRecord(");
+  const recordEnd = importer.indexOf("\nexport function createActualBudgetLauncherImport(", recordStart);
+  const recordBody = importer.slice(recordStart, recordEnd);
+  assert.doesNotMatch(recordBody, /onPerformanceSample|elapsedMs|PerformanceSample/);
+});
