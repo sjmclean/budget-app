@@ -14,5 +14,5 @@ export const BASE_MERCHANT_ICON_EXPANSION: readonly MerchantIconCatalogueEntry[]
   { key: "anaconda-au", name: "Anaconda", regions: ["AU"], aliases: ["Anaconda Stores"], category: "shopping", provenance: { kind: "community", reviewed: true }, asset: { kind: "sprite", spritePath: "retail-reviewed.svg", symbolId: "anaconda-au" } },
   { key: "jb-hi-fi-au", name: "JB Hi-Fi", regions: ["AU"], aliases: ["JB Hifi", "JBHiFi"], category: "electronics", provenance: { kind: "bundled", reviewed: true }, asset: { kind: "sprite", spritePath: "bundled-merchants-04.svg", symbolId: "jb-hi-fi-au" } },
   { key: "officeworks-au", name: "Officeworks", regions: ["AU"], aliases: [], category: "shopping", provenance: { kind: "bundled", reviewed: true }, asset: { kind: "sprite", spritePath: "bundled-merchants-06.svg", symbolId: "officeworks-au" } },
-  { key: "kmart-au", name: "Kmart", regions: ["AU"], aliases: ["Kmart Australia"], category: "shopping", provenance: { kind: "community", reviewed: true }, asset: { kind: "sprite", spritePath: "base-reviewed.svg", symbolId: "kmart-au" } },
+  { key: "kmart-au", name: "Kmart", regions: ["AU"], aliases: ["Kmart Australia"], category: "shopping", provenance: { kind: "bundled", reviewed: true }, asset: { kind: "sprite", spritePath: "bundled-merchants-05.svg", symbolId: "kmart-au" } },
 ] as const;
