@@ -116,14 +116,14 @@ test("Example Secondary College automatically matches while unrelated same-amoun
 test("one shared merchant token does not auto-match a different display payee without trusted merchant knowledge", () => {
   const csv = [
     "Date,Payee,Outflow",
-    "2026-08-17,EXAMPLE INSURANCE MELBOURNE,1211.76",
+    "2026-08-17,EXAMPLE SERVICES MELBOURNE,1211.76",
   ].join("\n");
 
   const preview = previewTransactionCsvImport(
     csv,
     [
       buildRegisterTransaction({
-        id: "racv",
+        id: "example-insurance",
         date: "2026-08-17",
         payee: "Example Car Insurance",
         outflow: 1211.76,
@@ -138,7 +138,7 @@ test("one shared merchant token does not auto-match a different display payee wi
     preview.candidates[0]?.matchCandidates?.map(
       (entry) => entry.transaction.id,
     ),
-    ["racv"],
+    ["example-insurance"],
   );
 });
 
