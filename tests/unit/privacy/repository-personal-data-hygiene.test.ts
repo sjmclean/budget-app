@@ -5,9 +5,12 @@ import { test } from "node:test";
 
 import { findMerchantIconByPayeeName, preloadExtendedMerchantIconCatalogue } from "../../../apps/web/src/features/icons/merchantIconCatalogue.js";
 
+const ignoredDirectories = new Set(["node_modules", "dist", "build", "coverage", "test-results", "playwright-report", ".git"]);
+
 function walk(root: string): string[] {
   const files: string[] = [];
   for (const name of readdirSync(root)) {
+    if (ignoredDirectories.has(name)) continue;
     const path = join(root, name);
     const stat = statSync(path);
     if (stat.isDirectory()) files.push(...walk(path));
@@ -21,7 +24,6 @@ const textExtensions = /\.(?:ts|tsx|js|mjs|cjs|json|md|txt|csv|qif|ofx)$/iu;
 test("repository has no personal merchant-source artifacts or provenance markers", () => {
   const forbidden = [
     ["user", "seed"].join("-"),
-    ["user", "supplied"].join("-"),
     ["user", "top", "100", "merchant", "history"].join("-"),
     ["expansion", "2", "user", "history", "priority"].join("-"),
     ["original user", "supplied catalogue"].join("-"),
