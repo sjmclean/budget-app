@@ -195,6 +195,27 @@ export class LocalBudgetDatabaseClient {
     return point;
   }
 
+  async captureRestorePointWithDiagnostics(
+    input: import("../../budget/restorePointTypes").CaptureRestorePointInput,
+  ): Promise<{
+    readonly point: import("../../budget/restorePointTypes").RestorePointMetadata;
+    readonly timingsMs: Record<string, number>;
+  }> {
+    const result = await this.#request<{
+      point: import("../../budget/restorePointTypes").RestorePointMetadata;
+      timingsMs: Record<string, number>;
+    }>({
+      requestId: createRuntimeUuid(),
+      type: "captureRestorePoint",
+      input,
+      includePerformanceTimings: true,
+    });
+    if (typeof globalThis.CustomEvent === "function") {
+      globalThis.dispatchEvent?.(new CustomEvent("budget-app:restore-points-changed", { detail: { budgetId: result.point.budgetId } }));
+    }
+    return result;
+  }
+
   prepareBaselineExport(): Promise<{ readonly totalBytes: number }> {
     return this.#request({
       requestId: createRuntimeUuid(),
