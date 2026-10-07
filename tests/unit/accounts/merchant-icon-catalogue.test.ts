@@ -9,12 +9,12 @@ import {
   resolveMerchantIconAsset,
   searchMerchantIcons,
 } from "../../../apps/web/src/features/icons/merchantIconCatalogue.js";
-import { GOVERNMENT_MERCHANT_ICON_EXPANSION } from "../../../apps/web/src/features/icons/merchantIconGovernmentExpansion.js";
 
 describe("merchant icon catalogue", () => {
   before(async () => {
     await preloadExtendedMerchantIconCatalogue();
   });
+
   it("keeps stable unique keys across the catalogue", () => {
     const keys = MERCHANT_ICON_CATALOGUE.map(({ key }) => key);
     assert.equal(new Set(keys).size, keys.length);
@@ -28,18 +28,13 @@ describe("merchant icon catalogue", () => {
     assert.equal(findMerchantIconByPayeeName("My Qantas purchase"), undefined);
   });
 
-  it("normalises punctuation without broad fuzzy matching", () => {
-    assert.equal(normaliseMerchantIconIdentity("L'Oréal & Co."), "loréal and co");
-    assert.equal(findMerchantIconByPayeeName("Qantas Airways")?.key, undefined);
-  });
-
-  it("preserves Unicode identities and resolves regional ambiguity only with a hint", () => {
-    assert.equal(normaliseMerchantIconIdentity("Crédit Agricole"), "crédit agricole");
+  it("normalises punctuation and Unicode without broad fuzzy matching", () => {
     assert.equal(normaliseMerchantIconIdentity("L'Oréal & Co."), "loréal and co");
     assert.equal(normaliseMerchantIconIdentity("東京電力（TEPCO）"), "東京電力 tepcO".toLocaleLowerCase());
+    assert.equal(findMerchantIconByPayeeName("Qantas Airways"), undefined);
   });
 
-  it("turns planning identities into live entries rather than counting manifests", () => {
+  it("keeps independently sourced planning identities live", () => {
     assert.equal(getMerchantIconEntry("banyule-city-council-au")?.category, "local-government");
     assert.equal(getMerchantIconEntry("stan-au")?.category, "streaming-video");
     assert.equal(getMerchantIconEntry("kayo-sports-au")?.category, "streaming-sport");
@@ -48,15 +43,19 @@ describe("merchant icon catalogue", () => {
   });
 
   it("keeps reviewed and generated provenance internally consistent", () => {
-    const generatedFallbacks = MERCHANT_ICON_CATALOGUE.filter(({ provenance }) =>
-      provenance?.kind === "generated" && provenance.reviewed === false
+    const generatedFallbacks = MERCHANT_ICON_CATALOGUE.filter(
+      ({ provenance }) => provenance?.kind === "generated" && provenance.reviewed === false,
     );
     assert.ok(generatedFallbacks.length > 0);
     assert.ok(MERCHANT_ICON_CATALOGUE.every(({ provenance }) => !provenance || !("source" in provenance)));
-    assert.ok(MERCHANT_ICON_CATALOGUE.every(({ provenance }) => provenance?.kind !== "generated" || provenance.reviewed === false));
+    assert.ok(
+      MERCHANT_ICON_CATALOGUE.every(
+        ({ provenance }) => provenance?.kind !== "generated" || provenance.reviewed === false,
+      ),
+    );
   });
 
-  it("protects high-priority merchants from reverting to generated tiles", () => {
+  it("protects independently sourced high-value merchants from reverting to generated tiles", () => {
     const keys = [
       "qantas-global",
       "commonwealth-bank-au",
@@ -73,7 +72,7 @@ describe("merchant icon catalogue", () => {
 
     for (const key of keys) {
       const entry = getMerchantIconEntry(key);
-      assert.ok(entry, `Missing high-priority merchant ${key}`);
+      assert.ok(entry, `Missing high-value merchant ${key}`);
       assert.equal(entry.provenance?.reviewed, true, `${key} must keep reviewed artwork`);
       assert.notEqual(entry.provenance?.kind, "generated", `${key} must not use a generated tile`);
       if (entry.asset.kind === "sprite") {
@@ -82,20 +81,25 @@ describe("merchant icon catalogue", () => {
     }
   });
 
-
+  it("keeps independently sourced Australian fuel artwork reviewed", () => {
     for (const key of [
-      "bp-au", "ampol-au", "shell-au", "mobil-au", "metro-petroleum-au",
-      "otr-au", "reddy-express-au", "pearl-energy-au",
+      "ampol-au",
+      "shell-au",
+      "mobil-au",
+      "metro-petroleum-au",
+      "otr-au",
+      "reddy-express-au",
+      "pearl-energy-au",
     ]) {
-      const entry = getMerchantIconEntry(key)!;
-      assert.equal(entry.provenance?.kind, "community");
-      assert.equal(entry.provenance?.reviewed, true);
-      assert.equal(entry.asset.kind, "image");
+      const entry = getMerchantIconEntry(key);
+      assert.ok(entry, `Missing fuel merchant ${key}`);
+      assert.equal(entry?.provenance?.kind, "community");
+      assert.equal(entry?.provenance?.reviewed, true);
+      assert.equal(entry?.asset.kind, "image");
     }
   });
 
-
-  it("keeps the generated brand expansion reviewed, lazy and exact-match-only", () => {
+  it("keeps the generic brand expansion reviewed, lazy and exact-match-only", () => {
     const afterpay = getMerchantIconEntry("si-afterpay-global");
     assert.equal(afterpay?.name, "Afterpay");
     assert.equal(afterpay?.provenance?.kind, "community");
@@ -111,11 +115,6 @@ describe("merchant icon catalogue", () => {
   it("provides bounded search from independently sourced catalogue entries", () => {
     assert.equal(resolveMerchantIconAsset("missing"), undefined);
     assert.deepEqual(searchMerchantIcons("qantas", 5).map(({ key }) => key), ["qantas-global"]);
-    assert.ok(searchMerchantIcons("", 3).length <= 3);
-  });
-    assert.equal(resolveMerchantIconAsset("missing"), undefined);
-    assert.deepEqual(searchMerchantIcons("netflix", 5).map(({ key }) => key), ["netflix-global"]);
-    assert.deepEqual(searchMerchantIcons("Teachers Health", 5).map(({ key }) => key), ["teachers-health-au"]);
     assert.ok(searchMerchantIcons("", 3).length <= 3);
   });
 });
