@@ -1,6 +1,6 @@
 import type { InflowClassification } from "../../accounts/incomeTransactionSemantics";
 
-export const LOCAL_REGISTER_SCHEMA_SQL = `
+export const LOCAL_REGISTER_BASE_SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS local_accounts (
     id TEXT PRIMARY KEY,
     budget_id TEXT NOT NULL,
@@ -133,19 +133,6 @@ export const LOCAL_REGISTER_SCHEMA_SQL = `
     updated_at TEXT NOT NULL,
     FOREIGN KEY(account_id) REFERENCES local_accounts(id) ON DELETE CASCADE
   );
-  CREATE INDEX IF NOT EXISTS local_transactions_register
-    ON local_transactions(budget_id, account_id, date DESC, id DESC);
-  CREATE INDEX IF NOT EXISTS local_transactions_account_summary
-    ON local_transactions(budget_id, account_id, amount, cleared_status);
-  CREATE INDEX IF NOT EXISTS local_transactions_category_month
-    ON local_transactions(budget_id, category_id, substr(date, 1, 7), date, id);
-  CREATE INDEX IF NOT EXISTS local_transactions_budget_date
-    ON local_transactions(budget_id, date, id);
-  CREATE INDEX IF NOT EXISTS local_transactions_budget_month
-    ON local_transactions(budget_id, substr(date, 1, 7), category_id, amount);
-  CREATE INDEX IF NOT EXISTS local_transactions_payee
-    ON local_transactions(budget_id, payee_id, date DESC, id DESC);
-
   CREATE TABLE IF NOT EXISTS local_transaction_splits (
     transaction_id TEXT NOT NULL,
     id TEXT NOT NULL,
@@ -208,6 +195,24 @@ export const LOCAL_REGISTER_SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS local_transaction_attachments_transaction
     ON local_transaction_attachments(budget_id, transaction_id, attached_at, id);
 `;
+
+export const LOCAL_TRANSACTION_READ_INDEX_SQL = `
+  CREATE INDEX IF NOT EXISTS local_transactions_register
+    ON local_transactions(budget_id, account_id, date DESC, id DESC);
+  CREATE INDEX IF NOT EXISTS local_transactions_account_summary
+    ON local_transactions(budget_id, account_id, amount, cleared_status);
+  CREATE INDEX IF NOT EXISTS local_transactions_category_month
+    ON local_transactions(budget_id, category_id, substr(date, 1, 7), date, id);
+  CREATE INDEX IF NOT EXISTS local_transactions_budget_date
+    ON local_transactions(budget_id, date, id);
+  CREATE INDEX IF NOT EXISTS local_transactions_budget_month
+    ON local_transactions(budget_id, substr(date, 1, 7), category_id, amount);
+  CREATE INDEX IF NOT EXISTS local_transactions_payee
+    ON local_transactions(budget_id, payee_id, date DESC, id DESC);
+`;
+
+export const LOCAL_REGISTER_SCHEMA_SQL =
+  `${LOCAL_REGISTER_BASE_SCHEMA_SQL}\n${LOCAL_TRANSACTION_READ_INDEX_SQL}`;
 
 export interface LocalAccountRecord {
   readonly id: string;
