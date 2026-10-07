@@ -27,6 +27,15 @@
         "symbolId": "costco-au"
       },
       "source": "https://github.com/selfhst/icons#costco"
+    },
+    {
+      "key": "anaconda-au",
+      "asset": {
+        "kind": "sprite",
+        "spritePath": "retail-reviewed.svg",
+        "symbolId": "anaconda-au"
+      },
+      "source": "https://www.groupon.com.au/vouchers/anaconda; official retailer: https://www.anacondastores.com/en-au/store-finder/au"
     }
   ]
 }
