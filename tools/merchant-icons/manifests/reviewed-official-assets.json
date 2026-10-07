@@ -98,12 +98,6 @@
       "assetSource": "https://www.iinet.net.au/themes/iinet/favicon.ico"
     },
     {
-      "key": "internode-au",
-      "assetPath": "official/internode-au.svg",
-      "source": "https://www.internode.on.net",
-      "assetSource": "https://www.internode.on.net/sites/internode/files/favicons/safari-pinned-tab.svg"
-    },
-    {
       "key": "aussie-broadband-au",
       "assetPath": "official/aussie-broadband-au.png",
       "source": "https://www.aussiebroadband.com.au",
