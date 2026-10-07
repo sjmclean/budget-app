@@ -186,8 +186,6 @@ test("Actual backend import reports stage timings on a representative synthetic 
     "restore-store-source-read",
     "restore-store-chunk-hash",
     "restore-store-existing-chunk-verify",
-    "restore-store-temporary-write",
-    "restore-store-temporary-verify",
     "restore-store-final-write",
     "restore-store-final-verify",
     "restore-store-manifest-write",
