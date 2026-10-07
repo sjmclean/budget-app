@@ -50,5 +50,5 @@ test("merchant catalogue entries have unique identities and real lazy assets", a
     }
   }
 
-  assert.equal(spriteCache.size, 49);
+  assert.equal(spriteCache.size, 50);
 });
