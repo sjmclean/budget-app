@@ -2094,8 +2094,27 @@ async function beginStagedImport(
     throw workerError("STAGED_IMPORT_ACTIVE", "A staged local import is already active.");
   }
 
-  await ensurePersistentSqlite();
-  await reservePersistentDatabaseCapacity();
+  const timingsMs = {
+    sqliteRuntime: 0,
+    capacityReserve: 0,
+    removeStageFile: 0,
+    openDatabase: 0,
+    initialiseSchema: 0,
+    deferIndexes: 0,
+    metadata: 0,
+    manifest: 0,
+  };
+  const measure = async <T>(key: keyof typeof timingsMs, action: () => T | Promise<T>): Promise<T> => {
+    const startedAt = performance.now();
+    try {
+      return await action();
+    } finally {
+      timingsMs[key] = Math.round((performance.now() - startedAt) * 100) / 100;
+    }
+  };
+
+  await measure("sqliteRuntime", () => ensurePersistentSqlite());
+  await measure("capacityReserve", () => reservePersistentDatabaseCapacity());
 
   const stage: StagedImportState = {
     budgetId: request.budgetId,
@@ -2112,24 +2131,35 @@ async function beginStagedImport(
     database?.close();
     database = null;
 
-    await removeOpfsFile(stage.filename);
+    await measure("removeStageFile", () => removeOpfsFile(stage.filename));
 
     activeBudgetId = stage.budgetId;
     activeSyncEpoch = stage.syncEpoch;
     activeFilename = stage.filename;
 
-    database = openPersistentDatabase(stage.filename);
-    durable = true;
-    initialiseSchema();
-    deferStagedTransactionIndexes();
+    await measure("openDatabase", () => {
+      database = openPersistentDatabase(stage.filename);
+      durable = true;
+    });
+    await measure("initialiseSchema", () => initialiseSchema());
+    await measure("deferIndexes", () => deferStagedTransactionIndexes());
 
-    writeMetadata("budgetId", stage.budgetId);
-    writeMetadata("syncEpoch", stage.syncEpoch);
-    writeMetadata("schemaVersion", String(LOCAL_BUDGET_SCHEMA_VERSION));
-    writeMetadata("deviceId", stage.deviceId);
-    writeMetadata("localRevision", "0");
+    await measure("metadata", () => {
+      writeMetadata("budgetId", stage.budgetId);
+      writeMetadata("syncEpoch", stage.syncEpoch);
+      writeMetadata("schemaVersion", String(LOCAL_BUDGET_SCHEMA_VERSION));
+      writeMetadata("deviceId", stage.deviceId);
+      writeMetadata("localRevision", "0");
+    });
 
-    return currentManifest();
+    let manifest!: LocalBudgetManifest;
+    await measure("manifest", () => {
+      manifest = currentManifest();
+    });
+
+    return request.includePerformanceTimings
+      ? { manifest, timingsMs }
+      : manifest;
   } catch (error) {
     await restorePreviousDatabaseFromStage(stage);
     throw error;
