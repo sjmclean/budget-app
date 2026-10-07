@@ -1,8 +1,28 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
+
+const E2E_EMAIL = "e2e-admin@example.test";
+const E2E_PASSWORD = "E2E-only-password-2026!";
+
+async function ensureE2eAuthenticated(page: Page) {
+  const status = await page.request.get("/api/auth/status");
+  expect(status.ok()).toBe(true);
+  const body = await status.json() as { needsSetup: boolean; authenticated: boolean };
+  if (body.authenticated) return;
+
+  const response = body.needsSetup
+    ? await page.request.post("/api/auth/setup", {
+        data: { email: E2E_EMAIL, password: E2E_PASSWORD },
+      })
+    : await page.request.post("/api/auth/login", {
+        data: { email: E2E_EMAIL, password: E2E_PASSWORD },
+      });
+  expect(response.ok()).toBe(true);
+}
 
 test("Actual backend import reports stage timings on a representative synthetic budget", async ({ page }) => {
   test.setTimeout(120_000);
+  await ensureE2eAuthenticated(page);
   await page.goto("/");
 
   const report = await page.evaluate(async () => {
