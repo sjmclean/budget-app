@@ -12,13 +12,13 @@ const mapping = {
   2: "outflow",
 } as const;
 
-test("APPLE.COM/BILL can manually see a same-date iTunes transaction", () => {
+test("APPLE.COM/BILL can manually see a same-date Example Media transaction", () => {
   const preview = previewTransactionCsvImport(
     ["Date,Payee,Outflow", "2026-08-17,APPLE.COM/BILL,14.99"].join("\n"),
     [buildRegisterTransaction({
-      id: "itunes",
+      id: "example media",
       date: "2026-08-17",
-      payee: "itunes",
+      payee: "example media",
       outflow: 14.99,
     })],
     mapping,
@@ -28,7 +28,7 @@ test("APPLE.COM/BILL can manually see a same-date iTunes transaction", () => {
   assert.doesNotMatch(preview.candidates[0]?.reason ?? "", /no compatible merchant/i);
   assert.deepEqual(
     preview.candidates[0]?.matchCandidates?.map((entry) => entry.transaction.id),
-    ["itunes"],
+    ["example media"],
   );
   assert.equal(preview.candidates[0]?.matchCandidates?.[0]?.automaticMatch, false);
 });
@@ -37,7 +37,7 @@ test("all low-similarity exact-amount transactions inside seven days remain manu
   const preview = previewTransactionCsvImport(
     ["Date,Payee,Outflow", "2026-08-17,APPLE.COM/BILL,14.99"].join("\n"),
     [
-      buildRegisterTransaction({ id: "same-day", date: "2026-08-17", payee: "itunes", outflow: 14.99 }),
+      buildRegisterTransaction({ id: "same-day", date: "2026-08-17", payee: "example media", outflow: 14.99 }),
       buildRegisterTransaction({ id: "three-days", date: "2026-08-14", payee: "Streaming", outflow: 14.99 }),
       buildRegisterTransaction({ id: "seven-days", date: "2026-08-10", payee: "Media Store", outflow: 14.99 }),
     ],
@@ -56,9 +56,9 @@ test("manual candidates still exclude different amounts and dates beyond seven d
   const preview = previewTransactionCsvImport(
     ["Date,Payee,Outflow", "2026-08-17,APPLE.COM/BILL,14.99"].join("\n"),
     [
-      buildRegisterTransaction({ id: "eligible", date: "2026-08-13", payee: "itunes", outflow: 14.99 }),
-      buildRegisterTransaction({ id: "different-amount", date: "2026-08-17", payee: "itunes", outflow: 15 }),
-      buildRegisterTransaction({ id: "eight-days", date: "2026-08-09", payee: "itunes", outflow: 14.99 }),
+      buildRegisterTransaction({ id: "eligible", date: "2026-08-13", payee: "example media", outflow: 14.99 }),
+      buildRegisterTransaction({ id: "different-amount", date: "2026-08-17", payee: "example media", outflow: 15 }),
+      buildRegisterTransaction({ id: "eight-days", date: "2026-08-09", payee: "example media", outflow: 14.99 }),
     ],
     mapping,
   );
@@ -81,19 +81,19 @@ test("Montmorency automatically matches while unrelated same-amount rows remain 
       buildRegisterTransaction({
         id: "montmorency",
         date: "2026-08-17",
-        payee: "Montmorency Secondary College",
+        payee: "Example Secondary College",
         outflow: 25,
       }),
       buildRegisterTransaction({
         id: "belong-13",
         date: "2026-08-13",
-        payee: "Belong",
+        payee: "Example Telecom",
         outflow: 25,
       }),
       buildRegisterTransaction({
         id: "belong-11",
         date: "2026-08-11",
-        payee: "Belong",
+        payee: "Example Telecom",
         outflow: 25,
       }),
     ],
@@ -125,7 +125,7 @@ test("one shared merchant token does not auto-match a different display payee wi
       buildRegisterTransaction({
         id: "racv",
         date: "2026-08-17",
-        payee: "RACV Car Insurance",
+        payee: "Example Car Insurance",
         outflow: 1211.76,
       }),
     ],
@@ -154,7 +154,7 @@ test("same amount and exact date alone allow manual review without automatic mat
       buildRegisterTransaction({
         id: "belong",
         date: "2026-08-17",
-        payee: "Belong",
+        payee: "Example Telecom",
         outflow: 25,
       }),
     ],
@@ -181,7 +181,7 @@ test("RACV posted-date shift auto-matches when amount is exact and merchant iden
       buildRegisterTransaction({
         id: "racv-authorised",
         date: "2026-08-14",
-        payee: "RACV MELBOURNE 036",
+        payee: "EXAMPLE INSURANCE MELBOURNE 036",
         outflow: 1211.76,
       }),
     ],
@@ -204,7 +204,7 @@ test("VICROADS posted-date shift auto-matches despite trailing bank-detail chang
       buildRegisterTransaction({
         id: "vicroads-authorised",
         date: "2026-08-14",
-        payee: "VICROADS ONLINE PAYMEN KEW 036",
+        payee: "EXAMPLE REGISTRATION OFFICE ONLINE 036",
         outflow: 963.4,
       }),
     ],
@@ -221,7 +221,7 @@ test("VICROADS posted-date shift auto-matches despite trailing bank-detail chang
 test("Northern Motor Group posted-date shift auto-matches when merchant and amount remain stable", () => {
   const csv = [
     "Date,Payee,Outflow",
-    "2026-08-17,NORTHERN MOTOR GROUP BUNDOORA,761.04",
+    "2026-08-17,EXAMPLE AUTO DEALER NORTH,761.04",
   ].join("\n");
 
   const preview = previewTransactionCsvImport(
@@ -230,7 +230,7 @@ test("Northern Motor Group posted-date shift auto-matches when merchant and amou
       buildRegisterTransaction({
         id: "northern-authorised",
         date: "2026-08-14",
-        payee: "NORTHERN MOTOR GROUP BUNDOORA",
+        payee: "EXAMPLE AUTO DEALER NORTH",
         outflow: 761.04,
       }),
     ],
@@ -283,7 +283,7 @@ test("shared location token does not auto-match distinct merchants on the same d
       buildRegisterTransaction({
         id: "montmorency-school",
         date: "2026-08-17",
-        payee: "Montmorency Secondary College",
+        payee: "Example Secondary College",
         outflow: 25,
       }),
     ],
@@ -306,19 +306,19 @@ test("recurring same-merchant same-amount transactions remain ambiguous when the
       buildRegisterTransaction({
         id: "belong-same-day",
         date: "2026-08-17",
-        payee: "Belong",
+        payee: "Example Telecom",
         outflow: 25,
       }),
       buildRegisterTransaction({
         id: "belong-one-day",
         date: "2026-08-16",
-        payee: "Belong",
+        payee: "Example Telecom",
         outflow: 25,
       }),
       buildRegisterTransaction({
         id: "belong-six-days",
         date: "2026-08-11",
-        payee: "Belong",
+        payee: "Example Telecom",
         outflow: 25,
       }),
     ],
@@ -350,13 +350,13 @@ test("a materially closer same-merchant candidate wins when it clears the confid
       buildRegisterTransaction({
         id: "belong-same-day",
         date: "2026-08-17",
-        payee: "Belong",
+        payee: "Example Telecom",
         outflow: 25,
       }),
       buildRegisterTransaction({
         id: "belong-six-days",
         date: "2026-08-11",
-        payee: "Belong",
+        payee: "Example Telecom",
         outflow: 25,
       }),
     ],
@@ -415,7 +415,7 @@ test("local amount uniqueness cannot override contradictory merchant evidence", 
       buildRegisterTransaction({
         id: "unrelated-rare-amount",
         date: "2026-08-17",
-        payee: "Harvey Norman",
+        payee: "Example Electronics",
         outflow: 963.4,
       }),
     ],
@@ -442,13 +442,13 @@ test("a review-only merchant candidate cannot veto a strong automatic match", ()
       buildRegisterTransaction({
         id: "school",
         date: "2026-08-17",
-        payee: "Montmorency Secondary College",
+        payee: "Example Secondary College",
         outflow: 25,
       }),
       buildRegisterTransaction({
         id: "review-only",
         date: "2026-08-17",
-        payee: "Montmorency Cafe",
+        payee: "Example Local Cafe",
         outflow: 25,
       }),
     ],
