@@ -317,33 +317,6 @@
       "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.apple.com/apple-arcade"
     },
     {
-      "key": "paypal-global",
-      "asset": {
-        "kind": "sprite",
-        "spritePath": "reviewed-brands-01.svg",
-        "symbolId": "paypal-global"
-      },
-      "source": "https://github.com/simple-icons/simple-icons; upstream: https://www.paypal.com/us"
-    },
-    {
-      "key": "itunes-global",
-      "asset": {
-        "kind": "sprite",
-        "spritePath": "reviewed-brands-01.svg",
-        "symbolId": "itunes-global"
-      },
-      "source": "https://github.com/simple-icons/simple-icons; upstream: https://commons.wikimedia.org/wiki/File:ITunes_logo.svg"
-    },
-    {
-      "key": "ebay-global",
-      "asset": {
-        "kind": "sprite",
-        "spritePath": "reviewed-brands-01.svg",
-        "symbolId": "ebay-global"
-      },
-      "source": "https://github.com/simple-icons/simple-icons; upstream: https://go.developer.ebay.com/logos"
-    },
-    {
       "key": "target-us",
       "asset": {
         "kind": "sprite",
@@ -720,14 +693,6 @@
         "symbolId": "nordea-global"
       },
       "source": "https://github.com/glincker/thesvg#nordea"
-    },
-    {
-      "key": "bp-au",
-      "asset": {
-        "kind": "image",
-        "assetPath": "fuel/bp.svg"
-      },
-      "source": "https://github.com/bienstudio-byron/servo-saver/tree/main/public/logos"
     },
     {
       "key": "ampol-au",
