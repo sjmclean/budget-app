@@ -5771,51 +5771,84 @@ async function openBudget(request: Extract<LocalBudgetWorkerRequest, { type: "op
 
 async function captureRestorePoint(
   input: import("../../budget/restorePointTypes").CaptureRestorePointInput,
+  includePerformanceTimings = false,
 ) {
   if (!database || stagedImport || replacement || restoreCandidate) {
     throw workerError("RESTORE_POINT_DATABASE_BUSY", "A complete owned budget is required for a restore point.");
   }
-  const { createRestorePointStore } = await import("../../budget/restorePointStore");
+
+  const timingsMs: Record<string, number> = {};
+  const measure = async <T>(stage: string, operation: () => T | Promise<T>): Promise<T> => {
+    const startedAt = performance.now();
+    try {
+      return await operation();
+    } finally {
+      timingsMs[stage] = Math.round((performance.now() - startedAt) * 100) / 100;
+    }
+  };
+
+  const { createRestorePointStore } = await measure(
+    "restore-module-import",
+    () => import("../../budget/restorePointStore"),
+  );
   // The ownership queue serializes this client. SQLite's reserved write lock
   // additionally prevents another native-OPFS connection changing the file
   // during asynchronous chunk reads. No application writes occur in this txn.
   execute("BEGIN IMMEDIATE");
   try {
-    const check = resultRows<Record<string, unknown>>("PRAGMA quick_check");
+    const check = await measure("restore-quick-check", () =>
+      resultRows<Record<string, unknown>>("PRAGMA quick_check"),
+    );
     if (check.length !== 1 || Object.values(check[0])[0] !== "ok") {
       throw workerError("RESTORE_POINT_DATABASE_CORRUPT", "SQLite integrity validation failed before capture.");
     }
-    const manifest = currentManifest();
-    const journalMode = Object.values(resultRows<Record<string, unknown>>("PRAGMA journal_mode")[0])[0];
+
+    const manifest = await measure("restore-manifest", () => currentManifest());
+    const journalMode = Object.values(
+      resultRows<Record<string, unknown>>("PRAGMA journal_mode")[0],
+    )[0];
+
     let totalBytes: number;
-    if (journalMode === "wal") {
-      // A main-file copy cannot represent uncheckpointed WAL pages. SQLite
-      // serialization includes the transaction's complete logical database.
-      baselineExportBytes = sqliteRuntime!.capi.sqlite3_js_db_export(database!.pointer as number);
-      baselineExportBytes[18] = baselineExportBytes[19] = 1;
-      totalBytes = baselineExportBytes.byteLength;
-    } else if (persistentBackend === "opfs-sahpool") {
-      // The pool API exports a whole Uint8Array; this is the only full copy in
-      // JS memory. Chunk writes remain in this worker, never a download Blob.
-      baselineExportBytes = await sahPool!.exportFile(activeFilename);
-      totalBytes = baselineExportBytes.byteLength;
-    } else {
-      const root = await navigator.storage.getDirectory();
-      const file = await (await root.getFileHandle(activeFilename.replace(/^\//, ""))).getFile();
-      totalBytes = file.size;
-    }
-    return await createRestorePointStore().capture({
-      budgetId: manifest.budgetId,
-      budgetName: input.budgetName,
-      createdAt: new Date().toISOString(),
-      reason: input.reason,
-      syncEpoch: manifest.syncEpoch,
-      localRevision: manifest.localRevision,
-      counts: manifest.counts,
-      mutationCount: input.mutationCount,
-    }, totalBytes, (offset, length) => baselineExportBytes
-      ? Promise.resolve(baselineExportBytes.subarray(offset, offset + length))
-      : readBaselineExportChunk(offset, length));
+    await measure("restore-export-prepare", async () => {
+      if (journalMode === "wal") {
+        // A main-file copy cannot represent uncheckpointed WAL pages. SQLite
+        // serialization includes the transaction's complete logical database.
+        baselineExportBytes = sqliteRuntime!.capi.sqlite3_js_db_export(database!.pointer as number);
+        baselineExportBytes[18] = baselineExportBytes[19] = 1;
+        totalBytes = baselineExportBytes.byteLength;
+      } else if (persistentBackend === "opfs-sahpool") {
+        // The pool API exports a whole Uint8Array; this is the only full copy in
+        // JS memory. Chunk writes remain in this worker, never a download Blob.
+        baselineExportBytes = await sahPool!.exportFile(activeFilename);
+        totalBytes = baselineExportBytes.byteLength;
+      } else {
+        const root = await navigator.storage.getDirectory();
+        const file = await (await root.getFileHandle(activeFilename.replace(/^\//, ""))).getFile();
+        totalBytes = file.size;
+      }
+    });
+
+    const storeTimings: Record<string, number> = {};
+    const point = await measure("restore-store-capture", () =>
+      createRestorePointStore().capture({
+        budgetId: manifest.budgetId,
+        budgetName: input.budgetName,
+        createdAt: new Date().toISOString(),
+        reason: input.reason,
+        syncEpoch: manifest.syncEpoch,
+        localRevision: manifest.localRevision,
+        counts: manifest.counts,
+        mutationCount: input.mutationCount,
+      }, totalBytes!, (offset, length) => baselineExportBytes
+        ? Promise.resolve(baselineExportBytes.subarray(offset, offset + length))
+        : readBaselineExportChunk(offset, length),
+      ({ stage, elapsedMs }) => {
+        storeTimings[`restore-store-${stage}`] = elapsedMs;
+      }),
+    );
+    Object.assign(timingsMs, storeTimings);
+
+    return includePerformanceTimings ? { point, timingsMs } : point;
   } finally {
     baselineExportBytes = null;
     try { execute("ROLLBACK"); }
@@ -6344,7 +6377,7 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       restoreCandidate = null;
       return null;
     case "captureRestorePoint":
-      return captureRestorePoint(request.input);
+      return captureRestorePoint(request.input, request.includePerformanceTimings === true);
     case "prepareBaselineExport":
       return prepareBaselineExport();
     case "readBaselineExportChunk":
