@@ -118,9 +118,15 @@ test("index deferral is applied only after staged schema creation", () => {
 
   const body = workerSource.slice(start, end);
 
-  assert.match(
-    body,
-    /initialiseSchema\(\);[\s\S]*deferStagedTransactionIndexes\(\);/,
+  const initialiseIndex = body.indexOf(
+    'measure("initialiseSchema", () => initialiseSchema())',
+  );
+  const deferIndex = body.indexOf(
+    'measure("deferIndexes", () => deferStagedTransactionIndexes())',
+  );
+
+  assert.ok(
+    initialiseIndex >= 0 && deferIndex > initialiseIndex,
     "fresh staging database should create tables before deferring transaction indexes",
   );
 });
