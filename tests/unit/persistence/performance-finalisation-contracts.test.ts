@@ -105,22 +105,6 @@ test("Actual backend import exposes diagnostic-only stage timings", () => {
     "commit",
     "publish-baseline",
     "restore-point",
-    "restore-module-import",
-    "restore-quick-check",
-    "restore-manifest",
-    "restore-export-prepare",
-    "restore-store-capture",
-    "restore-store-catalogue",
-    "restore-store-source-read",
-    "restore-store-chunk-hash",
-    "restore-store-existing-chunk-verify",
-    "restore-store-temporary-write",
-    "restore-store-temporary-verify",
-    "restore-store-final-write",
-    "restore-store-final-verify",
-    "restore-store-manifest-write",
-    "restore-store-cleanup",
-    "restore-store-total-store",
     "finalize-storage",
     "total",
   ]) {
@@ -139,6 +123,26 @@ test("Actual backend import exposes diagnostic-only stage timings", () => {
     assert.match(importer, new RegExp(`\\["${stage}"`));
   }
   assert.match(importer, /input\.onPerformanceSample\(\{ stage, elapsedMs \}\)/);
+  for (const stage of [
+    "restore-module-import",
+    "restore-quick-check",
+    "restore-manifest",
+    "restore-export-prepare",
+    "restore-store-capture",
+    "restore-store-catalogue",
+    "restore-store-source-read",
+    "restore-store-chunk-hash",
+    "restore-store-existing-chunk-verify",
+    "restore-store-temporary-write",
+    "restore-store-temporary-verify",
+    "restore-store-final-write",
+    "restore-store-final-verify",
+    "restore-store-manifest-write",
+    "restore-store-cleanup",
+    "restore-store-total-store",
+  ]) {
+    assert.match(importer, new RegExp(`\\|${stage}`));
+  }
 
   const recordStart = importer.indexOf("function createActualImportRecord(");
   const recordEnd = importer.indexOf("\nexport function createActualBudgetLauncherImport(", recordStart);
