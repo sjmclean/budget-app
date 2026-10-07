@@ -5788,10 +5788,11 @@ async function captureRestorePoint(
     }
   };
 
-  const { createRestorePointStore } = await measure(
-    "restore-module-import",
-    () => import("../../budget/restorePointStore"),
-  );
+  const restoreModuleStartedAt = globalThis.performance?.now?.() ?? Date.now();
+  const { createRestorePointStore } = await import("../../budget/restorePointStore");
+  const restoreModuleFinishedAt = globalThis.performance?.now?.() ?? Date.now();
+  timingsMs["restore-module-import"] =
+    Math.round((restoreModuleFinishedAt - restoreModuleStartedAt) * 100) / 100;
   // The ownership queue serializes this client. SQLite's reserved write lock
   // additionally prevents another native-OPFS connection changing the file
   // during asynchronous chunk reads. No application writes occur in this txn.
