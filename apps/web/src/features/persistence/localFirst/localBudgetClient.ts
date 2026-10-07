@@ -397,6 +397,31 @@ export class LocalBudgetDatabaseClient {
     });
   }
 
+  beginStagedImportWithDiagnostics(input: {
+    readonly budgetId: string;
+    readonly syncEpoch: string;
+    readonly deviceId: string;
+  }): Promise<{
+    readonly manifest: LocalBudgetManifest;
+    readonly timingsMs: {
+      readonly sqliteRuntime: number;
+      readonly capacityReserve: number;
+      readonly removeStageFile: number;
+      readonly openDatabase: number;
+      readonly initialiseSchema: number;
+      readonly deferIndexes: number;
+      readonly metadata: number;
+      readonly manifest: number;
+    };
+  }> {
+    return this.#request({
+      requestId: createRuntimeUuid(),
+      type: "beginStagedImport",
+      ...input,
+      includePerformanceTimings: true,
+    });
+  }
+
   importEntityBatch(entities: readonly LocalImportEntity[]): Promise<void> {
     return this.#request({
       requestId: createRuntimeUuid(),
