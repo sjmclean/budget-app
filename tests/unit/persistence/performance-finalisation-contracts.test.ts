@@ -65,13 +65,19 @@ test("startup overlaps extended merchant catalogue loading with persistence init
   const main = read("../../../apps/web/src/main.tsx");
   const preloadStart = main.indexOf("const extendedMerchantCataloguePromise = import(");
   const persistenceInitialize = main.indexOf("await persistenceProvider.initialize?.()");
-  const preloadAwait = main.indexOf("await extendedMerchantCataloguePromise");
-  const appImport = main.indexOf('const { App } = await import("./App")');
+  const appImportStart = main.indexOf('const appImportPromise = import("./App")');
+  const preloadBarrier = main.indexOf("await Promise.all([");
+  const render = main.indexOf("reactRoot.render(");
 
   assert.ok(preloadStart >= 0);
   assert.ok(persistenceInitialize > preloadStart);
-  assert.ok(preloadAwait > persistenceInitialize);
-  assert.ok(appImport > preloadAwait);
+  assert.ok(appImportStart > persistenceInitialize);
+  assert.ok(preloadBarrier > appImportStart);
+  assert.match(
+    main.slice(preloadBarrier, render),
+    /extendedMerchantCataloguePromise[\s\S]*initialBudgetActivationPromise/,
+  );
+  assert.ok(render > preloadBarrier);
 });
 
 
