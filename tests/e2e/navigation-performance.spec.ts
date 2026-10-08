@@ -228,6 +228,13 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
           name: entry.name,
           atMs: Math.round(entry.startTime * 100) / 100,
         })),
+      persistenceReactivationEvents: performance
+        .getEntriesByType("mark")
+        .filter((entry) => entry.name.startsWith("budget-app:persistence-reactivation:"))
+        .map((entry) => ({
+          name: entry.name,
+          atMs: Math.round(entry.startTime * 100) / 100,
+        })),
     };
   });
 
