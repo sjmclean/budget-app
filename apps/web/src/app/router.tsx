@@ -4,7 +4,7 @@ import { BudgetSelectorPage } from "../pages/BudgetSelectorPage";
 import { RouteErrorScreen } from "./errors/RouteErrorScreen";
 import {
   activateBudgetPersistence,
-  nudgeActiveBudgetReplication,
+  nudgeActiveBudgetReplicationAfterPaint,
   releaseActiveBudgetPersistence,
 } from "../features/persistence/budgetDatabaseLifecycle";
 import { useUIStore } from "../stores/uiStore";
@@ -52,7 +52,7 @@ export const router = createBrowserRouter([
             });
             markStartup("budget-primary-prefetch:end");
           }
-          nudgeActiveBudgetReplication();
+          nudgeActiveBudgetReplicationAfterPaint();
         }
       }
       markStartup("workspace-loader:end");
