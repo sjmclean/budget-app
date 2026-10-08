@@ -281,6 +281,23 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
   );
   await expect(page).toHaveURL(/\/accounts\//);
 
+  const firstNavigationEvents = await page.evaluate(() => ({
+    ownershipAdmissionEvents: performance
+      .getEntriesByType("mark")
+      .filter((entry) => entry.name.startsWith("budget-app:ownership-admission:"))
+      .map((entry) => ({
+        name: entry.name,
+        atMs: Math.round(entry.startTime * 100) / 100,
+      })),
+    replicationTriggerEvents: performance
+      .getEntriesByType("mark")
+      .filter((entry) => entry.name.startsWith("budget-app:replication-trigger:"))
+      .map((entry) => ({
+        name: entry.name,
+        atMs: Math.round(entry.startTime * 100) / 100,
+      })),
+  }));
+
   const registerToRegisterMs = await measure(
     () => page.getByRole("link", { name: new RegExp("^" + ACCOUNT_B) }).click(),
     page.getByRole("heading", { name: ACCOUNT_B, exact: true }),
@@ -308,6 +325,7 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
     },
     startupBudgetReloadMs,
     startupStages,
+    firstNavigationEvents,
     budgetToRegisterMs,
     registerToRegisterMs,
     registerToBudgetMs,
