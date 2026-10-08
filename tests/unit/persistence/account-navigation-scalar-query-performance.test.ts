@@ -31,6 +31,13 @@ const scheduledMaintenanceSource = fs.readFileSync(
   ),
   "utf8",
 );
+const accountRegisterLoaderSource = fs.readFileSync(
+  new URL(
+    "../../../apps/web/src/pages/accountRegisterPageLoader.ts",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 test("account navigation avoids joining and grouping every transaction", () => {
   const match = workerSource.match(
@@ -136,6 +143,15 @@ test("startup leaves account navigation loading to the rendered Sidebar", () => 
     /setAccounts\(sqliteNavigation\.map\(\(entry\) => entry\.account\)\)/,
   );
   assert.match(sidebarSource, /isNavigationSummaryPending \? "…" : formattedBalance/);
+});
+
+test("account navigation preloads the shared Register route chunk", () => {
+  assert.match(sidebarSource, /preloadAccountRegisterPage\(\)/);
+  assert.match(routerSource, /loadAccountRegisterPage\(\)/);
+  assert.match(
+    accountRegisterLoaderSource,
+    /accountRegisterPagePromise \?\?= import\("\.\/AccountRegisterPage"\)/,
+  );
 });
 
 test("local-first scheduled maintenance skips capability probes and uses the cheap account list", () => {
