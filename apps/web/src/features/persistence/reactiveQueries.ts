@@ -41,7 +41,15 @@ export const budgetMonthQuery = createReactiveQueryDefinition<
     month,
     domains: ["budget", "categories", "transactions", "goals"],
   }),
-  load: (provider, input) => provider.categories.getBudgetMonthView(input),
+  load: async (provider, input) => {
+    const markPrefix = `budget-app:budget-month-query:${input.month}`;
+    globalThis.performance?.mark?.(`${markPrefix}:start`);
+    try {
+      return await provider.categories.getBudgetMonthView(input);
+    } finally {
+      globalThis.performance?.mark?.(`${markPrefix}:end`);
+    }
+  },
 });
 
 export const financialOverviewQuery = createReactiveQueryDefinition<
