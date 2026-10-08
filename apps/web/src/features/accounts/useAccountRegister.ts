@@ -235,6 +235,7 @@ export function useAccountRegister(
     await ensureSqliteReady();
     const generation = ++loadGenerationRef.current;
     try {
+      globalThis.performance?.mark?.("budget-app:account-register-bootstrap:start");
       const consistent = await loadConsistentRegisterSnapshot({
         readRevision: () =>
           getPersistenceRevisionForInterest(persistenceInterest),
@@ -258,6 +259,7 @@ export function useAccountRegister(
       });
 
       if (generation !== loadGenerationRef.current) return;
+      globalThis.performance?.mark?.("budget-app:account-register-bootstrap:end");
       const { summary, page } = consistent.result;
       const next = {
         summary,
