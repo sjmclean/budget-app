@@ -95,6 +95,19 @@ export async function activateBudgetPersistence(
 ): Promise<void> {
   intendedActiveBudgetId = budgetId;
 
+  const provider = getBudgetPersistenceProvider();
+  const queries = provider.accountRegisterQueries;
+  if (
+    provider.syncArchitecture === "local-first-relay" &&
+    hasLocalFirstDatabaseTabOwnership(budgetId) &&
+    !queries?.isLocalDatabaseReleased?.()
+  ) {
+    if (!options.deferBackgroundSync) {
+      nudgeActiveBudgetReplication();
+    }
+    return;
+  }
+
   let operation = activationInFlight?.budgetId === budgetId
     ? activationInFlight.promise
     : null;
