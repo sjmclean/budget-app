@@ -5,6 +5,7 @@ import {
   lazy,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -444,6 +445,17 @@ export function AccountRegisterPage() {
     storageMode,
     setRegisterViewQuery,
   } = useAccountRegister(accountId, activeBudgetId);
+  // Diagnostic-only: distinguish local data readiness from the React commit
+  // and the following browser frame during Register navigation.
+  useLayoutEffect(() => {
+    if (isLoading || !data || error) return;
+    globalThis.performance?.mark?.("budget-app:register-view:committed");
+    const frame = window.requestAnimationFrame(() => {
+      globalThis.performance?.mark?.("budget-app:register-view:frame");
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [accountId, isLoading, data, error]);
+
   const {
     addTransaction,
     updateTransaction,
