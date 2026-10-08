@@ -28,6 +28,18 @@ test("pending restore journals block ordinary warm-open bypass", () => {
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 
+test("local budget activation readies SQLite before workspace reads", () => {
+  const source = read("../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts");
+  const start = source.indexOf('if (key === "activateLocalBudget")');
+  const end = source.indexOf('if (key === "isLocalDatabaseReleased")', start);
+  const activation = source.slice(start, end);
+  assert.match(activation, /await ownership\.enter\(budgetId\)/);
+  assert.match(
+    activation,
+    /await ownership\.run\(budgetId, async \(\) => \{[\s\S]*await requireDatabase\(budgetId\)/,
+  );
+});
+
 test("ordinary local-first reads do not launch relay convergence", () => {
   const source = read("../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts");
   const start = source.indexOf("async function syncThenDatabase");
