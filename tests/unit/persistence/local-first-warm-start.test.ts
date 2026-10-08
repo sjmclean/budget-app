@@ -158,7 +158,7 @@ test("relay mutation events already covered by the last completed cursor are coa
   );
   assert.match(
     service,
-    /event\.type === "mutations-available"[\s\S]*lastCompletedSync\?\.budgetId === event\.budgetId[\s\S]*lastCompletedSync\.pulledCursor >= event\.latestCursor[\s\S]*relay-event-coalesced/,
+    /\(event\.type === "connected" \|\|[\s\S]*event\.type === "mutations-available"\)[\s\S]*lastCompletedSync\?\.budgetId === event\.budgetId[\s\S]*lastCompletedSync\.pulledCursor >= event\.latestCursor[\s\S]*relay-event-coalesced/,
   );
 });
 
