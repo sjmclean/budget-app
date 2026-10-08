@@ -1712,7 +1712,16 @@ export function createLocalBudgetRuntime(
   const owned = new Proxy(client, {
     get(target, key) {
       if (key === "releaseLocalDatabase") return ownership.leave;
-      if (key === "activateLocalBudget") return ownership.enter;
+      if (key === "activateLocalBudget") {
+        const method = async (budgetId: string) => {
+          await ownership.enter(budgetId);
+          await ownership.run(budgetId, async () => {
+            await requireDatabase(budgetId);
+          });
+        };
+        methods.set(key, method);
+        return method;
+      }
       if (key === "isLocalDatabaseReleased") return ownership.isReleased;
       if (key === "runWithExclusiveLocalDatabase") return ownership.exclusive;
       if (methods.has(key)) return methods.get(key);
