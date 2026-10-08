@@ -147,6 +147,8 @@ test("startup leaves account navigation loading to the rendered Sidebar", () => 
 
 test("account navigation preloads the shared Register route chunk", () => {
   assert.match(sidebarSource, /preloadAccountRegisterPage\(\)/);
+  assert.match(sidebarSource, /requestIdleCallback/);
+  assert.match(sidebarSource, /accounts\.length === 0/);
   assert.match(routerSource, /loadAccountRegisterPage\(\)/);
   assert.match(
     accountRegisterLoaderSource,
