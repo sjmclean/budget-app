@@ -158,6 +158,20 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
           },
         ]),
       ),
+      sidebarAccountIdentitiesMs: (() => {
+        const start = performance.getEntriesByType("mark")
+          .find((entry) => entry.name.startsWith("budget-app:sidebar-account-identities:") && entry.name.endsWith(":start"));
+        if (!start) return null;
+        const prefix = start.name.slice("budget-app:".length, -":start".length);
+        return duration(`${prefix}:start`, `${prefix}:end`);
+      })(),
+      sidebarAccountNavigationMs: (() => {
+        const start = performance.getEntriesByType("mark")
+          .find((entry) => entry.name.startsWith("budget-app:sidebar-account-navigation:") && entry.name.endsWith(":start"));
+        if (!start) return null;
+        const prefix = start.name.slice("budget-app:".length, -":start".length);
+        return duration(`${prefix}:start`, `${prefix}:end`);
+      })(),
     };
   });
 
