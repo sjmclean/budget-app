@@ -274,7 +274,6 @@ export function startReplicationBackgroundService(
         void syncNow();
       }
     };
-    const pageShow = () => { void syncNow(); };
     const unsubscribeMutationCommits = subscribeToLocalFirstMutationCommits(
       (budgetId) => {
         if (budgetId !== activeBudgetId()) return;
@@ -294,7 +293,6 @@ export function startReplicationBackgroundService(
     );
     globalThis.addEventListener?.("online", online);
     globalThis.addEventListener?.("offline", offline);
-    globalThis.addEventListener?.("pageshow", pageShow);
     globalThis.document?.addEventListener?.("visibilitychange", visible);
     intervalTimer = setInterval(() => { void syncNow(); }, intervalMs);
     subscriptionScopeTimer = setInterval(connectEvents, 2_000);
@@ -363,7 +361,6 @@ export function startReplicationBackgroundService(
         eventSubscription?.close();
         globalThis.removeEventListener?.("online", online);
         globalThis.removeEventListener?.("offline", offline);
-        globalThis.removeEventListener?.("pageshow", pageShow);
         globalThis.document?.removeEventListener?.("visibilitychange", visible);
       },
     };
