@@ -130,6 +130,7 @@ export function startReplicationBackgroundService(
     let subscribedBudgetId: string | null = null;
     let eventDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     let mutationDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastCompletedSync: { budgetId: string; pulledCursor: number } | null = null;
     const publishedMetadata = new Map<string, string>();
     const mutationDebounceMs = options.debounceMs ?? 250;
     const localConflictClient = () => provider.localBudgetConflictRecovery;
@@ -144,10 +145,24 @@ export function startReplicationBackgroundService(
       eventSubscription = subscribeToLocalFirstRelayEvents({
         budgetId,
         apiBaseUrl: options.apiBaseUrl,
-        onEvent: () => {
-          globalThis.performance?.mark?.("budget-app:replication-trigger:relay-event");
+        onEvent: (event) => {
+          globalThis.performance?.mark?.(
+            `budget-app:replication-trigger:relay-event:${event.type}`,
+          );
           if (eventDebounceTimer) clearTimeout(eventDebounceTimer);
-          eventDebounceTimer = setTimeout(() => void syncNow(), 100);
+          eventDebounceTimer = setTimeout(() => {
+            if (
+              event.type === "mutations-available" &&
+              lastCompletedSync?.budgetId === event.budgetId &&
+              lastCompletedSync.pulledCursor >= event.latestCursor
+            ) {
+              globalThis.performance?.mark?.(
+                "budget-app:replication-trigger:relay-event-coalesced",
+              );
+              return;
+            }
+            void syncNow();
+          }, 100);
         },
       });
     };
@@ -222,6 +237,10 @@ export function startReplicationBackgroundService(
           }
           const synchronisation =
             await provider.accountRegisterQueries.synchroniseLocalBudget(budgetId);
+          lastCompletedSync = {
+            budgetId,
+            pulledCursor: synchronisation.pulledCursor,
+          };
           if (provider.accountRegisterQueries.isLocalDatabaseReleased?.()) return null;
           const conflicts = await localConflictClient()
             ?.listSyncConflicts?.(budgetId) ?? [];
