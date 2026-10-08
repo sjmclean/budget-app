@@ -1553,14 +1553,20 @@ export function createLocalBudgetRuntime(
       }
       if (!view) throw new Error(`Budget month ${input.month} is not available locally.`);
       if (storage.getItem(BUDGET_ENGINE_DIAGNOSTIC_STORAGE_KEY) === "true") {
-        await local.getBudgetProjectionDiagnostic(input.budgetId, input.month).then(
-          (diagnostic) => {
-            if (!diagnostic.matchesSnapshot) {
-              console.warn("Budget engine diagnostic differs from the legacy snapshot.", diagnostic);
-            }
-          },
-          (error) => console.warn("Budget engine diagnostic could not run.", error),
-        );
+        const diagnosticPrefix = `budget-app:budget-engine-diagnostic:${input.month}`;
+        globalThis.performance?.mark?.(`${diagnosticPrefix}:start`);
+        try {
+          await local.getBudgetProjectionDiagnostic(input.budgetId, input.month).then(
+            (diagnostic) => {
+              if (!diagnostic.matchesSnapshot) {
+                console.warn("Budget engine diagnostic differs from the legacy snapshot.", diagnostic);
+              }
+            },
+            (error) => console.warn("Budget engine diagnostic could not run.", error),
+          );
+        } finally {
+          globalThis.performance?.mark?.(`${diagnosticPrefix}:end`);
+        }
       }
       return view;
     },
