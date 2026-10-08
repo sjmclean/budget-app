@@ -461,12 +461,12 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
   // Measure Dashboard separately after the Register samples so the first
   // Dashboard visit still exercises its lazily loaded route chunk.
   await page.getByRole("link", { name: "Budget", exact: true }).click();
-  await expect(page).toHaveURL(/\\/budget$/);
+  await expect(page).toHaveURL(/\/budget$/);
   const budgetToDashboardMs = await measure(
     () => page.getByRole("link", { name: "Dashboard", exact: true }).click(),
     page.getByRole("heading", { name: BUDGET_NAME, exact: true }),
   );
-  await expect(page).toHaveURL(/\\/dashboard$/);
+  await expect(page).toHaveURL(/\/dashboard$/);
   // The heading is available before the overview query resolves; record the
   // time until the financial information is actually visible as well.
   const dashboardReadyAt = performance.now();
@@ -482,12 +482,12 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
       ? null : Math.round((end - start) * 100) / 100 };
   });
   await page.getByRole("link", { name: "Budget", exact: true }).click();
-  await expect(page).toHaveURL(/\\/budget$/);
+  await expect(page).toHaveURL(/\/budget$/);
   const warmBudgetToDashboardMs = await measure(
     () => page.getByRole("link", { name: "Dashboard", exact: true }).click(),
     page.getByText("Net Worth", { exact: true }).first(),
   );
-  await expect(page).toHaveURL(/\\/dashboard$/);
+  await expect(page).toHaveURL(/\/dashboard$/);
 
   const repeatability = {
     sampleCount: repeatabilitySamples.length,
