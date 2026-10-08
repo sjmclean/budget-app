@@ -9,6 +9,8 @@ import {
 } from "../features/persistence/budgetDatabaseLifecycle";
 import { useUIStore } from "../stores/uiStore";
 import { getBudgetPersistenceProvider } from "../features/persistence";
+import { getCurrentBudgetMonth } from "../features/budget/budgetMonthNavigation";
+import { prefetchBudgetMonthQuery } from "../features/persistence/reactiveQueries";
 
 function markStartup(name: string): void {
   globalThis.performance?.mark?.(`budget-app:${name}`);
@@ -28,7 +30,7 @@ export const router = createBrowserRouter([
   },
   {
     element: <AppShell />,
-    async loader() {
+    async loader({ request }) {
       const budgetId = useUIStore.getState().selectedBudgetId;
       if (budgetId) {
         markStartup("budget-activation:start");
@@ -41,6 +43,14 @@ export const router = createBrowserRouter([
           provider.syncArchitecture === "local-first-relay" &&
           provider.accountRegisterQueries
         ) {
+          if (new URL(request.url).pathname === "/budget") {
+            markStartup("budget-primary-prefetch:start");
+            await prefetchBudgetMonthQuery({
+              budgetId,
+              month: getCurrentBudgetMonth(),
+            });
+            markStartup("budget-primary-prefetch:end");
+          }
           nudgeActiveBudgetReplication();
         }
       }
