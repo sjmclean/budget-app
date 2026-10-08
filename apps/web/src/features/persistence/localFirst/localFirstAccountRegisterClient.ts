@@ -1513,7 +1513,13 @@ export function createLocalBudgetRuntime(
       return (await syncThenDatabase(input.budgetId)).getCategoryGoal(input.budgetId, input.categoryId);
     },
     async listCategoryGoals(input) {
-      return (await syncThenDatabase(input.budgetId)).listCategoryGoals(input.budgetId);
+      const prefix = `budget-app:runtime-category-goals:${input.budgetId}`;
+      globalThis.performance?.mark?.(`${prefix}:start`);
+      try {
+        return await (await syncThenDatabase(input.budgetId)).listCategoryGoals(input.budgetId);
+      } finally {
+        globalThis.performance?.mark?.(`${prefix}:end`);
+      }
     },
     createCategoryGoal: publicOrdinaryCommands.createCategoryGoal,
     updateCategoryGoal: publicOrdinaryCommands.updateCategoryGoal,
@@ -1533,11 +1539,18 @@ export function createLocalBudgetRuntime(
       return client.getLocalBudgetMonthView(input);
     },
     async getLocalBudgetMonthView(input) {
+      const prefix = `budget-app:runtime-budget-month-read:${input.month}`;
+      globalThis.performance?.mark?.(`${prefix}:start`);
       const local = await requireDatabase(input.budgetId);
-      const view = await local.readEntity<BudgetMonthView>(
-        "budgetMonths",
-        input.month,
-      );
+      let view: BudgetMonthView | null = null;
+      try {
+        view = await local.readEntity<BudgetMonthView>(
+          "budgetMonths",
+          input.month,
+        );
+      } finally {
+        globalThis.performance?.mark?.(`${prefix}:end`);
+      }
       if (!view) throw new Error(`Budget month ${input.month} is not available locally.`);
       if (storage.getItem(BUDGET_ENGINE_DIAGNOSTIC_STORAGE_KEY) === "true") {
         await local.getBudgetProjectionDiagnostic(input.budgetId, input.month).then(
