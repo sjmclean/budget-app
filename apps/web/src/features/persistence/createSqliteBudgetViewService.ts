@@ -19,9 +19,12 @@ const SQLITE_BUDGET_REQUIRED =
 async function requireBudgetMonths(
   hosted: LocalBudgetQueryClient | undefined,
   budgetId: string,
+  performanceMarkPrefix?: string,
 ): Promise<LocalBudgetQueryClient> {
   if (!hosted) throw new Error(SQLITE_BUDGET_REQUIRED);
+  if (performanceMarkPrefix) globalThis.performance?.mark?.(`${performanceMarkPrefix}:status:start`);
   const status = await hosted.getBudgetStatus(budgetId);
+  if (performanceMarkPrefix) globalThis.performance?.mark?.(`${performanceMarkPrefix}:status:end`);
   if (!status.capabilities.budgetMonths) throw new Error(SQLITE_BUDGET_REQUIRED);
   return hosted;
 }
@@ -30,12 +33,26 @@ async function withCategoryGoals(
   client: LocalBudgetQueryClient,
   input: { readonly budgetId: string; readonly month: string },
   view: Promise<Awaited<ReturnType<LocalBudgetQueryClient["getBudgetMonthView"]>>>,
+  performanceMarkPrefix?: string,
 ) {
+  if (performanceMarkPrefix) globalThis.performance?.mark?.(`${performanceMarkPrefix}:goals:start`);
+  const goalsPromise = client.listCategoryGoals({ budgetId: input.budgetId }).finally(() => {
+    if (performanceMarkPrefix) globalThis.performance?.mark?.(`${performanceMarkPrefix}:goals:end`);
+  });
+  const financialPromise = view.finally(() => {
+    if (performanceMarkPrefix) globalThis.performance?.mark?.(`${performanceMarkPrefix}:financial:end`);
+  });
   const [financialView, goals] = await Promise.all([
-    view,
-    client.listCategoryGoals({ budgetId: input.budgetId }),
+    financialPromise,
+    goalsPromise,
   ]);
-  return markPublication(projectCategoryGoalsOntoBudgetView(financialView, input.month, goals), financialView.publicationRevision ?? null);
+  if (performanceMarkPrefix) globalThis.performance?.mark?.(`${performanceMarkPrefix}:overlay:start`);
+  const projected = markPublication(
+    projectCategoryGoalsOntoBudgetView(financialView, input.month, goals),
+    financialView.publicationRevision ?? null,
+  );
+  if (performanceMarkPrefix) globalThis.performance?.mark?.(`${performanceMarkPrefix}:overlay:end`);
+  return projected;
 }
 
 export function createSqliteBudgetViewService(
@@ -64,8 +81,15 @@ export function createSqliteBudgetViewService(
   }
   return {
     async getBudgetMonthView(input) {
-      const client = await requireBudgetMonths(hosted, input.budgetId);
-      return withCategoryGoals(client, input, client.getBudgetMonthView(input));
+      const performanceMarkPrefix = `budget-app:budget-view-service:${input.month}`;
+      const client = await requireBudgetMonths(hosted, input.budgetId, performanceMarkPrefix);
+      globalThis.performance?.mark?.(`${performanceMarkPrefix}:financial:start`);
+      return withCategoryGoals(
+        client,
+        input,
+        client.getBudgetMonthView(input),
+        performanceMarkPrefix,
+      );
     },
     async updateAssigned(input) {
       const client = await requireBudgetMonths(hosted, input.budgetId);
