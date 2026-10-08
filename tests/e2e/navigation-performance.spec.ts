@@ -206,6 +206,14 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
         "ownership-admission:listCategoryGoals:admitted",
         "ownership-admission:listCategoryGoals:completed",
       ),
+      synchroniseOwnershipWaitMs: duration(
+        "ownership-admission:synchroniseLocalBudget:requested",
+        "ownership-admission:synchroniseLocalBudget:admitted",
+      ),
+      synchroniseOwnershipExecutionMs: duration(
+        "ownership-admission:synchroniseLocalBudget:admitted",
+        "ownership-admission:synchroniseLocalBudget:completed",
+      ),
     };
   });
 
