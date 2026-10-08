@@ -119,14 +119,18 @@ test("sidebar shares the reactive account navigation read instead of issuing its
 });
 
 
-test("startup leaves account identity loading to the rendered Sidebar", () => {
+test("startup leaves account navigation loading to the rendered Sidebar", () => {
   const activation = routerSource.indexOf("await activateBudgetPersistence(budgetId,");
   const replicationNudge = routerSource.indexOf("nudgeActiveBudgetReplication()");
   assert.ok(activation >= 0, "route startup should activate the budget");
   assert.ok(replicationNudge > activation, "background convergence should start after local activation");
   assert.doesNotMatch(routerSource, /prefetchAccountIdentityQuery/);
-  assert.match(sidebarSource, /useAccountIdentityQuery/);
-  assert.match(sidebarSource, /setAccounts\(\[\.\.\.accountIdentityQuery\.data\]\)/);
+  assert.doesNotMatch(sidebarSource, /useAccountIdentityQuery/);
+  assert.match(sidebarSource, /useAccountNavigationQuery/);
+  assert.match(
+    sidebarSource,
+    /setAccounts\(sqliteNavigation\.map\(\(entry\) => entry\.account\)\)/,
+  );
   assert.match(sidebarSource, /isNavigationSummaryPending \? "…" : formattedBalance/);
 });
 
