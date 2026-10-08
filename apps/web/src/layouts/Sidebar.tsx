@@ -214,6 +214,30 @@ export function Sidebar({
   }, [accountNavigationQuery.data]);
 
   useEffect(() => {
+    if (!activeBudgetId || accounts.length === 0) return;
+    const schedule = () => preloadAccountRegisterPage();
+    const idle = (
+      globalThis as typeof globalThis & {
+        requestIdleCallback?: (callback: () => void) => number;
+        cancelIdleCallback?: (handle: number) => void;
+      }
+    ).requestIdleCallback;
+    const cancelIdle = (
+      globalThis as typeof globalThis & {
+        cancelIdleCallback?: (handle: number) => void;
+      }
+    ).cancelIdleCallback;
+
+    if (typeof idle === "function") {
+      const handle = idle(schedule);
+      return () => cancelIdle?.(handle);
+    }
+
+    const handle = window.setTimeout(schedule, 0);
+    return () => window.clearTimeout(handle);
+  }, [activeBudgetId, accounts.length]);
+
+  useEffect(() => {
     if (accountRegisterQueries) return;
     let active = true;
 
