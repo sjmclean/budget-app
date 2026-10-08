@@ -11,6 +11,10 @@ import { useUIStore } from "../stores/uiStore";
 import { getBudgetPersistenceProvider } from "../features/persistence";
 import { prefetchAccountIdentityQuery } from "../features/persistence/reactiveQueries";
 
+function markStartup(name: string): void {
+  globalThis.performance?.mark?.(`budget-app:${name}`);
+}
+
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -28,15 +32,19 @@ export const router = createBrowserRouter([
     async loader() {
       const budgetId = useUIStore.getState().selectedBudgetId;
       if (budgetId) {
+        markStartup("budget-activation:start");
         await activateBudgetPersistence(budgetId, {
           deferBackgroundSync: true,
         });
+        markStartup("budget-activation:end");
         const provider = getBudgetPersistenceProvider();
         if (
           provider.syncArchitecture === "local-first-relay" &&
           provider.accountRegisterQueries
         ) {
+          markStartup("account-identity-prefetch:start");
           await prefetchAccountIdentityQuery({ budgetId });
+          markStartup("account-identity-prefetch:end");
           nudgeActiveBudgetReplication();
         }
       }
