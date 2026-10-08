@@ -121,9 +121,13 @@ test("sidebar shares the reactive account navigation read instead of issuing its
 
 test("startup leaves account navigation loading to the rendered Sidebar", () => {
   const activation = routerSource.indexOf("await activateBudgetPersistence(budgetId,");
-  const replicationNudge = routerSource.indexOf("nudgeActiveBudgetReplication()");
+  const replicationNudge = routerSource.indexOf("nudgeActiveBudgetReplicationAfterPaint()");
   assert.ok(activation >= 0, "route startup should activate the budget");
-  assert.ok(replicationNudge > activation, "background convergence should start after local activation");
+  assert.ok(
+    replicationNudge > activation,
+    "background convergence should be scheduled after local activation and first paint",
+  );
+  assert.doesNotMatch(routerSource, /\bnudgeActiveBudgetReplication\(\)/);
   assert.doesNotMatch(routerSource, /prefetchAccountIdentityQuery/);
   assert.doesNotMatch(sidebarSource, /useAccountIdentityQuery/);
   assert.match(sidebarSource, /useAccountNavigationQuery/);
