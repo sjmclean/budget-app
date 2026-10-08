@@ -87,9 +87,11 @@ export const router = createBrowserRouter([
       {
         path: "/accounts/:accountId",
         lazy: async () => {
+          markStartup("account-register-page-import:start");
           const { AccountRegisterPage } = await import(
             "../pages/AccountRegisterPage"
           );
+          markStartup("account-register-page-import:end");
           return { Component: AccountRegisterPage };
         },
       },
