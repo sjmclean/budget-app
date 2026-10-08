@@ -47,10 +47,7 @@ import { useUIStore } from "../stores/uiStore";
 import { navigationModel, type NavigationIcon } from "./navigationModel";
 import { useAccountHistory } from "../features/accounts/useAccountHistory";
 import { prefetchScheduledTransactionPreview } from "../features/accounts/scheduledTransactionPreviewWarmCache";
-import {
-  useAccountIdentityQuery,
-  useAccountNavigationQuery,
-} from "../features/persistence/reactiveQueries";
+import { useAccountNavigationQuery } from "../features/persistence/reactiveQueries";
 import type { AdaptiveNavigationMode } from "./useAdaptiveNavigation";
 
 interface AccountNavigationSummary {
@@ -113,10 +110,6 @@ export function Sidebar({
   const activeBudgetId = resolveActiveBudgetId(budgets, selectedBudgetId);
   const activeBudget = budgets.find((budget) => budget.id === activeBudgetId);
   const accountHistory = useAccountHistory(activeBudgetId);
-  const accountIdentityQuery = useAccountIdentityQuery(
-    { budgetId: activeBudgetId ?? "__inactive__" },
-    Boolean(activeBudgetId && accountRegisterQueries),
-  );
   const accountNavigationQuery = useAccountNavigationQuery(
     { budgetId: activeBudgetId ?? "__inactive__" },
     Boolean(activeBudgetId && accountRegisterQueries),
@@ -204,13 +197,9 @@ export function Sidebar({
   }, []);
 
   useEffect(() => {
-    if (!accountIdentityQuery.data) return;
-    setAccounts([...accountIdentityQuery.data]);
-  }, [accountIdentityQuery.data]);
-
-  useEffect(() => {
     const sqliteNavigation = accountNavigationQuery.data;
     if (!sqliteNavigation) return;
+    setAccounts(sqliteNavigation.map((entry) => entry.account));
     setAccountSummaries(Object.fromEntries(
       sqliteNavigation.map((entry) => [
         entry.account.id,
