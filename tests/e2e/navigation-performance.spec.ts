@@ -115,6 +115,10 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
       merchantPreloadMs: duration("merchant-preload:start", "merchant-preload:end"),
       appImportMs: duration("app-import:start", "app-import:end"),
       budgetActivationMs: duration("budget-activation:start", "budget-activation:end"),
+      budgetPrimaryPrefetchMs: duration(
+        "budget-primary-prefetch:start",
+        "budget-primary-prefetch:end",
+      ),
       accountIdentityPrefetchMs: duration(
         "account-identity-prefetch:start",
         "account-identity-prefetch:end",
