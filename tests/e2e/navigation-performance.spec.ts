@@ -46,6 +46,29 @@ async function measure(
   return Math.round((performance.now() - startedAt) * 100) / 100;
 }
 
+function percentile(values: readonly number[], fraction: number): number {
+  const sorted = [...values].sort((left, right) => left - right);
+  if (sorted.length === 0) return Number.NaN;
+  const index = (sorted.length - 1) * fraction;
+  const lower = Math.floor(index);
+  const upper = Math.ceil(index);
+  const value = lower === upper
+    ? sorted[lower]
+    : sorted[lower] + (sorted[upper] - sorted[lower]) * (index - lower);
+  return Math.round(value * 100) / 100;
+}
+
+function summarise(values: readonly number[]) {
+  return {
+    count: values.length,
+    min: Math.min(...values),
+    p25: percentile(values, 0.25),
+    median: percentile(values, 0.5),
+    p75: percentile(values, 0.75),
+    max: Math.max(...values),
+  };
+}
+
 test("measures startup and warm workspace navigation", async ({ page }) => {
   await ensureAuthenticated(page);
   await page.goto("/");
@@ -316,6 +339,80 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
   );
   await expect(page).toHaveURL(/\/accounts\//);
 
+  const repeatabilitySamples = [{
+    startupBudgetReloadMs,
+    browserStartupToBudgetReadyMs: startupStages.browserStartupToBudgetReadyMs,
+    localOpenMs: startupStages.readyDatabaseMs?.localOpenMs ?? null,
+    budgetToRegisterMs,
+  }];
+
+  for (let iteration = 1; iteration < 5; iteration += 1) {
+    const repeatedStartupBudgetReloadMs = await measure(
+      () => page.goto("/budget", { waitUntil: "domcontentloaded" }),
+      page.getByRole("heading", { name: /\w+ \d{4}/ }).first(),
+    );
+    const repeatedStartupStages = await page.evaluate(() => {
+      const marks = performance.getEntriesByType("mark");
+      const last = (name: string) =>
+        marks.filter((entry) => entry.name === `budget-app:${name}`).at(-1)?.startTime ?? null;
+      const startupStart = last("startup:start");
+      const readyStart = marks.find(
+        (entry) =>
+          entry.name.startsWith("budget-app:ready-database:") &&
+          entry.name.endsWith(":local-open:start"),
+      )?.startTime ?? null;
+      const readyEnd = marks.find(
+        (entry) =>
+          entry.name.startsWith("budget-app:ready-database:") &&
+          entry.name.endsWith(":local-open:end"),
+      )?.startTime ?? null;
+      return {
+        browserStartupToBudgetReadyMs: startupStart === null
+          ? null
+          : Math.round((performance.now() - startupStart) * 100) / 100,
+        localOpenMs: readyStart === null || readyEnd === null
+          ? null
+          : Math.round((readyEnd - readyStart) * 100) / 100,
+      };
+    });
+
+    const repeatedBudgetToRegisterMs = await measure(
+      () => page.getByRole("link", { name: new RegExp("^" + ACCOUNT_A) }).click(),
+      page.getByRole("heading", { name: ACCOUNT_A, exact: true }),
+    );
+    await expect(page).toHaveURL(/\/accounts\//);
+
+    repeatabilitySamples.push({
+      startupBudgetReloadMs: repeatedStartupBudgetReloadMs,
+      browserStartupToBudgetReadyMs: repeatedStartupStages.browserStartupToBudgetReadyMs,
+      localOpenMs: repeatedStartupStages.localOpenMs,
+      budgetToRegisterMs: repeatedBudgetToRegisterMs,
+    });
+  }
+
+  const repeatability = {
+    sampleCount: repeatabilitySamples.length,
+    samples: repeatabilitySamples,
+    summary: {
+      startupBudgetReloadMs: summarise(
+        repeatabilitySamples.map((sample) => sample.startupBudgetReloadMs),
+      ),
+      browserStartupToBudgetReadyMs: summarise(
+        repeatabilitySamples
+          .map((sample) => sample.browserStartupToBudgetReadyMs)
+          .filter((value): value is number => value !== null),
+      ),
+      localOpenMs: summarise(
+        repeatabilitySamples
+          .map((sample) => sample.localOpenMs)
+          .filter((value): value is number => value !== null),
+      ),
+      budgetToRegisterMs: summarise(
+        repeatabilitySamples.map((sample) => sample.budgetToRegisterMs),
+      ),
+    },
+  };
+
   const report = {
     generatedAt: new Date().toISOString(),
     schemaVersion: 1,
@@ -325,6 +422,7 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
     },
     startupBudgetReloadMs,
     startupStages,
+    repeatability,
     firstNavigationEvents,
     budgetToRegisterMs,
     registerToRegisterMs,
