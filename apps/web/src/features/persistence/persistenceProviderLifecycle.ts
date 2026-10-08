@@ -24,8 +24,9 @@ export function installPersistenceProviderLifecycle(
     });
   };
   const handlePageHide = () => releaseForSuspension();
-  const reactivateVisibleBudget = () => {
+  const reactivateVisibleBudget = (source: "visibility" | "pageshow" | "focus") => {
     if (document.visibilityState !== "visible") return;
+    globalThis.performance?.mark?.(`budget-app:persistence-reactivation:${source}`);
     void import("../../stores/uiStore").then(({ useUIStore }) => {
       const budgetId = useUIStore.getState().selectedBudgetId;
       if (!budgetId || document.visibilityState !== "visible") return;
@@ -40,20 +41,21 @@ export function installPersistenceProviderLifecycle(
       releaseForSuspension();
       return;
     }
-    reactivateVisibleBudget();
+    reactivateVisibleBudget("visibility");
   };
 
-  const handlePageShow = () => reactivateVisibleBudget();
+  const handlePageShow = () => reactivateVisibleBudget("pageshow");
 
   window.addEventListener("pagehide", handlePageHide);
   window.addEventListener("pageshow", handlePageShow);
-  window.addEventListener("focus", reactivateVisibleBudget);
+  const handleFocus = () => reactivateVisibleBudget("focus");
+  window.addEventListener("focus", handleFocus);
   document.addEventListener("visibilitychange", handleVisibilityChange);
 
   return () => {
     window.removeEventListener("pagehide", handlePageHide);
     window.removeEventListener("pageshow", handlePageShow);
-    window.removeEventListener("focus", reactivateVisibleBudget);
+    window.removeEventListener("focus", handleFocus);
     document.removeEventListener("visibilitychange", handleVisibilityChange);
   };
 }
