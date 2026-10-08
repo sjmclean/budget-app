@@ -111,7 +111,15 @@ export const accountIdentityQuery = createReactiveQueryDefinition<
     budgetId,
     domains: ["accounts"],
   }),
-  load: async (provider, { budgetId }) => requireQueries(provider).listAccounts(budgetId),
+  load: async (provider, { budgetId }) => {
+    const prefix = `budget-app:sidebar-account-identities:${budgetId}`;
+    globalThis.performance?.mark?.(`${prefix}:start`);
+    try {
+      return await requireQueries(provider).listAccounts(budgetId);
+    } finally {
+      globalThis.performance?.mark?.(`${prefix}:end`);
+    }
+  },
 });
 
 export const accountNavigationQuery = createReactiveQueryDefinition<
@@ -124,7 +132,15 @@ export const accountNavigationQuery = createReactiveQueryDefinition<
     budgetId,
     domains: ["accounts", "transactions", "categories"],
   }),
-  load: async (provider, { budgetId }) => requireQueries(provider).listAccountNavigation(budgetId),
+  load: async (provider, { budgetId }) => {
+    const prefix = `budget-app:sidebar-account-navigation:${budgetId}`;
+    globalThis.performance?.mark?.(`${prefix}:start`);
+    try {
+      return await requireQueries(provider).listAccountNavigation(budgetId);
+    } finally {
+      globalThis.performance?.mark?.(`${prefix}:end`);
+    }
+  },
 });
 
 export const categoryActivityDrilldownQuery = createReactiveQueryDefinition<
