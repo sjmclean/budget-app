@@ -107,13 +107,32 @@ export async function bootstrapApp() {
       apiBaseUrl: (import.meta as ImportMeta & { env?: { VITE_BUDGET_API_URL?: string } }).env?.VITE_BUDGET_API_URL,
     });
 
-    await extendedMerchantCataloguePromise;
+    const selectedBudgetId =
+      persistenceProvider.keyValueStorage?.getItem(SELECTED_BUDGET_STORAGE_KEY) ?? null;
+    const initialBudgetActivationPromise = selectedBudgetId
+      ? import("./features/persistence/budgetDatabaseLifecycle")
+          .then(({ activateBudgetPersistence }) =>
+            activateBudgetPersistence(selectedBudgetId, {
+              deferBackgroundSync: true,
+            }),
+          )
+      : Promise.resolve();
 
     // Import application modules only after runtime persistence is configured.
     // Zustand stores read registry and selection state during module creation.
+    // The app import and selected-budget SQLite activation can overlap because
+    // both depend only on the now-configured persistence runtime.
     markStartup("app-import:start");
-    const { App } = await import("./App");
-    markStartup("app-import:end");
+    const appImportPromise = import("./App").then((module) => {
+      markStartup("app-import:end");
+      return module;
+    });
+
+    await Promise.all([
+      extendedMerchantCataloguePromise,
+      initialBudgetActivationPromise,
+    ]);
+    const { App } = await appImportPromise;
 
     reactRoot = ReactDOM.createRoot(root);
     markStartup("react-render:start");
