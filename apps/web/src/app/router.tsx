@@ -43,8 +43,11 @@ export const router = createBrowserRouter([
           provider.accountRegisterQueries
         ) {
           markStartup("account-identity-prefetch:start");
-          await prefetchAccountIdentityQuery({ budgetId });
-          markStartup("account-identity-prefetch:end");
+          void prefetchAccountIdentityQuery({ budgetId })
+            .then(() => markStartup("account-identity-prefetch:end"))
+            .catch((error) => {
+              console.error("Unable to prefetch account identities after budget activation.", error);
+            });
           nudgeActiveBudgetReplication();
         }
       }
