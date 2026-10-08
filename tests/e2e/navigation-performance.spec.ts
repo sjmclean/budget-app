@@ -126,6 +126,38 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
             (performance.now() - (read("react-render:start") ?? 0)) * 100,
           ) / 100,
       budgetMonthQueryTimings,
+      budgetViewServiceTimings: Object.fromEntries(
+        [...new Set(
+          performance
+            .getEntriesByType("mark")
+            .filter((entry) => entry.name.startsWith("budget-app:budget-view-service:"))
+            .map((entry) =>
+              entry.name
+                .replace("budget-app:budget-view-service:", "")
+                .replace(/:(status|financial|goals|overlay):(start|end)$/, ""),
+            ),
+        )].map((month) => [
+          month,
+          {
+            statusMs: duration(
+              `budget-view-service:${month}:status:start`,
+              `budget-view-service:${month}:status:end`,
+            ),
+            financialMs: duration(
+              `budget-view-service:${month}:financial:start`,
+              `budget-view-service:${month}:financial:end`,
+            ),
+            goalsMs: duration(
+              `budget-view-service:${month}:goals:start`,
+              `budget-view-service:${month}:goals:end`,
+            ),
+            overlayMs: duration(
+              `budget-view-service:${month}:overlay:start`,
+              `budget-view-service:${month}:overlay:end`,
+            ),
+          },
+        ]),
+      ),
     };
   });
 
