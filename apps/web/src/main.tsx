@@ -29,7 +29,12 @@ function getApplicationRoot(): HTMLElement {
   return root;
 }
 
+function markStartup(name: string): void {
+  globalThis.performance?.mark?.(`budget-app:${name}`);
+}
+
 export async function bootstrapApp() {
+  markStartup("startup:start");
   const root = getApplicationRoot();
   let reactRoot: ReturnType<typeof ReactDOM.createRoot> | null = null;
 
@@ -43,15 +48,20 @@ export async function bootstrapApp() {
     // completion before importing/rendering App, preserving exact merchant
     // matching on first paint without serialising this work behind database
     // initialization.
+    markStartup("merchant-preload:start");
     const extendedMerchantCataloguePromise = import(
       "./features/icons/merchantIconCatalogue"
     ).then(({ preloadExtendedMerchantIconCatalogue }) =>
       preloadExtendedMerchantIconCatalogue(),
-    );
+    ).then(() => {
+      markStartup("merchant-preload:end");
+    });
 
     const hostProvider = bootstrapHostBudgetPersistenceProvider();
     if (!hostProvider) {
+      markStartup("auth:start");
       const session = await loadAuthStatus();
+      markStartup("auth:end");
       hostedBudgets = session?.budgets ?? [];
       hostedCatalogueAuthoritative = session?.authenticated === true;
       // Preserve the original IndexedDB for the first administrator so an
@@ -68,7 +78,9 @@ export async function bootstrapApp() {
 
     configureAttachmentContentStoreNamespace(attachmentNamespace);
     const persistenceProvider = getBudgetPersistenceProvider();
+    markStartup("persistence-initialize:start");
     await persistenceProvider.initialize?.();
+    markStartup("persistence-initialize:end");
     if (persistenceProvider.keyValueStorage && hostedCatalogueAuthoritative) {
       mergeHostedBudgetCatalogue(
         persistenceProvider.keyValueStorage,
@@ -99,9 +111,12 @@ export async function bootstrapApp() {
 
     // Import application modules only after runtime persistence is configured.
     // Zustand stores read registry and selection state during module creation.
+    markStartup("app-import:start");
     const { App } = await import("./App");
+    markStartup("app-import:end");
 
     reactRoot = ReactDOM.createRoot(root);
+    markStartup("react-render:start");
     reactRoot.render(
       <React.StrictMode>
         <App />
