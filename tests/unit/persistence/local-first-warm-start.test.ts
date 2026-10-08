@@ -146,6 +146,17 @@ test("local-first timed restore points use the held tab lease as active budget",
 });
 
 
+test("initial route convergence is scheduled after the first paint boundary", () => {
+  const lifecycle = read("../../../apps/web/src/features/persistence/budgetDatabaseLifecycle.ts");
+  const router = read("../../../apps/web/src/app/router.tsx");
+  assert.match(
+    lifecycle,
+    /export function nudgeActiveBudgetReplicationAfterPaint\(\)[\s\S]*requestAnimationFrame[\s\S]*setTimeout\(nudgeActiveBudgetReplication, 0\)/,
+  );
+  assert.match(router, /nudgeActiveBudgetReplicationAfterPaint\(\)/);
+  assert.doesNotMatch(router, /\bnudgeActiveBudgetReplication\(\)/);
+});
+
 test("already-owned active budget activation is idempotent after in-flight readiness completes", () => {
   const lifecycle = read("../../../apps/web/src/features/persistence/budgetDatabaseLifecycle.ts");
   const start = lifecycle.indexOf("export async function activateBudgetPersistence");
@@ -187,7 +198,7 @@ test("initial route startup can defer convergence without changing normal reacti
   assert.doesNotMatch(router, /prefetchAccountIdentityQuery/);
   assert.match(
     router,
-    /activateBudgetPersistence\(budgetId, \{\s*deferBackgroundSync: true,[\s\S]*nudgeActiveBudgetReplication\(\)/,
+    /activateBudgetPersistence\(budgetId, \{\s*deferBackgroundSync: true,[\s\S]*nudgeActiveBudgetReplicationAfterPaint\(\)/,
   );
 });
 
