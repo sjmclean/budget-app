@@ -106,6 +106,7 @@ export async function bootstrapApp() {
     }
     startReplicationBackgroundService(persistenceProvider, {
       apiBaseUrl: (import.meta as ImportMeta & { env?: { VITE_BUDGET_API_URL?: string } }).env?.VITE_BUDGET_API_URL,
+      startImmediately: false,
     });
 
     const selectedBudgetId =
