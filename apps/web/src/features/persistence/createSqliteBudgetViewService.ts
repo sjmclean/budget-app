@@ -18,14 +18,8 @@ const SQLITE_BUDGET_REQUIRED =
 
 async function requireBudgetMonths(
   hosted: LocalBudgetQueryClient | undefined,
-  budgetId: string,
-  performanceMarkPrefix?: string,
 ): Promise<LocalBudgetQueryClient> {
   if (!hosted) throw new Error(SQLITE_BUDGET_REQUIRED);
-  if (performanceMarkPrefix) globalThis.performance?.mark?.(`${performanceMarkPrefix}:status:start`);
-  const status = await hosted.getBudgetStatus(budgetId);
-  if (performanceMarkPrefix) globalThis.performance?.mark?.(`${performanceMarkPrefix}:status:end`);
-  if (!status.capabilities.budgetMonths) throw new Error(SQLITE_BUDGET_REQUIRED);
   return hosted;
 }
 
@@ -82,7 +76,7 @@ export function createSqliteBudgetViewService(
   return {
     async getBudgetMonthView(input) {
       const performanceMarkPrefix = `budget-app:budget-view-service:${input.month}`;
-      const client = await requireBudgetMonths(hosted, input.budgetId, performanceMarkPrefix);
+      const client = await requireBudgetMonths(hosted);
       globalThis.performance?.mark?.(`${performanceMarkPrefix}:financial:start`);
       return withCategoryGoals(
         client,
@@ -92,7 +86,7 @@ export function createSqliteBudgetViewService(
       );
     },
     async updateAssigned(input) {
-      const client = await requireBudgetMonths(hosted, input.budgetId);
+      const client = await requireBudgetMonths(hosted);
       return withCategoryGoals(client, input, assign({
         budgetId: input.budgetId,
         month: input.month,
@@ -100,18 +94,18 @@ export function createSqliteBudgetViewService(
       }));
     },
     async setCategoryAssignedValues(input) {
-      const client = await requireBudgetMonths(hosted, input.budgetId);
+      const client = await requireBudgetMonths(hosted);
       return withCategoryGoals(client, input, assign(input));
     },
     async setCategoryOverspendingHandling(input) {
-      const client = await requireBudgetMonths(hosted, input.budgetId);
+      const client = await requireBudgetMonths(hosted);
       return withCategoryGoals(client, input, mutateCategory(input.budgetId, {
         operation: "overspending",
         ...input,
       }));
     },
     async coverOverspending(input) {
-      const client = await requireBudgetMonths(hosted, input.budgetId);
+      const client = await requireBudgetMonths(hosted);
       const view = await client.getBudgetMonthView(input);
       const categories = view.categoryGroups.flatMap((group) => group.categories);
       const source = categories.find(({ id }) => id === input.coveringCategoryId);
@@ -139,66 +133,66 @@ export function createSqliteBudgetViewService(
       });
     },
     async renameCategory(input) {
-      const client = await requireBudgetMonths(hosted, input.budgetId);
+      const client = await requireBudgetMonths(hosted);
       return withCategoryGoals(client, input, mutateCategory(input.budgetId, {
         operation: "rename",
         ...input,
       }));
     },
     async setCategoryArchived(input) {
-      const client = await requireBudgetMonths(hosted, input.budgetId);
+      const client = await requireBudgetMonths(hosted);
       return withCategoryGoals(client, input, mutateCategory(input.budgetId, {
         operation: "archive",
         ...input,
       }));
     },
     async moveCategory(input) {
-      const client = await requireBudgetMonths(hosted, input.budgetId);
+      const client = await requireBudgetMonths(hosted);
       return withCategoryGoals(client, input, mutateCategory(input.budgetId, {
         operation: "move-category",
         ...input,
       }));
     },
     async moveCategoryToPosition(input) {
-      const client = await requireBudgetMonths(hosted, input.budgetId);
+      const client = await requireBudgetMonths(hosted);
       return withCategoryGoals(client, input, mutateCategory(input.budgetId, {
         operation: "position-category",
         ...input,
       }));
     },
     async moveCategoryGroup(input) {
-      const client = await requireBudgetMonths(hosted, input.budgetId);
+      const client = await requireBudgetMonths(hosted);
       return withCategoryGoals(client, input, mutateCategory(input.budgetId, {
         operation: "move-group",
         ...input,
       }));
     },
     async moveCategoryGroupToPosition(input) {
-      const client = await requireBudgetMonths(hosted, input.budgetId);
+      const client = await requireBudgetMonths(hosted);
       return withCategoryGoals(client, input, mutateCategory(input.budgetId, {
         operation: "position-group",
         ...input,
       }));
     },
     async updateCategoryNote(input) {
-      const client = await requireBudgetMonths(hosted, input.budgetId);
+      const client = await requireBudgetMonths(hosted);
       return withCategoryGoals(client, input, mutateCategory(input.budgetId, {
         operation: "category-note",
         ...input,
       }));
     },
     async updateCategoryGroupNote(input) {
-      const client = await requireBudgetMonths(hosted, input.budgetId);
+      const client = await requireBudgetMonths(hosted);
       return withCategoryGoals(client, input, mutateCategory(input.budgetId, {
         operation: "group-note",
         ...input,
       }));
     },
     async getCategoryMergePreview(input) {
-      return (await requireBudgetMonths(hosted, input.budgetId)).getCategoryMergePreview(input);
+      return (await requireBudgetMonths(hosted)).getCategoryMergePreview(input);
     },
     async mergeCategory(input) {
-      const client = await requireBudgetMonths(hosted, input.budgetId);
+      const client = await requireBudgetMonths(hosted);
       return withCategoryGoals(client, input, mutateCategory(input.budgetId, {
         operation: "merge",
         month: input.month,
@@ -208,12 +202,12 @@ export function createSqliteBudgetViewService(
     },
     async getCategoryOptions(input) {
       return [
-        ...(await (await requireBudgetMonths(hosted, input.budgetId))
+        ...(await (await requireBudgetMonths(hosted))
           .getBudgetCategoryOptions(input)),
       ];
     },
     async getCategoryActivityDrilldown(input) {
-      return (await requireBudgetMonths(hosted, input.budgetId))
+      return (await requireBudgetMonths(hosted))
         .getCategoryActivityDrilldown(input);
     },
   };
