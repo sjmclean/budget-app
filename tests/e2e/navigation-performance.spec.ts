@@ -128,6 +128,14 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
         "budget-primary-prefetch:start",
         "budget-primary-prefetch:end",
       ),
+      workspaceLoaderMs: duration(
+        "workspace-loader:start",
+        "workspace-loader:end",
+      ),
+      budgetPageImportMs: duration(
+        "budget-page-import:start",
+        "budget-page-import:end",
+      ),
       accountIdentityPrefetchMs: duration(
         "account-identity-prefetch:start",
         "account-identity-prefetch:end",
