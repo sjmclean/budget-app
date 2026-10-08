@@ -119,13 +119,14 @@ test("sidebar shares the reactive account navigation read instead of issuing its
 });
 
 
-test("startup prefetches cheap account identities before the workspace renders", () => {
+test("startup begins cheap account identity prefetch after activation without blocking workspace render", () => {
   const activation = routerSource.indexOf("await activateBudgetPersistence(budgetId,");
-  const identityPrefetch = routerSource.indexOf("await prefetchAccountIdentityQuery({ budgetId })");
+  const identityPrefetch = routerSource.indexOf("void prefetchAccountIdentityQuery({ budgetId })");
   const replicationNudge = routerSource.indexOf("nudgeActiveBudgetReplication()");
   assert.ok(activation >= 0, "route startup should activate the budget");
-  assert.ok(identityPrefetch > activation, "account identities should load after local activation");
-  assert.ok(replicationNudge > identityPrefetch, "background convergence should start after critical identity loading");
+  assert.ok(identityPrefetch > activation, "account identity prefetch should begin after local activation");
+  assert.ok(replicationNudge > identityPrefetch, "background convergence should start after account prefetch begins");
+  assert.doesNotMatch(routerSource, /await prefetchAccountIdentityQuery\(\{ budgetId \}\)/);
   assert.match(sidebarSource, /useAccountIdentityQuery/);
   assert.match(sidebarSource, /setAccounts\(\[\.\.\.accountIdentityQuery\.data\]\)/);
   assert.match(sidebarSource, /isNavigationSummaryPending \? "…" : formattedBalance/);
