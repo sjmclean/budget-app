@@ -65,7 +65,9 @@ export const router = createBrowserRouter([
       {
         path: "/dashboard",
         lazy: async () => {
+          markStartup("dashboard-page-import:start");
           const { DashboardPage } = await import("../pages/DashboardPage");
+          markStartup("dashboard-page-import:end");
           return { Component: DashboardPage };
         },
       },
