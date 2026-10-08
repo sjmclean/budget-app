@@ -85,6 +85,24 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
         : Math.round((endTime - startTime) * 100) / 100;
     };
     const startupStart = read("startup:start");
+    const budgetMonthQueryEntries = performance
+      .getEntriesByType("mark")
+      .filter((entry) => entry.name.startsWith("budget-app:budget-month-query:"));
+    const budgetMonthQueryTimings = Object.fromEntries(
+      [...new Set(
+        budgetMonthQueryEntries.map((entry) =>
+          entry.name
+            .replace("budget-app:budget-month-query:", "")
+            .replace(/:(start|end)$/, ""),
+        ),
+      )].map((month) => [
+        month,
+        duration(
+          `budget-month-query:${month}:start`,
+          `budget-month-query:${month}:end`,
+        ),
+      ]),
+    );
     return {
       browserStartupToBudgetReadyMs: startupStart === null
         ? null
@@ -107,6 +125,7 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
         : Math.round(
             (performance.now() - (read("react-render:start") ?? 0)) * 100,
           ) / 100,
+      budgetMonthQueryTimings,
     };
   });
 
