@@ -169,6 +169,7 @@ export async function ensureActiveBudgetPersistenceReady(
 }
 
 export function nudgeActiveBudgetReplication(): void {
+  globalThis.performance?.mark?.("budget-app:replication-trigger:explicit-nudge");
   void getReplicationBackgroundService()?.syncNow().catch((error: unknown) => {
     console.error("Unable to synchronise the active budget after local activation.", error);
   });
