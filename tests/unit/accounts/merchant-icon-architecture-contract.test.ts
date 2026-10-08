@@ -18,13 +18,17 @@ test("catalogue references lazy static assets without bundling image payloads", 
   assert.doesNotMatch(simpleGenerator, /data:image|;base64,/u);
 });
 
-test("extended brand identities stay out of the static catalogue graph and preload before App", () => {
+test("extended brand identities stay out of the static catalogue graph and preload before render", () => {
   assert.doesNotMatch(catalogue, /^import .*merchantIconSimpleBrands/mu);
   assert.doesNotMatch(catalogue, /^import .*merchantIconBundledExpansion/mu);
   assert.match(catalogue, /import\("\.\/merchantIconBundledExpansion\.js"\)/u);
   assert.match(catalogue, /import\("\.\/merchantIconSimpleBrands\.js"\)/u);
   assert.match(main, /preloadExtendedMerchantIconCatalogue\(\)/u);
-  assert.match(main, /await extendedMerchantCataloguePromise;[\s\S]*?await import\("\.\/App"\)/u);
+  assert.match(main, /const appImportPromise = import\("\.\/App"\)/u);
+  assert.match(
+    main,
+    /await Promise\.all\(\[[\s\S]*extendedMerchantCataloguePromise,[\s\S]*initialBudgetActivationPromise,[\s\S]*\]\);[\s\S]*const \{ App \} = await appImportPromise;[\s\S]*reactRoot\.render/u,
+  );
 });
 
 test("live catalogue expansion is distinct from planning manifest inventory", async () => {
