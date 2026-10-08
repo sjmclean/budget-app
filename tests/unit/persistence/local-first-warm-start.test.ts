@@ -149,10 +149,12 @@ test("local-first timed restore points use the held tab lease as active budget",
 test("initial route convergence is scheduled after the first paint boundary", () => {
   const lifecycle = read("../../../apps/web/src/features/persistence/budgetDatabaseLifecycle.ts");
   const router = read("../../../apps/web/src/app/router.tsx");
-  assert.match(
-    lifecycle,
-    /export function nudgeActiveBudgetReplicationAfterPaint\(\)[\s\S]*requestAnimationFrame[\s\S]*setTimeout\(nudgeActiveBudgetReplication, 0\)/,
-  );
+  const start = lifecycle.indexOf("export function nudgeActiveBudgetReplicationAfterPaint()");
+  const end = lifecycle.indexOf("/** Shared boundary", start);
+  const helper = lifecycle.slice(start, end);
+  assert.ok(start >= 0);
+  assert.match(helper, /const run = \(\) => setTimeout\(nudgeActiveBudgetReplication, 0\)/);
+  assert.match(helper, /requestAnimationFrame\(\(\) => run\(\)\)/);
   assert.match(router, /nudgeActiveBudgetReplicationAfterPaint\(\)/);
   assert.doesNotMatch(router, /\bnudgeActiveBudgetReplication\(\)/);
 });
