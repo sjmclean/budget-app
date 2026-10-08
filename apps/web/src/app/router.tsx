@@ -11,6 +11,7 @@ import { useUIStore } from "../stores/uiStore";
 import { getBudgetPersistenceProvider } from "../features/persistence";
 import { getCurrentBudgetMonth } from "../features/budget/budgetMonthNavigation";
 import { prefetchBudgetMonthQuery } from "../features/persistence/reactiveQueries";
+import { loadAccountRegisterPage } from "../pages/accountRegisterPageLoader";
 
 function markStartup(name: string): void {
   globalThis.performance?.mark?.(`budget-app:${name}`);
@@ -88,9 +89,7 @@ export const router = createBrowserRouter([
         path: "/accounts/:accountId",
         lazy: async () => {
           markStartup("account-register-page-import:start");
-          const { AccountRegisterPage } = await import(
-            "../pages/AccountRegisterPage"
-          );
+          const { AccountRegisterPage } = await loadAccountRegisterPage();
           markStartup("account-register-page-import:end");
           return { Component: AccountRegisterPage };
         },
