@@ -44,11 +44,15 @@ test("production runtime prewarms one local SQLite worker client", () => {
   );
 });
 
-test("bootstrap overlaps selected-budget activation with app import", () => {
+test("bootstrap starts selected-budget activation before app import and overlaps their completion", () => {
   const main = read("../../../apps/web/src/main.tsx");
+  const activation = main.indexOf("const initialBudgetActivationPromise = selectedBudgetId");
+  const appImport = main.indexOf('const appImportPromise = import("./App")');
+  assert.ok(activation >= 0);
+  assert.ok(appImport > activation);
   assert.match(
-    main,
-    /const initialBudgetActivationPromise = selectedBudgetId[\s\S]*activateBudgetPersistence\(selectedBudgetId, \{[\s\S]*deferBackgroundSync: true/,
+    main.slice(activation, appImport),
+    /activateBudgetPersistence\(selectedBudgetId, \{[\s\S]*deferBackgroundSync: true/,
   );
   assert.match(
     main,
