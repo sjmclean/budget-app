@@ -75,7 +75,7 @@ async function captureRegisterNavigationTimeline(page: Page) {
     const marks = performance.getEntriesByType("mark")
       .filter((entry) => entry.name.startsWith("budget-app:"));
     const relevant = marks.filter((entry) =>
-      /account-register|ownership-admission|replication-trigger|sidebar-account/.test(entry.name),
+      /account-register|register-view|ownership-admission|replication-trigger|sidebar-account/.test(entry.name),
     );
     return relevant.map((entry) => ({
       name: entry.name,
@@ -320,6 +320,15 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
   );
   const firstNavigationEnd = await page.evaluate(() => performance.now());
   const firstNavigationTimeline = await captureRegisterNavigationTimeline(page);
+  const firstNavigationRenderStages = await page.evaluate(() => {
+    const marks = performance.getEntriesByType("mark");
+    const last = (name: string) => marks.filter((entry) => entry.name === `budget-app:${name}`).at(-1)?.startTime ?? null;
+    return {
+      bootstrapFinishedAtMs: last("account-register-bootstrap:end"),
+      committedAtMs: last("register-view:committed"),
+      firstFrameAtMs: last("register-view:frame"),
+    };
+  });
   await expect(page).toHaveURL(/\/accounts\//);
 
   const firstNavigationEvents = await page.evaluate(() => {
@@ -386,6 +395,7 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
     navigationStartMs: firstNavigationStart,
     navigationEndMs: firstNavigationEnd,
     navigationTimeline: firstNavigationTimeline,
+    renderStages: firstNavigationRenderStages,
   }];
 
   for (let iteration = 1; iteration < 5; iteration += 1) {
@@ -425,6 +435,15 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
     );
     const navigationEnd = await page.evaluate(() => performance.now());
     const navigationTimeline = await captureRegisterNavigationTimeline(page);
+    const renderStages = await page.evaluate(() => {
+      const marks = performance.getEntriesByType("mark");
+      const last = (name: string) => marks.filter((entry) => entry.name === `budget-app:${name}`).at(-1)?.startTime ?? null;
+      return {
+        bootstrapFinishedAtMs: last("account-register-bootstrap:end"),
+        committedAtMs: last("register-view:committed"),
+        firstFrameAtMs: last("register-view:frame"),
+      };
+    });
     await expect(page).toHaveURL(/\/accounts\//);
 
     repeatabilitySamples.push({
@@ -435,6 +454,7 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
       navigationStartMs: navigationStart,
       navigationEndMs: navigationEnd,
       navigationTimeline,
+      renderStages,
     });
   }
 
