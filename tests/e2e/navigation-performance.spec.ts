@@ -438,6 +438,37 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
     });
   }
 
+  // Measure Dashboard separately after the Register samples so the first
+  // Dashboard visit still exercises its lazily loaded route chunk.
+  await page.getByRole("link", { name: "Budget", exact: true }).click();
+  await expect(page).toHaveURL(/\\/budget$/);
+  const budgetToDashboardMs = await measure(
+    () => page.getByRole("link", { name: "Dashboard", exact: true }).click(),
+    page.getByRole("heading", { name: BUDGET_NAME, exact: true }),
+  );
+  await expect(page).toHaveURL(/\\/dashboard$/);
+  // The heading is available before the overview query resolves; record the
+  // time until the financial information is actually visible as well.
+  const dashboardReadyAt = performance.now();
+  await expect(page.getByText("Net Worth", { exact: true }).first()).toBeVisible();
+  const budgetToDashboardOverviewMs = Math.round(
+    (performance.now() - dashboardReadyAt + budgetToDashboardMs) * 100,
+  ) / 100;
+  const dashboardStages = await page.evaluate(() => {
+    const marks = performance.getEntriesByType("mark");
+    const start = marks.filter((entry) => entry.name === "budget-app:dashboard-page-import:start").at(-1)?.startTime;
+    const end = marks.filter((entry) => entry.name === "budget-app:dashboard-page-import:end").at(-1)?.startTime;
+    return { dashboardPageImportMs: start === undefined || end === undefined
+      ? null : Math.round((end - start) * 100) / 100 };
+  });
+  await page.getByRole("link", { name: "Budget", exact: true }).click();
+  await expect(page).toHaveURL(/\\/budget$/);
+  const warmBudgetToDashboardMs = await measure(
+    () => page.getByRole("link", { name: "Dashboard", exact: true }).click(),
+    page.getByText("Net Worth", { exact: true }).first(),
+  );
+  await expect(page).toHaveURL(/\\/dashboard$/);
+
   const repeatability = {
     sampleCount: repeatabilitySamples.length,
     samples: repeatabilitySamples,
@@ -472,7 +503,14 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
     startupStages,
     repeatability,
     firstNavigationEvents,
+    budgetToDashboardMs,
+    budgetToDashboardOverviewMs,
+    warmBudgetToDashboardMs,
+    dashboardStages,
     budgetToRegisterMs,
+    budgetToDashboardMs,
+    budgetToDashboardOverviewMs,
+    warmBudgetToDashboardMs,
     registerToRegisterMs,
     registerToBudgetMs,
     budgetBackToRegisterMs,
