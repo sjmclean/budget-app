@@ -18,6 +18,7 @@ import "./styles/workspaceThemeTokens.css";
 import { startRestorePointLifecycle } from "./features/budget/restorePointLifecycle";
 import { SELECTED_BUDGET_STORAGE_KEY } from "./features/budget/budgetDataScope";
 import { getLocalFirstDatabaseTabOwnershipBudgetId } from "./features/persistence/localFirst/databaseTabCoordinator";
+import { activateBudgetPersistence } from "./features/persistence/budgetDatabaseLifecycle";
 import { loadAuthStatus } from "./features/auth/authStatusClient";
 function getApplicationRoot(): HTMLElement {
   const root = document.getElementById("root");
@@ -110,12 +111,9 @@ export async function bootstrapApp() {
     const selectedBudgetId =
       persistenceProvider.keyValueStorage?.getItem(SELECTED_BUDGET_STORAGE_KEY) ?? null;
     const initialBudgetActivationPromise = selectedBudgetId
-      ? import("./features/persistence/budgetDatabaseLifecycle")
-          .then(({ activateBudgetPersistence }) =>
-            activateBudgetPersistence(selectedBudgetId, {
-              deferBackgroundSync: true,
-            }),
-          )
+      ? activateBudgetPersistence(selectedBudgetId, {
+          deferBackgroundSync: true,
+        })
       : Promise.resolve();
 
     // Import application modules only after runtime persistence is configured.
