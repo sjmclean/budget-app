@@ -214,6 +214,19 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
         "ownership-admission:synchroniseLocalBudget:admitted",
         "ownership-admission:synchroniseLocalBudget:completed",
       ),
+      readyDatabaseMs: (() => {
+        const start = performance.getEntriesByType("mark")
+          .find((entry) => entry.name.startsWith("budget-app:ready-database:") && entry.name.endsWith(":start"));
+        if (!start) return null;
+        const prefix = start.name.slice("budget-app:".length, -":start".length);
+        return {
+          totalMs: duration(`${prefix}:start`, `${prefix}:end`),
+          localOpenMs: duration(`${prefix}:local-open:start`, `${prefix}:local-open:end`),
+          syncStateMs: duration(`${prefix}:sync-state:start`, `${prefix}:sync-state:end`),
+          relayBootstrapMs: duration(`${prefix}:relay-bootstrap:start`, `${prefix}:relay-bootstrap:end`),
+          restoreRecoverMs: duration(`${prefix}:restore-recover:start`, `${prefix}:restore-recover:end`),
+        };
+      })(),
       budgetEngineDiagnosticMs: (() => {
         const start = performance.getEntriesByType("mark")
           .find((entry) => entry.name.startsWith("budget-app:budget-engine-diagnostic:") && entry.name.endsWith(":start"));
