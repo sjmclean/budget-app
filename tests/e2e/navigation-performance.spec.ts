@@ -304,22 +304,43 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
   );
   await expect(page).toHaveURL(/\/accounts\//);
 
-  const firstNavigationEvents = await page.evaluate(() => ({
-    ownershipAdmissionEvents: performance
-      .getEntriesByType("mark")
-      .filter((entry) => entry.name.startsWith("budget-app:ownership-admission:"))
-      .map((entry) => ({
-        name: entry.name,
-        atMs: Math.round(entry.startTime * 100) / 100,
-      })),
-    replicationTriggerEvents: performance
-      .getEntriesByType("mark")
-      .filter((entry) => entry.name.startsWith("budget-app:replication-trigger:"))
-      .map((entry) => ({
-        name: entry.name,
-        atMs: Math.round(entry.startTime * 100) / 100,
-      })),
-  }));
+  const firstNavigationEvents = await page.evaluate(() => {
+    const marks = performance.getEntriesByType("mark");
+    const duration = (startName: string, endName: string) => {
+      const start = marks
+        .filter((entry) => entry.name === `budget-app:${startName}`)
+        .at(-1)?.startTime;
+      const end = marks
+        .filter((entry) => entry.name === `budget-app:${endName}`)
+        .find((entry) => start !== undefined && entry.startTime >= start)
+        ?.startTime;
+      return start === undefined || end === undefined
+        ? null
+        : Math.round((end - start) * 100) / 100;
+    };
+    return {
+      accountRegisterPageImportMs: duration(
+        "account-register-page-import:start",
+        "account-register-page-import:end",
+      ),
+      accountRegisterBootstrapMs: duration(
+        "account-register-bootstrap:start",
+        "account-register-bootstrap:end",
+      ),
+      ownershipAdmissionEvents: marks
+        .filter((entry) => entry.name.startsWith("budget-app:ownership-admission:"))
+        .map((entry) => ({
+          name: entry.name,
+          atMs: Math.round(entry.startTime * 100) / 100,
+        })),
+      replicationTriggerEvents: marks
+        .filter((entry) => entry.name.startsWith("budget-app:replication-trigger:"))
+        .map((entry) => ({
+          name: entry.name,
+          atMs: Math.round(entry.startTime * 100) / 100,
+        })),
+    };
+  });
 
   const registerToRegisterMs = await measure(
     () => page.getByRole("link", { name: new RegExp("^" + ACCOUNT_B) }).click(),
