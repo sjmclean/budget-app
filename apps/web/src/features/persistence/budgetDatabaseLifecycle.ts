@@ -174,6 +174,15 @@ export function nudgeActiveBudgetReplication(): void {
   });
 }
 
+export function nudgeActiveBudgetReplicationAfterPaint(): void {
+  const run = () => setTimeout(nudgeActiveBudgetReplication, 0);
+  if (typeof globalThis.requestAnimationFrame === "function") {
+    globalThis.requestAnimationFrame(() => run());
+    return;
+  }
+  run();
+}
+
 /** Shared boundary for independent staged-import clients (blank, YNAB4, Actual). */
 export async function runWithExclusiveBudgetDatabase<T>(operation: () => Promise<T>): Promise<T> {
   const provider = getBudgetPersistenceProvider();
