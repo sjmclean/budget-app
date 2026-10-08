@@ -1761,6 +1761,19 @@ export function createLocalBudgetRuntime(
           return commandExecutor.execute(`${key}:${createRuntimeUuid()}`, { execute: invokeRecovery })
             .then(({ result }) => result);
         }
+        if (key === "getBudgetMonthView" || key === "listCategoryGoals") {
+          const markPrefix = `budget-app:ownership-admission:${String(key)}`;
+          globalThis.performance?.mark?.(`${markPrefix}:requested`);
+          return runWithOwnershipReadiness(
+            budgetId,
+            () => {
+              globalThis.performance?.mark?.(`${markPrefix}:admitted`);
+              return value.apply(target, args);
+            },
+          ).finally(() => {
+            globalThis.performance?.mark?.(`${markPrefix}:completed`);
+          });
+        }
         return runWithOwnershipReadiness(
           budgetId,
           () => value.apply(target, args),
