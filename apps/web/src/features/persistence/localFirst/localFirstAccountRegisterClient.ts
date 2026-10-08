@@ -264,6 +264,11 @@ export function createLocalBudgetRuntime(
   const tabSyncCoordinator =
     options.tabSyncCoordinator ?? createLocalFirstTabSyncCoordinator();
   let database: LocalBudgetDatabaseClient | null = null;
+  // Production startup gets one worker-backed client ready before a budget is
+  // activated so module-worker/WASM startup can overlap the rest of bootstrap.
+  // Injected database factories retain their existing lazy construction semantics.
+  let prewarmedDatabase: LocalBudgetDatabaseClient | null =
+    options.databaseFactory ? null : new LocalBudgetDatabaseClient(undefined, storage);
   let activeBudgetId: string | null = null;
   let activeSyncEpoch: string | null = null;
   let activePulledCursor = 0;
@@ -467,7 +472,9 @@ export function createLocalBudgetRuntime(
       );
       const next =
         options.databaseFactory?.() ??
+        prewarmedDatabase ??
         new LocalBudgetDatabaseClient(undefined, storage);
+      if (next === prewarmedDatabase) prewarmedDatabase = null;
       let oldGenerationProvenSafe = false;
 
       try {
