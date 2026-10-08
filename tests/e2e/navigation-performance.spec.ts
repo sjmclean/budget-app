@@ -69,6 +69,47 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
     page.getByRole("heading", { name: /\w+ \d{4}/ }).first(),
   );
 
+  const startupStages = await page.evaluate(() => {
+    const marks = new Map(
+      performance.getEntriesByType("mark").map((entry) => [
+        entry.name,
+        entry.startTime,
+      ]),
+    );
+    const read = (name: string) => marks.get(`budget-app:${name}`) ?? null;
+    const duration = (start: string, end: string) => {
+      const startTime = read(start);
+      const endTime = read(end);
+      return startTime === null || endTime === null
+        ? null
+        : Math.round((endTime - startTime) * 100) / 100;
+    };
+    const startupStart = read("startup:start");
+    return {
+      browserStartupToBudgetReadyMs: startupStart === null
+        ? null
+        : Math.round((performance.now() - startupStart) * 100) / 100,
+      authMs: duration("auth:start", "auth:end"),
+      persistenceInitializeMs: duration(
+        "persistence-initialize:start",
+        "persistence-initialize:end",
+      ),
+      merchantPreloadMs: duration("merchant-preload:start", "merchant-preload:end"),
+      appImportMs: duration("app-import:start", "app-import:end"),
+      budgetActivationMs: duration("budget-activation:start", "budget-activation:end"),
+      accountIdentityPrefetchMs: duration(
+        "account-identity-prefetch:start",
+        "account-identity-prefetch:end",
+      ),
+      bootstrapToReactRenderMs: duration("startup:start", "react-render:start"),
+      reactRenderToBudgetReadyMs: read("react-render:start") === null
+        ? null
+        : Math.round(
+            (performance.now() - (read("react-render:start") ?? 0)) * 100,
+          ) / 100,
+    };
+  });
+
   const budgetToRegisterMs = await measure(
     () => page.getByRole("link", { name: new RegExp("^" + ACCOUNT_A) }).click(),
     page.getByRole("heading", { name: ACCOUNT_A, exact: true }),
@@ -101,6 +142,7 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
       navigationKind: "real-ui-local-first",
     },
     startupBudgetReloadMs,
+    startupStages,
     budgetToRegisterMs,
     registerToRegisterMs,
     registerToBudgetMs,
