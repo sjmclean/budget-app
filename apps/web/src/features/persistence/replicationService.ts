@@ -145,6 +145,7 @@ export function startReplicationBackgroundService(
         budgetId,
         apiBaseUrl: options.apiBaseUrl,
         onEvent: () => {
+          globalThis.performance?.mark?.("budget-app:replication-trigger:relay-event");
           if (eventDebounceTimer) clearTimeout(eventDebounceTimer);
           eventDebounceTimer = setTimeout(() => void syncNow(), 100);
         },
@@ -286,6 +287,7 @@ export function startReplicationBackgroundService(
     const unsubscribeMutationCommits = subscribeToLocalFirstMutationCommits(
       (budgetId) => {
         if (budgetId !== activeBudgetId()) return;
+        globalThis.performance?.mark?.("budget-app:replication-trigger:mutation");
         update({
           ...snapshot,
           supported: true,
