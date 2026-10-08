@@ -176,11 +176,23 @@ export function nudgeActiveBudgetReplication(): void {
 
 export function nudgeActiveBudgetReplicationAfterPaint(): void {
   const run = () => setTimeout(nudgeActiveBudgetReplication, 0);
+  const scheduleIdle = () => {
+    const requestIdleCallback = (
+      globalThis as typeof globalThis & {
+        requestIdleCallback?: (callback: () => void) => number;
+      }
+    ).requestIdleCallback;
+    if (typeof requestIdleCallback === "function") {
+      requestIdleCallback(() => run());
+      return;
+    }
+    run();
+  };
   if (typeof globalThis.requestAnimationFrame === "function") {
-    globalThis.requestAnimationFrame(() => run());
+    globalThis.requestAnimationFrame(() => scheduleIdle());
     return;
   }
-  run();
+  scheduleIdle();
 }
 
 /** Shared boundary for independent staged-import clients (blank, YNAB4, Actual). */
