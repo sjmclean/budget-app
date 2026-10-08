@@ -9,7 +9,6 @@ import {
 } from "../features/persistence/budgetDatabaseLifecycle";
 import { useUIStore } from "../stores/uiStore";
 import { getBudgetPersistenceProvider } from "../features/persistence";
-import { prefetchAccountIdentityQuery } from "../features/persistence/reactiveQueries";
 
 function markStartup(name: string): void {
   globalThis.performance?.mark?.(`budget-app:${name}`);
@@ -42,12 +41,6 @@ export const router = createBrowserRouter([
           provider.syncArchitecture === "local-first-relay" &&
           provider.accountRegisterQueries
         ) {
-          markStartup("account-identity-prefetch:start");
-          void prefetchAccountIdentityQuery({ budgetId })
-            .then(() => markStartup("account-identity-prefetch:end"))
-            .catch((error) => {
-              console.error("Unable to prefetch account identities after budget activation.", error);
-            });
           nudgeActiveBudgetReplication();
         }
       }
