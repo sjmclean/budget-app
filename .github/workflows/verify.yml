@@ -56,6 +56,7 @@ jobs:
             test-results/local-first-sync-performance*.json
             test-results/browser-local-sqlite-performance.json
             test-results/actual-import-performance.json
+            test-results/navigation-performance.json
             apps/web/dist/performance-report.json
           if-no-files-found: error
           retention-days: 7
