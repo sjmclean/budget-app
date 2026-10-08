@@ -267,10 +267,14 @@ export function startReplicationBackgroundService(
       supported: true,
       lastError: null,
     });
-    const online = () => { void syncNow(); };
+    const online = () => {
+      globalThis.performance?.mark?.("budget-app:replication-trigger:online");
+      void syncNow();
+    };
     const offline = () => update({ ...snapshot, supported: true, status: "offline" });
     const visible = () => {
       if (typeof document === "undefined" || document.visibilityState === "visible") {
+        globalThis.performance?.mark?.("budget-app:replication-trigger:visibility");
         void syncNow();
       }
     };
@@ -364,6 +368,7 @@ export function startReplicationBackgroundService(
         globalThis.document?.removeEventListener?.("visibilitychange", visible);
       },
     };
+    globalThis.performance?.mark?.("budget-app:replication-trigger:service-start");
     void syncNow();
     service = localFirstService;
     return localFirstService;
