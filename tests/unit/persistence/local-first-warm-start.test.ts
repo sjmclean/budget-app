@@ -28,6 +28,22 @@ test("pending restore journals block ordinary warm-open bypass", () => {
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 
+test("production runtime prewarms one local SQLite worker client", () => {
+  const source = read("../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts");
+  assert.match(
+    source,
+    /let prewarmedDatabase: LocalBudgetDatabaseClient \| null =[\s\S]*options\.databaseFactory \? null : new LocalBudgetDatabaseClient\(undefined, storage\)/,
+  );
+  assert.match(
+    source,
+    /const next =[\s\S]*options\.databaseFactory\?\.\(\)[\s\S]*prewarmedDatabase[\s\S]*new LocalBudgetDatabaseClient\(undefined, storage\)/,
+  );
+  assert.match(
+    source,
+    /if \(next === prewarmedDatabase\) prewarmedDatabase = null/,
+  );
+});
+
 test("bootstrap overlaps selected-budget activation with app import", () => {
   const main = read("../../../apps/web/src/main.tsx");
   assert.match(
