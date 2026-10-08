@@ -142,6 +142,21 @@ test("local-first timed restore points use the held tab lease as active budget",
 });
 
 
+test("already-owned active budget activation is idempotent", () => {
+  const lifecycle = read("../../../apps/web/src/features/persistence/budgetDatabaseLifecycle.ts");
+  const start = lifecycle.indexOf("export async function activateBudgetPersistence");
+  const end = lifecycle.indexOf("export async function ensureActiveBudgetPersistenceReady", start);
+  const activation = lifecycle.slice(start, end);
+  assert.match(
+    activation,
+    /hasLocalFirstDatabaseTabOwnership\(budgetId\)[\s\S]*!queries\?\.isLocalDatabaseReleased\?\.\(\)[\s\S]*return;/,
+  );
+  assert.match(
+    activation,
+    /if \(!options\.deferBackgroundSync\) \{[\s\S]*nudgeActiveBudgetReplication\(\)/,
+  );
+});
+
 test("initial route startup can defer convergence without changing normal reactivation", () => {
   const lifecycle = read("../../../apps/web/src/features/persistence/budgetDatabaseLifecycle.ts");
   const router = read("../../../apps/web/src/app/router.tsx");
