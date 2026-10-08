@@ -69,6 +69,21 @@ function summarise(values: readonly number[]) {
   };
 }
 
+
+async function captureRegisterNavigationTimeline(page: Page) {
+  return page.evaluate(() => {
+    const marks = performance.getEntriesByType("mark")
+      .filter((entry) => entry.name.startsWith("budget-app:"));
+    const relevant = marks.filter((entry) =>
+      /account-register|ownership-admission|replication-trigger|sidebar-account/.test(entry.name),
+    );
+    return relevant.map((entry) => ({
+      name: entry.name,
+      atMs: Math.round(entry.startTime * 100) / 100,
+    }));
+  });
+}
+
 test("measures startup and warm workspace navigation", async ({ page }) => {
   await ensureAuthenticated(page);
   await page.goto("/");
@@ -298,10 +313,13 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
     };
   });
 
+  const firstNavigationStart = await page.evaluate(() => performance.now());
   const budgetToRegisterMs = await measure(
     () => page.getByRole("link", { name: new RegExp("^" + ACCOUNT_A) }).click(),
     page.getByRole("heading", { name: ACCOUNT_A, exact: true }),
   );
+  const firstNavigationEnd = await page.evaluate(() => performance.now());
+  const firstNavigationTimeline = await captureRegisterNavigationTimeline(page);
   await expect(page).toHaveURL(/\/accounts\//);
 
   const firstNavigationEvents = await page.evaluate(() => {
@@ -365,6 +383,9 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
     browserStartupToBudgetReadyMs: startupStages.browserStartupToBudgetReadyMs,
     localOpenMs: startupStages.readyDatabaseMs?.localOpenMs ?? null,
     budgetToRegisterMs,
+    navigationStartMs: firstNavigationStart,
+    navigationEndMs: firstNavigationEnd,
+    navigationTimeline: firstNavigationTimeline,
   }];
 
   for (let iteration = 1; iteration < 5; iteration += 1) {
@@ -397,10 +418,13 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
       };
     });
 
+    const navigationStart = await page.evaluate(() => performance.now());
     const repeatedBudgetToRegisterMs = await measure(
       () => page.getByRole("link", { name: new RegExp("^" + ACCOUNT_A) }).click(),
       page.getByRole("heading", { name: ACCOUNT_A, exact: true }),
     );
+    const navigationEnd = await page.evaluate(() => performance.now());
+    const navigationTimeline = await captureRegisterNavigationTimeline(page);
     await expect(page).toHaveURL(/\/accounts\//);
 
     repeatabilitySamples.push({
@@ -408,6 +432,9 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
       browserStartupToBudgetReadyMs: repeatedStartupStages.browserStartupToBudgetReadyMs,
       localOpenMs: repeatedStartupStages.localOpenMs,
       budgetToRegisterMs: repeatedBudgetToRegisterMs,
+      navigationStartMs: navigationStart,
+      navigationEndMs: navigationEnd,
+      navigationTimeline,
     });
   }
 
