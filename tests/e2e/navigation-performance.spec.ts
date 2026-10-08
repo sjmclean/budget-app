@@ -214,6 +214,13 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
         "ownership-admission:synchroniseLocalBudget:admitted",
         "ownership-admission:synchroniseLocalBudget:completed",
       ),
+      budgetEngineDiagnosticMs: (() => {
+        const start = performance.getEntriesByType("mark")
+          .find((entry) => entry.name.startsWith("budget-app:budget-engine-diagnostic:") && entry.name.endsWith(":start"));
+        if (!start) return null;
+        const prefix = start.name.slice("budget-app:".length, -":start".length);
+        return duration(`${prefix}:start`, `${prefix}:end`);
+      })(),
       ownershipAdmissionEvents: performance
         .getEntriesByType("mark")
         .filter((entry) => entry.name.startsWith("budget-app:ownership-admission:"))
