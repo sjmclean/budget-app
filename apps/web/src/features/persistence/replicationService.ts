@@ -107,7 +107,12 @@ export interface ReplicationBackgroundService {
 
 export function startReplicationBackgroundService(
   provider: BudgetPersistenceProvider,
-  options: { apiBaseUrl?: string; intervalMs?: number; debounceMs?: number } = {},
+  options: {
+    apiBaseUrl?: string;
+    intervalMs?: number;
+    debounceMs?: number;
+    startImmediately?: boolean;
+  } = {},
 ): ReplicationBackgroundService {
   service?.stop();
   if (provider.syncArchitecture === "local-first-relay") {
@@ -369,7 +374,9 @@ export function startReplicationBackgroundService(
       },
     };
     globalThis.performance?.mark?.("budget-app:replication-trigger:service-start");
-    void syncNow();
+    if (options.startImmediately !== false) {
+      void syncNow();
+    }
     service = localFirstService;
     return localFirstService;
   }
