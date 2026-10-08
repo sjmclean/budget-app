@@ -35,10 +35,10 @@ test("next month outlook uses neutral presentation unless the outlook is negativ
   );
 });
 
-test("Budget page reads the adjacent month through the existing Budget view query", () => {
+test("Budget page defers the adjacent month query until the selected month is ready", () => {
   assert.match(
     budgetPageSource,
-    /const nextMonth = getNextBudgetMonth\(selectedMonth\);[\s\S]*const nextMonthBudget = useBudgetView\(budgetId, nextMonth\);/,
+    /const nextMonth = getNextBudgetMonth\(selectedMonth\);[\s\S]*const nextMonthBudget = useBudgetView\(budgetId, nextMonth, \{[\s\S]*enabled: data !== null,[\s\S]*\}\);/,
   );
   assert.match(
     budgetPageSource,
