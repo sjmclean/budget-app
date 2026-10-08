@@ -1761,7 +1761,11 @@ export function createLocalBudgetRuntime(
           return commandExecutor.execute(`${key}:${createRuntimeUuid()}`, { execute: invokeRecovery })
             .then(({ result }) => result);
         }
-        if (key === "getBudgetMonthView" || key === "listCategoryGoals") {
+        if (
+          key === "getBudgetMonthView" ||
+          key === "listCategoryGoals" ||
+          key === "synchroniseLocalBudget"
+        ) {
           const markPrefix = `budget-app:ownership-admission:${String(key)}`;
           globalThis.performance?.mark?.(`${markPrefix}:requested`);
           return runWithOwnershipReadiness(
