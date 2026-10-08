@@ -190,6 +190,22 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
         const prefix = start.name.slice("budget-app:".length, -":start".length);
         return duration(`${prefix}:start`, `${prefix}:end`);
       })(),
+      budgetMonthOwnershipWaitMs: duration(
+        "ownership-admission:getBudgetMonthView:requested",
+        "ownership-admission:getBudgetMonthView:admitted",
+      ),
+      budgetMonthOwnershipExecutionMs: duration(
+        "ownership-admission:getBudgetMonthView:admitted",
+        "ownership-admission:getBudgetMonthView:completed",
+      ),
+      categoryGoalsOwnershipWaitMs: duration(
+        "ownership-admission:listCategoryGoals:requested",
+        "ownership-admission:listCategoryGoals:admitted",
+      ),
+      categoryGoalsOwnershipExecutionMs: duration(
+        "ownership-admission:listCategoryGoals:admitted",
+        "ownership-admission:listCategoryGoals:completed",
+      ),
     };
   });
 
