@@ -214,6 +214,20 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
         "ownership-admission:synchroniseLocalBudget:admitted",
         "ownership-admission:synchroniseLocalBudget:completed",
       ),
+      ownershipAdmissionEvents: performance
+        .getEntriesByType("mark")
+        .filter((entry) => entry.name.startsWith("budget-app:ownership-admission:"))
+        .map((entry) => ({
+          name: entry.name,
+          atMs: Math.round(entry.startTime * 100) / 100,
+        })),
+      replicationTriggerEvents: performance
+        .getEntriesByType("mark")
+        .filter((entry) => entry.name.startsWith("budget-app:replication-trigger:"))
+        .map((entry) => ({
+          name: entry.name,
+          atMs: Math.round(entry.startTime * 100) / 100,
+        })),
     };
   });
 
