@@ -146,6 +146,19 @@ test("local-first timed restore points use the held tab lease as active budget",
 });
 
 
+test("bootstrap installs replication service without immediate convergence", () => {
+  const main = read("../../../apps/web/src/main.tsx");
+  const service = read("../../../apps/web/src/features/persistence/replicationService.ts");
+  assert.match(
+    main,
+    /startReplicationBackgroundService\(persistenceProvider, \{[\s\S]*startImmediately: false/,
+  );
+  assert.match(
+    service,
+    /if \(options\.startImmediately !== false\) \{[\s\S]*void syncNow\(\)/,
+  );
+});
+
 test("initial route convergence is scheduled after first paint and browser idle", () => {
   const lifecycle = read("../../../apps/web/src/features/persistence/budgetDatabaseLifecycle.ts");
   const router = read("../../../apps/web/src/app/router.tsx");
