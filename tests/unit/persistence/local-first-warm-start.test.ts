@@ -113,9 +113,10 @@ test("initial route startup can defer convergence without changing normal reacti
     router,
     /activateBudgetPersistence\(budgetId, \{\s*deferBackgroundSync: true,/,
   );
+  assert.doesNotMatch(router, /prefetchAccountIdentityQuery/);
   assert.match(
     router,
-    /prefetchAccountIdentityQuery\(\{ budgetId \}\)[\s\S]*nudgeActiveBudgetReplication\(\)/,
+    /activateBudgetPersistence\(budgetId, \{\s*deferBackgroundSync: true,[\s\S]*nudgeActiveBudgetReplication\(\)/,
   );
 });
 
