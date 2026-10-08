@@ -152,7 +152,8 @@ export function startReplicationBackgroundService(
           if (eventDebounceTimer) clearTimeout(eventDebounceTimer);
           eventDebounceTimer = setTimeout(() => {
             if (
-              event.type === "mutations-available" &&
+              (event.type === "connected" ||
+                event.type === "mutations-available") &&
               lastCompletedSync?.budgetId === event.budgetId &&
               lastCompletedSync.pulledCursor >= event.latestCursor
             ) {
