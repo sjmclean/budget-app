@@ -95,6 +95,17 @@ export async function activateBudgetPersistence(
 ): Promise<void> {
   intendedActiveBudgetId = budgetId;
 
+  let operation = activationInFlight?.budgetId === budgetId
+    ? activationInFlight.promise
+    : null;
+  if (operation) {
+    await operation;
+    if (!options.deferBackgroundSync && intendedActiveBudgetId === budgetId) {
+      nudgeActiveBudgetReplication();
+    }
+    return;
+  }
+
   const provider = getBudgetPersistenceProvider();
   const queries = provider.accountRegisterQueries;
   if (
@@ -108,9 +119,7 @@ export async function activateBudgetPersistence(
     return;
   }
 
-  let operation = activationInFlight?.budgetId === budgetId
-    ? activationInFlight.promise
-    : null;
+  operation = null;
   if (!operation) {
     operation = (async () => {
       if (activationInFlight && activationInFlight.budgetId !== budgetId) {
