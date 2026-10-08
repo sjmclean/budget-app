@@ -51,7 +51,7 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Budget Manager" })).toBeVisible();
 
-  await page.getByRole("button", { name: "New Budget", exact: true }).click();
+  await page.getByRole("button", { name: "+ New Budget", exact: true }).click();
   await page.getByLabel("Budget name").fill(BUDGET_NAME);
   await page.getByRole("button", { name: "Create budget", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
