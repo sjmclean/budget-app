@@ -1202,7 +1202,9 @@ function BudgetWorkspacePage({ budgetId }: BudgetWorkspacePageProps) {
   } = useBudgetWorkspace(budgetId, selectedMonth);
 
   const nextMonth = getNextBudgetMonth(selectedMonth);
-  const nextMonthBudget = useBudgetView(budgetId, nextMonth);
+  const nextMonthBudget = useBudgetView(budgetId, nextMonth, {
+    enabled: data !== null,
+  });
   const nextMonthOutlook = nextMonthBudget.data
     ? resolveBudgetNextMonthOutlook(nextMonthBudget.data.readyToAssign)
     : null;
