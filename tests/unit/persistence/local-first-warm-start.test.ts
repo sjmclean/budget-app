@@ -28,6 +28,22 @@ test("pending restore journals block ordinary warm-open bypass", () => {
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 
+test("bootstrap overlaps selected-budget activation with app import", () => {
+  const main = read("../../../apps/web/src/main.tsx");
+  assert.match(
+    main,
+    /const initialBudgetActivationPromise = selectedBudgetId[\s\S]*activateBudgetPersistence\(selectedBudgetId, \{[\s\S]*deferBackgroundSync: true/,
+  );
+  assert.match(
+    main,
+    /const appImportPromise = import\("\.\/App"\)[\s\S]*await Promise\.all\(\[[\s\S]*extendedMerchantCataloguePromise,[\s\S]*initialBudgetActivationPromise/,
+  );
+  assert.doesNotMatch(
+    main,
+    /initialBudgetActivationPromise[\s\S]{0,500}nudgeActiveBudgetReplication\(/,
+  );
+});
+
 test("local budget activation readies SQLite before workspace reads", () => {
   const source = read("../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts");
   const start = source.indexOf('if (key === "activateLocalBudget")');
