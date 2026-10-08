@@ -450,6 +450,8 @@ export function createLocalBudgetRuntime(
   async function readyDatabase(budgetId: string): Promise<LocalBudgetDatabaseClient | null> {
     if (database && activeBudgetId === budgetId) return database;
     if (opening) return opening;
+    const readyPrefix = `budget-app:ready-database:${budgetId}`;
+    globalThis.performance?.mark?.(`${readyPrefix}:start`);
     opening = (async () => {
       if (database && activeBudgetId) {
         await captureOwnedRestorePoint(activeBudgetId, "before-switch");
@@ -486,12 +488,16 @@ export function createLocalBudgetRuntime(
           hasPublishedLocalBudgetDatabase(storage, budgetId)
         ) {
           try {
+            globalThis.performance?.mark?.(`${readyPrefix}:local-open:start`);
             await next.open({
               budgetId,
               syncEpoch: cachedSyncEpoch,
               deviceId,
             });
+            globalThis.performance?.mark?.(`${readyPrefix}:local-open:end`);
+            globalThis.performance?.mark?.(`${readyPrefix}:sync-state:start`);
             const syncState = await next.getSyncState();
+            globalThis.performance?.mark?.(`${readyPrefix}:sync-state:end`);
             if (syncState.baselineHash) {
               activePulledCursor = syncState.pulledCursor;
               database = next;
@@ -506,8 +512,12 @@ export function createLocalBudgetRuntime(
           }
         }
 
+        globalThis.performance?.mark?.(`${readyPrefix}:relay-bootstrap:start`);
         let remote = await relay.getBootstrap(budgetId).catch(() => null);
+        globalThis.performance?.mark?.(`${readyPrefix}:relay-bootstrap:end`);
+        globalThis.performance?.mark?.(`${readyPrefix}:restore-recover:start`);
         const recovered = await replacement.recover(budgetId);
+        globalThis.performance?.mark?.(`${readyPrefix}:restore-recover:end`);
         cachedSyncEpoch = storage.getItem(
           `${SYNC_EPOCH_KEY_PREFIX}${budgetId}`,
         );
@@ -638,6 +648,7 @@ export function createLocalBudgetRuntime(
         if (database !== next) await next.close();
       }
     })().finally(() => {
+      globalThis.performance?.mark?.(`${readyPrefix}:end`);
       opening = null;
     });
     return opening;
