@@ -142,18 +142,26 @@ test("local-first timed restore points use the held tab lease as active budget",
 });
 
 
-test("already-owned active budget activation is idempotent", () => {
+test("already-owned active budget activation is idempotent after in-flight readiness completes", () => {
   const lifecycle = read("../../../apps/web/src/features/persistence/budgetDatabaseLifecycle.ts");
   const start = lifecycle.indexOf("export async function activateBudgetPersistence");
   const end = lifecycle.indexOf("export async function ensureActiveBudgetPersistenceReady", start);
   const activation = lifecycle.slice(start, end);
+  const inFlight = activation.indexOf("activationInFlight?.budgetId === budgetId");
+  const readyFastPath = activation.indexOf("hasLocalFirstDatabaseTabOwnership(budgetId)");
+  assert.ok(inFlight >= 0);
+  assert.ok(readyFastPath > inFlight);
+  assert.match(
+    activation,
+    /if \(operation\) \{[\s\S]*await operation;[\s\S]*return;/,
+  );
   assert.match(
     activation,
     /hasLocalFirstDatabaseTabOwnership\(budgetId\)[\s\S]*!queries\?\.isLocalDatabaseReleased\?\.\(\)[\s\S]*return;/,
   );
   assert.match(
     activation,
-    /if \(!options\.deferBackgroundSync\) \{[\s\S]*nudgeActiveBudgetReplication\(\)/,
+    /if \(!options\.deferBackgroundSync\)[\s\S]*nudgeActiveBudgetReplication\(\)/,
   );
 });
 
