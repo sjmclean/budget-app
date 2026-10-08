@@ -70,19 +70,28 @@ test("measures startup and warm workspace navigation", async ({ page }) => {
   );
 
   const startupStages = await page.evaluate(() => {
-    const marks = new Map(
-      performance.getEntriesByType("mark").map((entry) => [
-        entry.name,
-        entry.startTime,
-      ]),
-    );
-    const read = (name: string) => marks.get(`budget-app:${name}`) ?? null;
+    const markEntries = performance.getEntriesByType("mark");
+    const read = (name: string) => {
+      const matches = markEntries.filter(
+        (entry) => entry.name === `budget-app:${name}`,
+      );
+      return matches.at(-1)?.startTime ?? null;
+    };
     const duration = (start: string, end: string) => {
-      const startTime = read(start);
-      const endTime = read(end);
-      return startTime === null || endTime === null
-        ? null
-        : Math.round((endTime - startTime) * 100) / 100;
+      const starts = markEntries
+        .filter((entry) => entry.name === `budget-app:${start}`)
+        .map((entry) => entry.startTime);
+      const ends = markEntries
+        .filter((entry) => entry.name === `budget-app:${end}`)
+        .map((entry) => entry.startTime);
+      for (let index = starts.length - 1; index >= 0; index -= 1) {
+        const startTime = starts[index];
+        const endTime = ends.find((candidate) => candidate >= startTime);
+        if (endTime !== undefined) {
+          return Math.round((endTime - startTime) * 100) / 100;
+        }
+      }
+      return null;
     };
     const startupStart = read("startup:start");
     const budgetMonthQueryEntries = performance
