@@ -146,6 +146,22 @@ test("local-first timed restore points use the held tab lease as active budget",
 });
 
 
+test("relay mutation events already covered by the last completed cursor are coalesced", () => {
+  const service = read("../../../apps/web/src/features/persistence/replicationService.ts");
+  assert.match(
+    service,
+    /let lastCompletedSync: \{ budgetId: string; pulledCursor: number \} \| null = null/,
+  );
+  assert.match(
+    service,
+    /lastCompletedSync = \{[\s\S]*budgetId,[\s\S]*pulledCursor: synchronisation\.pulledCursor/,
+  );
+  assert.match(
+    service,
+    /event\.type === "mutations-available"[\s\S]*lastCompletedSync\?\.budgetId === event\.budgetId[\s\S]*lastCompletedSync\.pulledCursor >= event\.latestCursor[\s\S]*relay-event-coalesced/,
+  );
+});
+
 test("bootstrap installs replication service without immediate convergence", () => {
   const main = read("../../../apps/web/src/main.tsx");
   const service = read("../../../apps/web/src/features/persistence/replicationService.ts");
