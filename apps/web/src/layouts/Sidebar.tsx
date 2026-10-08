@@ -47,6 +47,7 @@ import { useUIStore } from "../stores/uiStore";
 import { navigationModel, type NavigationIcon } from "./navigationModel";
 import { useAccountHistory } from "../features/accounts/useAccountHistory";
 import { prefetchScheduledTransactionPreview } from "../features/accounts/scheduledTransactionPreviewWarmCache";
+import { preloadAccountRegisterPage } from "../pages/accountRegisterPageLoader";
 import { useAccountNavigationQuery } from "../features/persistence/reactiveQueries";
 import type { AdaptiveNavigationMode } from "./useAdaptiveNavigation";
 
@@ -376,6 +377,7 @@ export function Sidebar({
   function prefetchAccountDestination(account: SidebarAccount): void {
     if (!activeBudgetId) return;
 
+    preloadAccountRegisterPage();
     prefetchScheduledTransactionPreview({
       budgetId: activeBudgetId,
       accountId: account.id,
