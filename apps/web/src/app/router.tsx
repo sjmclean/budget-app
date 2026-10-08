@@ -31,6 +31,7 @@ export const router = createBrowserRouter([
   {
     element: <AppShell />,
     async loader({ request }) {
+      markStartup("workspace-loader:start");
       const budgetId = useUIStore.getState().selectedBudgetId;
       if (budgetId) {
         markStartup("budget-activation:start");
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
           nudgeActiveBudgetReplication();
         }
       }
+      markStartup("workspace-loader:end");
       return null;
     },
     hydrateFallbackElement: <p role="status">Opening budget…</p>,
@@ -69,7 +71,9 @@ export const router = createBrowserRouter([
       {
         path: "/budget",
         lazy: async () => {
+          markStartup("budget-page-import:start");
           const { BudgetPage } = await import("../pages/BudgetPage");
+          markStartup("budget-page-import:end");
           return { Component: BudgetPage };
         },
       },
