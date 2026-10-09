@@ -70,6 +70,7 @@ test("measures real Register navigation, paging and interaction with 5000 transa
     stateToVisibleMs: number | null;
     stateToCommitMs: number | null;
     commitToFrameMs: number | null;
+    monthIdReloads: number;
   }[] = [];
   for (let index = 0; index < 5; index += 1) {
     await page.evaluate(() => performance.clearMarks());
@@ -121,8 +122,14 @@ test("measures real Register navigation, paging and interaction with 5000 transa
     await page.getByRole("button", { name: "Previous", exact: true }).click();
     await expect(page.getByText("Page 1 of", { exact: false })).toBeVisible();
     const previousPageMs = Math.round((performance.now() - previousStartedAt) * 100) / 100;
-    paginationSamples.push({ nextPageMs, previousPageMs, ...stages });
+    const monthIdReloads = await page.evaluate(() =>
+      performance.getEntriesByType("mark").filter((entry) =>
+        entry.name === "budget-app:register-month-ids:reload").length);
+    paginationSamples.push({ nextPageMs, previousPageMs, monthIdReloads, ...stages });
   }
+  // All seeded transactions belong to September, so merely changing pages
+  // must not invalidate month-selection IDs or issue extra month-wide queries.
+  expect(paginationSamples.every((sample) => sample.monthIdReloads === 0)).toBe(true);
   const nextPageMs = paginationSamples[0].nextPageMs;
 
   const interactionStartedAt = performance.now();
