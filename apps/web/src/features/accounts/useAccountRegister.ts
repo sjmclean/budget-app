@@ -206,10 +206,17 @@ export function useAccountRegister(
     }
 
     if (!warm) {
+      globalThis.performance?.mark?.("budget-app:register-warm-bootstrap:miss");
       setIsLoading(true);
       return;
     }
 
+    globalThis.performance?.mark?.("budget-app:register-warm-bootstrap:hit");
+    if (warm.revision === getPersistenceRevisionForInterest(persistenceInterest)) {
+      globalThis.performance?.mark?.("budget-app:register-warm-bootstrap:revision-current");
+    } else {
+      globalThis.performance?.mark?.("budget-app:register-warm-bootstrap:revision-stale");
+    }
     const { summary, page } = warm.bootstrap;
     const next = {
       summary,
@@ -234,6 +241,7 @@ export function useAccountRegister(
     }
     await ensureSqliteReady();
     const generation = ++loadGenerationRef.current;
+    globalThis.performance?.mark?.("budget-app:register-reload:requested");
     try {
       globalThis.performance?.mark?.("budget-app:account-register-bootstrap:start");
       const consistent = await loadConsistentRegisterSnapshot({
@@ -321,6 +329,9 @@ export function useAccountRegister(
         ) {
           await ensureSqliteReady();
           void generateDueScheduledTransactionsForBudget(provider, budgetId).catch(() => undefined);
+          globalThis.performance?.mark?.(hasLoadedDataRef.current
+            ? "budget-app:register-load-effect:warm-data-present"
+            : "budget-app:register-load-effect:no-warm-data");
           await reloadSqliteRegister();
           if (!isMounted) return;
           setIsLoading(false);
