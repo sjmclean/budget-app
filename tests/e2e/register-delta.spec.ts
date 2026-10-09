@@ -343,9 +343,8 @@ test("register commands and history emit bounded committed worker deltas", async
     return { beforeAccountId: delta?.beforeRows?.find(({ row }) => row.id === transactionId)?.accountId, afterAccountId: delta?.afterRows?.find(({ row }) => row.id === transactionId)?.accountId, inSource: source.rows.some(({ id }) => id === transactionId), inTarget: target.rows.some(({ id }) => id === transactionId) };
   }, { accountId, targetAccountId, transactionId: attachmentIds.transactionId });
   expect(moveEvidence).toEqual({ beforeAccountId: accountId, afterAccountId: targetAccountId, inSource: false, inTarget: true });
-
-  // Guarded warm Register reuse must not hide a newer local mutation while
-  // the user is on another route, or leak transactions between accounts.
+  // A locally committed transaction must remain visible after navigation, and
+  // must never be shown in a different account's prefetched Register view.
   await page.getByRole("link", { name: "Budget", exact: true }).click();
   await expect(page).toHaveURL(/\/budget$/);
   await page.evaluate(async (sourceAccountId) => {
@@ -354,10 +353,9 @@ test("register commands and history emit bounded committed worker deltas", async
     const budgetId = useUIStore.getState().selectedBudgetId;
     const engine = getBudgetPersistenceProvider().localBudgetEngine;
     if (!budgetId || !engine) throw new Error("Missing local budget engine.");
-    await engine.addTransaction({
-      id: crypto.randomUUID(), budgetId, accountId: sourceAccountId,
-      date: "2026-09-28", amount: -1777, payeeName: "Freshness Probe Merchant",
-    });
+    await engine.addTransaction({ id: crypto.randomUUID(), budgetId,
+      accountId: sourceAccountId, date: "2026-09-28", amount: -1777,
+      payeeName: "Freshness Probe Merchant" });
   }, accountId);
   await page.getByRole("link", { name: /^Delta Checking/ }).click();
   await expect(page.getByText("Freshness Probe Merchant", { exact: true })).toBeVisible();
@@ -706,24 +704,7 @@ test("register commands and history emit bounded committed worker deltas", async
     const [source, target] = await Promise.all([provider.accountRegisterQueries.queryLocalTransactions({ budgetId, accountId, limit: 250 }), provider.accountRegisterQueries.queryLocalTransactions({ budgetId, accountId: targetAccountId, limit: 250 })]);
     return { beforeAccountId: delta?.beforeRows?.find(({ row }) => row.id === transactionId)?.accountId, afterAccountId: delta?.afterRows?.find(({ row }) => row.id === transactionId)?.accountId, inSource: source.rows.some(({ id }) => id === transactionId), inTarget: target.rows.some(({ id }) => id === transactionId) };
   }, { accountId, targetAccountId, transactionId: attachmentIds.transactionId });
-  expect(moveEvidence).toEqual({ beforeAccountId: accountId, afterAccountId: targetAccountId, inSource: false, inTarget: true });
-
-  // Guarded warm Register reuse must not hide a newer local mutation while
-  // the user is on another route, or leak transactions between accounts.
-  await page.getByRole("link", { name: "Budget", exact: true }).click();
-  await expect(page).toHaveURL(/\/budget$/);
-  await page.evaluate(async (sourceAccountId) => {
-    const { getBudgetPersistenceProvider } = await import("/src/features/persistence/budgetPersistenceProviderFactory.ts");
-    const { useUIStore } = await import("/src/stores/uiStore.ts");
-    const budgetId = useUIStore.getState().selectedBudgetId;
-    const engine = getBudgetPersistenceProvider().localBudgetEngine;
-    if (!budgetId || !engine) throw new Error("Missing local budget engine.");
-    await engine.addTransaction({
-      id: crypto.randomUUID(), budgetId, accountId: sourceAccountId,
-      date: "2026-09-28", amount: -1777, payeeName: "Freshness Probe Merchant",
-    });
-  }, accountId);
-));
+  expect(moveEvidence).toEqual({ beforeAccountId: accountId, afterAccountId: targetAccountId, inSource: false, inTarget: true });));
   await expect(page.getByText("Freshness Probe Merchant", { exact: true })).toHaveCount(0);
   await page.getByRole("link", { name: /^Delta Checking/ }).click();
   await expect(page).toHaveURL(new RegExp(`/accounts/${accountId}import { expect, test } from "@playwright/test";
@@ -1070,23 +1051,6 @@ test("register commands and history emit bounded committed worker deltas", async
     const [source, target] = await Promise.all([provider.accountRegisterQueries.queryLocalTransactions({ budgetId, accountId, limit: 250 }), provider.accountRegisterQueries.queryLocalTransactions({ budgetId, accountId: targetAccountId, limit: 250 })]);
     return { beforeAccountId: delta?.beforeRows?.find(({ row }) => row.id === transactionId)?.accountId, afterAccountId: delta?.afterRows?.find(({ row }) => row.id === transactionId)?.accountId, inSource: source.rows.some(({ id }) => id === transactionId), inTarget: target.rows.some(({ id }) => id === transactionId) };
   }, { accountId, targetAccountId, transactionId: attachmentIds.transactionId });
-  expect(moveEvidence).toEqual({ beforeAccountId: accountId, afterAccountId: targetAccountId, inSource: false, inTarget: true });
-
-  // Guarded warm Register reuse must not hide a newer local mutation while
-  // the user is on another route, or leak transactions between accounts.
-  await page.getByRole("link", { name: "Budget", exact: true }).click();
-  await expect(page).toHaveURL(/\/budget$/);
-  await page.evaluate(async (sourceAccountId) => {
-    const { getBudgetPersistenceProvider } = await import("/src/features/persistence/budgetPersistenceProviderFactory.ts");
-    const { useUIStore } = await import("/src/stores/uiStore.ts");
-    const budgetId = useUIStore.getState().selectedBudgetId;
-    const engine = getBudgetPersistenceProvider().localBudgetEngine;
-    if (!budgetId || !engine) throw new Error("Missing local budget engine.");
-    await engine.addTransaction({
-      id: crypto.randomUUID(), budgetId, accountId: sourceAccountId,
-      date: "2026-09-28", amount: -1777, payeeName: "Freshness Probe Merchant",
-    });
-  }, accountId);
-));
+  expect(moveEvidence).toEqual({ beforeAccountId: accountId, afterAccountId: targetAccountId, inSource: false, inTarget: true });));
   await expect(page.getByText("Freshness Probe Merchant", { exact: true })).toBeVisible();
 });
