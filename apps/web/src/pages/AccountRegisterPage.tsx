@@ -986,6 +986,15 @@ export function AccountRegisterPage() {
     () => visibleMonthKeySignature ? visibleMonthKeySignature.split("|") : [],
     [visibleMonthKeySignature],
   );
+  const monthCheckboxStates = useMemo(() => new Map(
+    visibleMonthKeys.map((monthKey) => [
+      monthKey,
+      getRegisterMonthCheckboxState(
+        monthTransactionIds[monthKey] ?? [],
+        selectedRegisterTransactionIds,
+      ),
+    ] as const),
+  ), [visibleMonthKeys, monthTransactionIds, selectedRegisterTransactionIds]);
 
   useEffect(() => {
     let active = true;
@@ -2650,10 +2659,9 @@ export function AccountRegisterPage() {
               previousMonthKey !== monthKey;
             const monthLabel = formatRegisterMonthSeparator(transaction.date);
             const idsForMonth = monthKey ? monthTransactionIds[monthKey] : undefined;
-            const monthCheckboxState = getRegisterMonthCheckboxState(
-              idsForMonth ?? [],
-              selectedRegisterTransactionIds,
-            );
+            const monthCheckboxState = monthKey
+              ? monthCheckboxStates.get(monthKey) ?? "unchecked"
+              : "unchecked";
 
             return (
               <div
