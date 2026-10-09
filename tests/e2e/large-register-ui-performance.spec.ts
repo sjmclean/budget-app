@@ -59,10 +59,39 @@ test("measures real Register navigation, paging and interaction with 5000 transa
   const firstPageVisibleMs = Math.round((performance.now() - startedAt) * 100) / 100;
   const firstPage = await page.locator(".register-transaction-with-month").count();
 
-  const pageStartedAt = performance.now();
-  await page.getByRole("button", { name: "Next", exact: true }).click();
-  await expect(page.getByText("Page 2 of", { exact: false })).toBeVisible();
-  const nextPageMs = Math.round((performance.now() - pageStartedAt) * 100) / 100;
+  const paginationSamples: {
+    nextPageMs: number;
+    previousPageMs: number;
+    fetchMs: number | null;
+    stateToVisibleMs: number | null;
+  }[] = [];
+  for (let index = 0; index < 5; index += 1) {
+    await page.evaluate(() => performance.clearMarks());
+    const pageStartedAt = performance.now();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+    await expect(page.getByText("Page 2 of", { exact: false })).toBeVisible();
+    const nextPageMs = Math.round((performance.now() - pageStartedAt) * 100) / 100;
+    const stages = await page.evaluate(() => {
+      const marks = performance.getEntriesByType("mark");
+      const last = (name: string) => marks.filter((mark) =>
+        mark.name === `budget-app:register-pagination:${name}`).at(-1)?.startTime;
+      const fetchStart = last("fetch:start");
+      const fetchEnd = last("fetch:end");
+      const stateSet = last("state-set");
+      return {
+        fetchMs: fetchStart === undefined || fetchEnd === undefined
+          ? null : Math.round((fetchEnd - fetchStart) * 100) / 100,
+        stateToVisibleMs: stateSet === undefined
+          ? null : Math.round((performance.now() - stateSet) * 100) / 100,
+      };
+    });
+    const previousStartedAt = performance.now();
+    await page.getByRole("button", { name: "Previous", exact: true }).click();
+    await expect(page.getByText("Page 1 of", { exact: false })).toBeVisible();
+    const previousPageMs = Math.round((performance.now() - previousStartedAt) * 100) / 100;
+    paginationSamples.push({ nextPageMs, previousPageMs, ...stages });
+  }
+  const nextPageMs = paginationSamples[0].nextPageMs;
 
   const interactionStartedAt = performance.now();
   await page.getByRole("button", { name: "Add transaction", exact: true }).click();
@@ -72,7 +101,7 @@ test("measures real Register navigation, paging and interaction with 5000 transa
   const report = {
     generatedAt: new Date().toISOString(),
     transactionCount: 5_000,
-    seedMs, firstPageVisibleMs, firstPage, nextPageMs, addTransactionOpenMs,
+    seedMs, firstPageVisibleMs, firstPage, nextPageMs, paginationSamples, addTransactionOpenMs,
   };
   for (const value of [firstPageVisibleMs, nextPageMs, addTransactionOpenMs]) {
     expect(Number.isFinite(value)).toBe(true);
