@@ -977,11 +977,14 @@ export function AccountRegisterPage() {
     setSelectionExportError(null);
   }, [accountId, categoryFilter, committedRegisterSearch, registerSort]);
 
+  const visibleMonthKeySignature = [...new Set(visibleTransactions
+    .map((transaction) => getRegisterMonthKey(transaction.date))
+    .filter((monthKey): monthKey is string => monthKey !== null))].sort().join("|");
+  // Pagination changes the visible row array, but not necessarily the months.
+  // Keep the dependency stable to avoid clearing and re-querying month IDs.
   const visibleMonthKeys = useMemo(
-    () => [...new Set(visibleTransactions
-      .map((transaction) => getRegisterMonthKey(transaction.date))
-      .filter((monthKey): monthKey is string => monthKey !== null))],
-    [visibleTransactions],
+    () => visibleMonthKeySignature ? visibleMonthKeySignature.split("|") : [],
+    [visibleMonthKeySignature],
   );
 
   useEffect(() => {
