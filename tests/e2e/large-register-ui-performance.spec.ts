@@ -89,8 +89,8 @@ test("measures real Register navigation, paging and interaction with 5000 transa
       const queryEnd = last("query:end");
       const withinQuery = (name: string) => marks.filter((mark) =>
         mark.name === `budget-app:register-query:${name}` &&
-        (queryStart === undefined || mark.startTime >= queryStart) &&
-        (queryEnd === undefined || mark.startTime <= queryEnd));
+        queryStart !== undefined && queryEnd !== undefined &&
+        mark.startTime >= queryStart && mark.startTime <= queryEnd);
       const databaseStart = withinQuery("database:start").at(-1)?.startTime;
       const databaseEnd = withinQuery("database:end").at(-1)?.startTime;
       const workerStart = withinQuery("worker:start").at(-1)?.startTime;
@@ -105,9 +105,9 @@ test("measures real Register navigation, paging and interaction with 5000 transa
           ? null : Math.round((readinessEnd - readinessStart) * 100) / 100,
         queryMs: queryStart === undefined || queryEnd === undefined
           ? null : Math.round((queryEnd - queryStart) * 100) / 100,
-        databaseWaitMs: databaseStart === undefined || databaseEnd === undefined
+        databaseWaitMs: databaseStart === undefined || databaseEnd === undefined || databaseEnd < databaseStart
           ? null : Math.round((databaseEnd - databaseStart) * 100) / 100,
-        workerQueryMs: workerStart === undefined || workerEnd === undefined
+        workerQueryMs: workerStart === undefined || workerEnd === undefined || workerEnd < workerStart
           ? null : Math.round((workerEnd - workerStart) * 100) / 100,
         stateToCommitMs: stateSet === undefined || committed === undefined || committed < stateSet
           ? null : Math.round((committed - stateSet) * 100) / 100,
