@@ -68,6 +68,8 @@ test("measures real Register navigation, paging and interaction with 5000 transa
     databaseWaitMs: number | null;
     workerQueryMs: number | null;
     stateToVisibleMs: number | null;
+    stateToCommitMs: number | null;
+    commitToFrameMs: number | null;
   }[] = [];
   for (let index = 0; index < 5; index += 1) {
     await page.evaluate(() => performance.clearMarks());
@@ -85,11 +87,17 @@ test("measures real Register navigation, paging and interaction with 5000 transa
       const readinessEnd = last("readiness:end");
       const queryStart = last("query:start");
       const queryEnd = last("query:end");
-      const databaseStart = marks.filter((mark) => mark.name === "budget-app:register-query:database:start").at(-1)?.startTime;
-      const databaseEnd = marks.filter((mark) => mark.name === "budget-app:register-query:database:end").at(-1)?.startTime;
-      const workerStart = marks.filter((mark) => mark.name === "budget-app:register-query:worker:start").at(-1)?.startTime;
-      const workerEnd = marks.filter((mark) => mark.name === "budget-app:register-query:worker:end").at(-1)?.startTime;
+      const withinQuery = (name: string) => marks.filter((mark) =>
+        mark.name === `budget-app:register-query:${name}` &&
+        (queryStart === undefined || mark.startTime >= queryStart) &&
+        (queryEnd === undefined || mark.startTime <= queryEnd));
+      const databaseStart = withinQuery("database:start").at(-1)?.startTime;
+      const databaseEnd = withinQuery("database:end").at(-1)?.startTime;
+      const workerStart = withinQuery("worker:start").at(-1)?.startTime;
+      const workerEnd = withinQuery("worker:end").at(-1)?.startTime;
       const stateSet = last("state-set");
+      const committed = last("committed");
+      const frame = last("frame");
       return {
         fetchMs: fetchStart === undefined || fetchEnd === undefined
           ? null : Math.round((fetchEnd - fetchStart) * 100) / 100,
@@ -101,6 +109,10 @@ test("measures real Register navigation, paging and interaction with 5000 transa
           ? null : Math.round((databaseEnd - databaseStart) * 100) / 100,
         workerQueryMs: workerStart === undefined || workerEnd === undefined
           ? null : Math.round((workerEnd - workerStart) * 100) / 100,
+        stateToCommitMs: stateSet === undefined || committed === undefined || committed < stateSet
+          ? null : Math.round((committed - stateSet) * 100) / 100,
+        commitToFrameMs: committed === undefined || frame === undefined || frame < committed
+          ? null : Math.round((frame - committed) * 100) / 100,
         stateToVisibleMs: stateSet === undefined
           ? null : Math.round((performance.now() - stateSet) * 100) / 100,
       };
