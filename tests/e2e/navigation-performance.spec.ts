@@ -75,7 +75,7 @@ async function captureRegisterNavigationTimeline(page: Page) {
     const marks = performance.getEntriesByType("mark")
       .filter((entry) => entry.name.startsWith("budget-app:"));
     const relevant = marks.filter((entry) =>
-      /account-register|register-view|ownership-admission|replication-trigger|sidebar-account/.test(entry.name),
+      /account-register|register-view|register-warm-bootstrap|register-reload|register-load-effect|ownership-admission|replication-trigger|sidebar-account/.test(entry.name),
     );
     return relevant.map((entry) => ({
       name: entry.name,
