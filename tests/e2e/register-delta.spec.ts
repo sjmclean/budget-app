@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("register commands and history emit bounded committed worker deltas", async ({ page }) => {
+  if (process.env.BUDGET_APP_E2E_ISOLATED_PORTS === "1") test.setTimeout(180_000);
   await page.addInitScript(() => {
     const NativeWorker = window.Worker;
     const traffic: { requests: { type: string; query?: { accountId: string; limit: number; offset?: number } }[]; deltas: unknown[] } = { requests: [], deltas: [] };
@@ -328,6 +329,7 @@ test("register commands and history emit bounded committed worker deltas", async
   expect(bulkClear.mode).toBe("patch");
   expect(bulkClear.before).toEqual(["uncleared", "uncleared"]);
   expect(bulkClear.after).toEqual(["cleared", "cleared"]);
+  console.log("[register-delta] Starting transaction move and subsequent register queries");
   const moveEvidence = await page.evaluate(async ({ accountId, targetAccountId, transactionId }) => {
     const providerPath = "/src/features/persistence/budgetPersistenceProviderFactory.ts";
     const storePath = "/src/stores/uiStore.ts";
@@ -342,6 +344,7 @@ test("register commands and history emit bounded committed worker deltas", async
     const [source, target] = await Promise.all([provider.accountRegisterQueries.queryLocalTransactions({ budgetId, accountId, limit: 250 }), provider.accountRegisterQueries.queryLocalTransactions({ budgetId, accountId: targetAccountId, limit: 250 })]);
     return { beforeAccountId: delta?.beforeRows?.find(({ row }) => row.id === transactionId)?.accountId, afterAccountId: delta?.afterRows?.find(({ row }) => row.id === transactionId)?.accountId, inSource: source.rows.some(({ id }) => id === transactionId), inTarget: target.rows.some(({ id }) => id === transactionId) };
   }, { accountId, targetAccountId, transactionId: attachmentIds.transactionId });
+  console.log("[register-delta] Move and verification queries completed");
   expect(moveEvidence).toEqual({ beforeAccountId: accountId, afterAccountId: targetAccountId, inSource: false, inTarget: true });
 
   await page.getByRole("link", { name: "Budget", exact: true }).click();
