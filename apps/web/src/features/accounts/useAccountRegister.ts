@@ -432,6 +432,8 @@ export function useAccountRegister(
     budgetId,
     ensureSqliteReady,
     provider,
+    persistenceInterest,
+    registerViewQuery,
     reloadSqliteRegister,
   ]);
 
