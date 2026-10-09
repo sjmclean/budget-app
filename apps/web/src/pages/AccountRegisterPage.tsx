@@ -1002,6 +1002,7 @@ export function AccountRegisterPage() {
     const queries = persistenceGateway.accountRegisterQueries;
     if (!activeBudgetId || !queries) return () => { active = false; };
     setMonthTransactionIds({});
+    globalThis.performance?.mark?.("budget-app:register-month-ids:reload");
     void Promise.all(visibleMonthKeys.map(async (monthKey) => [
       monthKey,
       await loadRegisterTransactionIdsForMonth({
