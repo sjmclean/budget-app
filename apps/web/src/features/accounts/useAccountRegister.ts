@@ -1,3 +1,4 @@
+import { canReuseCurrentRegisterBootstrap } from "./registerWarmBootstrapReuse";
 import { runAccountRegisterSqliteMutation } from "./accountRegisterMutationRunner";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getBudgetPersistenceProvider } from "../persistence";
@@ -342,12 +343,14 @@ export function useAccountRegister(
           // The prefetched snapshot was applied during the layout effect.
           // Do not repeat its query while it still represents the current
           // local revision. Persistence publications trigger normal refreshes.
-          if (
-            hasLoadedDataRef.current &&
-            sqlitePageRef.current !== null &&
-            claimedWarmBootstrapRef.current?.key === warmKey &&
-            appliedRevisionRef.current === getPersistenceRevisionForInterest(persistenceInterest)
-          ) {
+          if (canReuseCurrentRegisterBootstrap({
+            hasLoadedData: hasLoadedDataRef.current,
+            hasSqlitePage: sqlitePageRef.current !== null,
+            claimedWarmKey: claimedWarmBootstrapRef.current?.key ?? null,
+            currentQueryKey: warmKey,
+            appliedRevision: appliedRevisionRef.current,
+            currentRevision: getPersistenceRevisionForInterest(persistenceInterest),
+          })) {
             globalThis.performance?.mark?.("budget-app:register-load-effect:reuse-current-warm-data");
             if (!isMounted) return;
             setIsLoading(false);
