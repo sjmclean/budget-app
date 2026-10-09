@@ -65,6 +65,8 @@ test("measures real Register navigation, paging and interaction with 5000 transa
     fetchMs: number | null;
     readinessMs: number | null;
     queryMs: number | null;
+    databaseWaitMs: number | null;
+    workerQueryMs: number | null;
     stateToVisibleMs: number | null;
   }[] = [];
   for (let index = 0; index < 5; index += 1) {
@@ -83,6 +85,10 @@ test("measures real Register navigation, paging and interaction with 5000 transa
       const readinessEnd = last("readiness:end");
       const queryStart = last("query:start");
       const queryEnd = last("query:end");
+      const databaseStart = marks.filter((mark) => mark.name === "budget-app:register-query:database:start").at(-1)?.startTime;
+      const databaseEnd = marks.filter((mark) => mark.name === "budget-app:register-query:database:end").at(-1)?.startTime;
+      const workerStart = marks.filter((mark) => mark.name === "budget-app:register-query:worker:start").at(-1)?.startTime;
+      const workerEnd = marks.filter((mark) => mark.name === "budget-app:register-query:worker:end").at(-1)?.startTime;
       const stateSet = last("state-set");
       return {
         fetchMs: fetchStart === undefined || fetchEnd === undefined
@@ -91,6 +97,10 @@ test("measures real Register navigation, paging and interaction with 5000 transa
           ? null : Math.round((readinessEnd - readinessStart) * 100) / 100,
         queryMs: queryStart === undefined || queryEnd === undefined
           ? null : Math.round((queryEnd - queryStart) * 100) / 100,
+        databaseWaitMs: databaseStart === undefined || databaseEnd === undefined
+          ? null : Math.round((databaseEnd - databaseStart) * 100) / 100,
+        workerQueryMs: workerStart === undefined || workerEnd === undefined
+          ? null : Math.round((workerEnd - workerStart) * 100) / 100,
         stateToVisibleMs: stateSet === undefined
           ? null : Math.round((performance.now() - stateSet) * 100) / 100,
       };
