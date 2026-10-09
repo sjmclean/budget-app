@@ -37,7 +37,7 @@ export default defineConfig({
       "Cross-Origin-Embedder-Policy": "require-corp",
     },
     proxy: {
-      "/api": "http://127.0.0.1:3000",
+      "/api": `http://127.0.0.1:${process.env.BUDGET_APP_E2E_API_PORT || "3000"}`,
     },
   },
   preview: {
