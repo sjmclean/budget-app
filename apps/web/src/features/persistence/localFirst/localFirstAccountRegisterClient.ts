@@ -1447,10 +1447,19 @@ export function createLocalBudgetRuntime(
       return (await syncThenDatabase(input.budgetId)).getAccountSummary(input);
     },
     async queryTransactions(input) {
-      return (await syncThenDatabase(input.budgetId)).queryTransactions({
-        ...toLocalQuery(input),
-        includeTotalCount: false,
-      });
+      const trace = globalThis.performance?.mark;
+      trace?.("budget-app:register-query:database:start");
+      const database = await syncThenDatabase(input.budgetId);
+      trace?.("budget-app:register-query:database:end");
+      trace?.("budget-app:register-query:worker:start");
+      try {
+        return await database.queryTransactions({
+          ...toLocalQuery(input),
+          includeTotalCount: false,
+        });
+      } finally {
+        trace?.("budget-app:register-query:worker:end");
+      }
     },
     async queryLocalTransactions(input) {
       return (await requireDatabase(input.budgetId)).queryTransactions({
