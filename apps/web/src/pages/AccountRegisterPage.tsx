@@ -2784,15 +2784,19 @@ export function AccountRegisterPage() {
                   registerPagination.totalPages,
                   registerPagination.currentPage + 1,
                 );
+                globalThis.performance?.mark?.("budget-app:register-pagination:click");
                 if (
                   storageMode === "sqlite" &&
                   hasMoreTransactions &&
                   nextPage * registerPagination.pageSize >
                     registerTransactions.length
                 ) {
+                  globalThis.performance?.mark?.("budget-app:register-pagination:fetch:start");
                   await loadMoreTransactions();
+                  globalThis.performance?.mark?.("budget-app:register-pagination:fetch:end");
                 }
                 setRegisterPage(nextPage);
+                globalThis.performance?.mark?.("budget-app:register-pagination:state-set");
               }}
             >
               Next
