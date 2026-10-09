@@ -63,6 +63,8 @@ test("measures real Register navigation, paging and interaction with 5000 transa
     nextPageMs: number;
     previousPageMs: number;
     fetchMs: number | null;
+    readinessMs: number | null;
+    queryMs: number | null;
     stateToVisibleMs: number | null;
   }[] = [];
   for (let index = 0; index < 5; index += 1) {
@@ -77,10 +79,18 @@ test("measures real Register navigation, paging and interaction with 5000 transa
         mark.name === `budget-app:register-pagination:${name}`).at(-1)?.startTime;
       const fetchStart = last("fetch:start");
       const fetchEnd = last("fetch:end");
+      const readinessStart = last("readiness:start");
+      const readinessEnd = last("readiness:end");
+      const queryStart = last("query:start");
+      const queryEnd = last("query:end");
       const stateSet = last("state-set");
       return {
         fetchMs: fetchStart === undefined || fetchEnd === undefined
           ? null : Math.round((fetchEnd - fetchStart) * 100) / 100,
+        readinessMs: readinessStart === undefined || readinessEnd === undefined
+          ? null : Math.round((readinessEnd - readinessStart) * 100) / 100,
+        queryMs: queryStart === undefined || queryEnd === undefined
+          ? null : Math.round((queryEnd - queryStart) * 100) / 100,
         stateToVisibleMs: stateSet === undefined
           ? null : Math.round((performance.now() - stateSet) * 100) / 100,
       };
