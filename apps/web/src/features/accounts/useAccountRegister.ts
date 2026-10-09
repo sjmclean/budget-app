@@ -332,6 +332,27 @@ export function useAccountRegister(
           globalThis.performance?.mark?.(hasLoadedDataRef.current
             ? "budget-app:register-load-effect:warm-data-present"
             : "budget-app:register-load-effect:no-warm-data");
+          const warmKey = JSON.stringify({
+            budgetId,
+            accountId,
+            search: registerViewQuery.search ?? null,
+            categoryFilter: registerViewQuery.categoryFilter,
+            sort: registerViewQuery.sort,
+          });
+          // The prefetched snapshot was applied during the layout effect.
+          // Do not repeat its query while it still represents the current
+          // local revision. Persistence publications trigger normal refreshes.
+          if (
+            hasLoadedDataRef.current &&
+            sqlitePageRef.current !== null &&
+            claimedWarmBootstrapRef.current?.key === warmKey &&
+            appliedRevisionRef.current === getPersistenceRevisionForInterest(persistenceInterest)
+          ) {
+            globalThis.performance?.mark?.("budget-app:register-load-effect:reuse-current-warm-data");
+            if (!isMounted) return;
+            setIsLoading(false);
+            return;
+          }
           await reloadSqliteRegister();
           if (!isMounted) return;
           setIsLoading(false);
