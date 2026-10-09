@@ -504,7 +504,10 @@ export function useAccountRegister(
     const generation = loadGenerationRef.current;
     const revision = getPersistenceRevisionForInterest(persistenceInterest);
 
+    globalThis.performance?.mark?.("budget-app:register-pagination:readiness:start");
     await ensureSqliteReady();
+    globalThis.performance?.mark?.("budget-app:register-pagination:readiness:end");
+    globalThis.performance?.mark?.("budget-app:register-pagination:query:start");
     const page = await accountRegisterQueries.queryTransactions({
       budgetId,
       accountId,
@@ -514,6 +517,7 @@ export function useAccountRegister(
       categoryFilter: registerViewQuery.categoryFilter,
       sort: registerViewQuery.sort,
     });
+    globalThis.performance?.mark?.("budget-app:register-pagination:query:end");
     if (generation !== loadGenerationRef.current || revision !== getPersistenceRevisionForInterest(persistenceInterest)) return;
     const current = sqlitePageRef.current;
     if (!current) return;
