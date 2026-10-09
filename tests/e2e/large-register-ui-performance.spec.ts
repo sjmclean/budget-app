@@ -29,7 +29,8 @@ test("measures real Register navigation, paging and interaction with 5000 transa
   const accountId = href!.split("/").at(-1)!;
 
   const seedStartedAt = performance.now();
-  await page.evaluate(async (id) => {
+  const seedBatches = await page.evaluate(async (id) => {
+    const batches: { batch: number; elapsedMs: number }[] = [];
     const { getBudgetPersistenceProvider } = await import("/src/features/persistence/budgetPersistenceProviderFactory.ts");
     const { useUIStore } = await import("/src/stores/uiStore.ts");
     const budgetId = useUIStore.getState().selectedBudgetId;
@@ -45,14 +46,18 @@ test("measures real Register navigation, paging and interaction with 5000 transa
           payeeName: `Large Register Merchant ${ordinal}`,
         };
       });
+      const batchStart = performance.now();
       await engine.commitImportBatch({
         budgetId, accountId: id, additions, updates: [],
         provenanceAssignments: [], payeeCreations: [],
       });
+      batches.push({ batch: offset / 250 + 1, elapsedMs: Math.round((performance.now() - batchStart) * 100) / 100 });
     }
+    return batches;
   }, accountId);
   const seedMs = Math.round((performance.now() - seedStartedAt) * 100) / 100;
   console.log(`[register-perf] 5,000-row seeding completed in ${seedMs}ms`);
+  console.table(seedBatches);
 
   const startedAt = performance.now();
   await accountLink.click();
@@ -145,7 +150,7 @@ test("measures real Register navigation, paging and interaction with 5000 transa
   const report = {
     generatedAt: new Date().toISOString(),
     transactionCount: 5_000,
-    seedMs, firstPageVisibleMs, firstPage, nextPageMs, paginationSamples, observedMonthIdReloads, addTransactionOpenMs,
+    seedMs, seedBatches, firstPageVisibleMs, firstPage, nextPageMs, paginationSamples, observedMonthIdReloads, addTransactionOpenMs,
   };
   for (const value of [firstPageVisibleMs, nextPageMs, addTransactionOpenMs]) {
     expect(Number.isFinite(value)).toBe(true);
