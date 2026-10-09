@@ -3,7 +3,7 @@ import { performance } from "node:perf_hooks";
 import { expect, test } from "@playwright/test";
 
 test("measures real Register navigation, paging and interaction with 5000 transactions", async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(process.env.BUDGET_APP_E2E_ISOLATED_PORTS === "1" ? 480_000 : 180_000);
   await page.goto("/");
   const authenticationHeading = page.getByRole("heading", {
     name: /Create the administrator account|Sign in/,
@@ -52,6 +52,7 @@ test("measures real Register navigation, paging and interaction with 5000 transa
     }
   }, accountId);
   const seedMs = Math.round((performance.now() - seedStartedAt) * 100) / 100;
+  console.log(`[register-perf] 5,000-row seeding completed in ${seedMs}ms`);
 
   const startedAt = performance.now();
   await accountLink.click();
