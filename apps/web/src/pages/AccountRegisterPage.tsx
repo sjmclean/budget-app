@@ -885,6 +885,15 @@ export function AccountRegisterPage() {
       storageMode === "sqlite" ? totalTransactionCount : undefined,
   });
 
+  // Commit boundary for the rendered page; compare with the click and fetch marks.
+  useLayoutEffect(() => {
+    globalThis.performance?.mark?.("budget-app:register-pagination:committed");
+    const frame = requestAnimationFrame(() => {
+      globalThis.performance?.mark?.("budget-app:register-pagination:frame");
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [registerPagination.currentPage]);
+
   useEffect(() => {
     setActiveRegisterSearchSuggestionIndex(null);
   }, [registerSearchDraft]);
