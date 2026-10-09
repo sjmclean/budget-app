@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 
-test("warm OPFS SQLite opens and serves a bounded 10k register locally", async ({ page }) => {
+test("warm OPFS SQLite serves a bounded single-account 10k register locally", async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto("/");
 
@@ -44,7 +44,7 @@ test("warm OPFS SQLite opens and serves a bounded 10k register locally", async (
           return {
             id: `transaction-${index}`,
             budgetId,
-            accountId: `perf-account-${index % accountCount}`,
+            accountId,
             date: `2026-${month}-${day}`,
             amount: index % 2 === 0 ? -1234 : 2500,
             memo: `Performance transaction ${index}`,
@@ -144,7 +144,7 @@ test("warm OPFS SQLite opens and serves a bounded 10k register locally", async (
   expect(report.accountNavigationCount).toBe(report.accountCount);
   expect(report.navigationTransactionCount).toBe(report.transactionCount);
   expect(report.summaryTransactionCount).toBe(
-    report.transactionCount / report.accountCount,
+    report.transactionCount,
   );
   expect(report.warmOpenMs).toBeLessThan(2_000);
   expect(report.accountIdentityMs).toBeLessThan(500);
