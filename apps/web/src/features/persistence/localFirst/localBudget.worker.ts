@@ -2542,7 +2542,7 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
     categoryId: string | null;
     transferAccountId: string | null;
     incomeBudgetMonth: string | null;
-    inflowClassification: "income" | "category-inflow" | null;
+    inflowClassification: "income" | "category-inflow" | "reconciliation-adjustment" | null;
     amount: number;
     splitsJson: string;
   }>(
@@ -2592,7 +2592,7 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
       categoryId: string | null;
       transferAccountId: string | null;
       incomeBudgetMonth: string | null;
-      inflowClassification: "income" | "category-inflow" | null;
+      inflowClassification: "income" | "category-inflow" | "reconciliation-adjustment" | null;
       amount: number;
     }[],
   }));
@@ -2614,7 +2614,7 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
         (sum, split) => sum + (
           (
             (
-              split.inflowClassification === "income" &&
+              split.(inflowClassification === "income" || inflowClassification === "reconciliation-adjustment") &&
               split.categoryId === null &&
               split.incomeBudgetMonth === firstMonth
             )
@@ -2629,7 +2629,7 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
     return total + (
       (
         (
-          transaction.inflowClassification === "income" &&
+          transaction.(inflowClassification === "income" || inflowClassification === "reconciliation-adjustment") &&
           transaction.categoryId === null &&
           transaction.incomeBudgetMonth === firstMonth
         )
@@ -3213,7 +3213,7 @@ function queryTransactions(query: LocalTransactionQuery) {
     categoryId: string | null;
     categoryName: string | null;
     incomeBudgetMonth: string | null;
-    inflowClassification: "income" | "category-inflow" | null;
+    inflowClassification: "income" | "category-inflow" | "reconciliation-adjustment" | null;
     transferAccountId: string | null;
     transferAccountName: string | null;
     transferAccountParticipation: "on-budget" | "off-budget" | null;
@@ -3269,7 +3269,7 @@ function queryTransactions(query: LocalTransactionQuery) {
       categoryId: string | null;
       categoryName: string | null;
       incomeBudgetMonth: string | null;
-      inflowClassification: "income" | "category-inflow" | null;
+      inflowClassification: "income" | "category-inflow" | "reconciliation-adjustment" | null;
       transferAccountId: string | null;
       transferAccountName: string | null;
       transferAccountParticipation: "on-budget" | "off-budget" | null;
@@ -3362,7 +3362,7 @@ function getTransaction(budgetId: string, transactionId: string): LocalTransacti
     payeeId: string | null; payeeName: string | null; rawPayeeName: string | null;
     categoryId: string | null;
     categoryName: string | null; incomeBudgetMonth: string | null;
-    inflowClassification: "income" | "category-inflow" | null; transferAccountId: string | null;
+    inflowClassification: "income" | "category-inflow" | "reconciliation-adjustment" | null; transferAccountId: string | null;
     transferTransactionId: string | null; generatedFromSchedule: number;
     scheduledTransactionId: string | null; scheduledOccurrenceDate: string | null;
     updatedAt: string;
@@ -3447,7 +3447,7 @@ function getPersistedTransactionForVerification(
     categoryId: string | null;
     categoryName: string | null;
     incomeBudgetMonth: string | null;
-    inflowClassification: "income" | "category-inflow" | null;
+    inflowClassification: "income" | "category-inflow" | "reconciliation-adjustment" | null;
     transferAccountId: string | null;
     transferTransactionId: string | null;
     generatedFromSchedule: number;
