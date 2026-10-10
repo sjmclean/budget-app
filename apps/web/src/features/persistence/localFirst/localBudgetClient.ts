@@ -811,6 +811,25 @@ export class LocalBudgetDatabaseClient {
     });
   }
 
+  listReconciliationCheckpoints(input: {
+    readonly budgetId: string;
+    readonly accountId: string;
+  }): Promise<readonly {
+    readonly id: string;
+    readonly budgetId: string;
+    readonly accountId: string;
+    readonly statementDate: string;
+    readonly statementBalanceMinor: number;
+    readonly completedAt: string;
+    readonly transactionIds: readonly string[];
+  }[]> {
+    return this.#request({
+      requestId: createRuntimeUuid(),
+      type: "listReconciliationCheckpoints",
+      ...input,
+    });
+  }
+
   prepareReconciliation(input: {
     readonly budgetId: string;
     readonly accountId: string;
