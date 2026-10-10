@@ -654,6 +654,7 @@ export type LocalBudgetWorkerResponse =
       readonly ok: true;
       readonly result: unknown;
       readonly registerDelta?: import("../accountRegisterMutationDelta").AccountRegisterMutationDelta;
+      readonly importTiming?: { readonly queueMs: number; readonly workerMs: number };
     }
   | {
       readonly requestId: string;
