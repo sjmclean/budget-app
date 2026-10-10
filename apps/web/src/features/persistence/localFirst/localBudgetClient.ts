@@ -811,6 +811,18 @@ export class LocalBudgetDatabaseClient {
     });
   }
 
+  prepareReconciliation(input: {
+    readonly budgetId: string;
+    readonly accountId: string;
+    readonly statementDate: string;
+  }): Promise<{ readonly openingBalanceMinor: number; readonly transactions: readonly LocalTransactionRecord[] }> {
+    return this.#request({
+      requestId: createRuntimeUuid(),
+      type: "prepareReconciliation",
+      ...input,
+    });
+  }
+
   completeReconciliation(input: {
     readonly budgetId: string;
     readonly accountId: string;
