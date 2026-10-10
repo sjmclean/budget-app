@@ -1507,6 +1507,11 @@ export function createLocalBudgetRuntime(
     addTransactionAttachment: publicOrdinaryCommands.addTransactionAttachment,
     removeTransactionAttachment: publicOrdinaryCommands.removeTransactionAttachment,
     readTransactionAttachment: attachmentCommands.readTransactionAttachment,
+    async previewReconciliation(input) {
+      const local = await syncThenDatabase(input.budgetId);
+      const result = await local.prepareReconciliation(input);
+      return { clearedBalanceMinor: result.clearedBalanceMinor, eligibleTransactionCount: result.transactions.length };
+    },
     async listReconciliationCheckpoints(input) {
       const local = await syncThenDatabase(input.budgetId);
       return local.listReconciliationCheckpoints(input);
