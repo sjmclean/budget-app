@@ -3913,9 +3913,13 @@ function completeReconciliation(request: Extract<LocalBudgetWorkerRequest, { typ
        request.statementBalanceMinor, request.completedAt, JSON.stringify(ids)],
     );
     const checkpointPayload = request.checkpointMutation.payload as ReplicatedReconciliationCheckpoint;
-    if (checkpointPayload.id !== request.checkpointId ||
+    if (checkpointPayload.kind !== "reconciliation-checkpoint" ||
+        checkpointPayload.id !== request.checkpointId ||
+        checkpointPayload.budgetId !== request.budgetId ||
         checkpointPayload.accountId !== request.accountId ||
+        checkpointPayload.statementDate !== request.statementDate ||
         checkpointPayload.statementBalanceMinor !== request.statementBalanceMinor ||
+        checkpointPayload.completedAt !== request.completedAt ||
         JSON.stringify(checkpointPayload.transactionIds) !== JSON.stringify(ids)) {
       throw workerError("INVALID_RECONCILIATION_CHECKPOINT", "Checkpoint mutation does not match completion.");
     }
