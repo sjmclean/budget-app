@@ -2,6 +2,7 @@ import { ArrowDown, ArrowUp, Paperclip, Tag } from "lucide-react";
 import "../styles/register.css";
 import {
   Suspense,
+  Profiler,
   lazy,
   useCallback,
   useEffect,
@@ -2647,6 +2648,9 @@ export function AccountRegisterPage() {
             />
           )}
 
+          <Profiler id="register-visible-rows" onRender={(_id, _phase, actualDuration) => {
+            globalThis.performance?.mark?.("budget-app:register-rows:render", { detail: { actualDuration } });
+          }}>
           {visibleTransactions.map((transaction, transactionIndex) => {
             const previousTransaction =
               transactionIndex > 0
@@ -2757,6 +2761,7 @@ export function AccountRegisterPage() {
               </div>
             );
           })}
+          </Profiler>
         </div>
 
         {hasRegisterActionSelection && !editingTransactionId ? (
