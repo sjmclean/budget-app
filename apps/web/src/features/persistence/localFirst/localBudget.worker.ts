@@ -6763,6 +6763,33 @@ async function handleWithRegisterDelta(request: LocalBudgetWorkerRequest): Promi
   const deltaStartedAt = diagnostic ? performance.now() : 0;
   const plan = registerDeltaPlan(request);
   if (!plan || plan.rootIds.length === 0) return { result: await handle(request) };
+  // Bulk imports can affect running balances well beyond the written rows.
+  // Refresh affected accounts from authoritative SQLite data rather than
+  // constructing expensive per-row before/after patches for every batch.
+  // Ordinary edits retain the precise patch path below.
+  if (request.type === "writeImportBatch") {
+    const accountIds = new Set(plan.knownAccountIds);
+    for (const { transaction } of request.writes) accountIds.add(transaction.accountId);
+    for (const { accountId } of registerAccountIdsForRoots(plan.budgetId, plan.rootIds)) {
+      accountIds.add(accountId);
+    }
+    latestImportDeltaBeforeMs = performance.now() - deltaStartedAt;
+    const result = await handle(request);
+    const afterStartedAt = performance.now();
+    for (const { accountId } of registerAccountIdsForRoots(plan.budgetId, plan.rootIds)) {
+      accountIds.add(accountId);
+    }
+    latestImportDeltaAfterMs = performance.now() - afterStartedAt;
+    return {
+      result,
+      registerDelta: {
+        mode: "refresh-required",
+        budgetId: plan.budgetId,
+        affectedAccountIds: [...accountIds],
+        reason: "unsupported-register-change",
+      },
+    };
+  }
   const roots = [...new Set(plan.rootIds)];
   const tooLarge = roots.length > MAX_REGISTER_DELTA_TRANSACTION_ROOTS;
   const beforeRoots = tooLarge ? [] : expandRegisterRoots(plan.budgetId, roots);
