@@ -3912,14 +3912,16 @@ function completeReconciliation(request: Extract<LocalBudgetWorkerRequest, { typ
     // Reconciliation changes only status and update time. Rewriting the entire
     // transaction (including splits, tags and import provenance) is expensive
     // for historical accounts with thousands of cleared entries.
-    for (const { transaction, mutation } of request.writes) {
-      execute(
-        `UPDATE local_transactions SET cleared_status = 'reconciled', updated_at = ?
-         WHERE budget_id = ? AND account_id = ? AND id = ? AND cleared_status = 'cleared'`,
-        [transaction.updatedAt, request.budgetId, request.accountId, transaction.id],
-      );
-      insertOutbox(mutation);
+    execute(
+      `UPDATE local_transactions SET cleared_status = 'reconciled', updated_at = ?
+       WHERE budget_id = ? AND account_id = ? AND date <= ? AND cleared_status = 'cleared'`,
+      [request.completedAt, request.budgetId, request.accountId, request.statementDate],
+    );
+    const updatedCount = resultRows<{ count: number }>("SELECT changes() AS count")[0]?.count;
+    if (updatedCount !== request.writes.length) {
+      throw workerError("RECONCILIATION_STALE", "The eligible transaction count changed during reconciliation.");
     }
+    for (const { mutation } of request.writes) insertOutbox(mutation);
     execute(
       `INSERT INTO local_reconciliation_checkpoints
        (id, budget_id, account_id, statement_date, statement_balance_minor, completed_at, transaction_ids_json)
