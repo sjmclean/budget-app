@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { LocalBudgetRuntimeClient } from "../../persistence/accountRegisterQueryContracts";
 
-type ReconciliationPreview = Pick<LocalBudgetRuntimeClient, "previewReconciliation" | "getBudgetCategoryOptions">;
+type ReconciliationPreview = Pick<LocalBudgetRuntimeClient, "previewReconciliation">;
 type ReconciliationCommand = Pick<LocalBudgetRuntimeClient, "completeReconciliation" | "addTransaction" | "setTransactionsCleared">;
 
 export function ReconciliationPanel({
@@ -23,8 +23,6 @@ export function ReconciliationPanel({
   const [finished, setFinished] = useState(false);
   const [showAdjustmentConfirmation, setShowAdjustmentConfirmation] = useState(false);
   const [adjustmentMemo, setAdjustmentMemo] = useState("Statement balance adjustment");
-  const [categoryId, setCategoryId] = useState("");
-  const [categories, setCategories] = useState<readonly { id: string; name: string; groupName: string }[]>([]);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -35,18 +33,6 @@ export function ReconciliationPanel({
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [onClose, busy]);
-
-  useEffect(() => {
-    let stale = false;
-    void queries.getBudgetCategoryOptions({ budgetId, month: statementDate.slice(0, 7) }).then((options) => {
-      if (stale) return;
-      const available = options.filter((option) => !option.isArchived);
-      setCategories(available);
-      setCategoryId((current) => current && available.some((option) => option.id === current)
-        ? current : available.find((option) => /^balance adjustments?$/i.test(option.name))?.id ?? "");
-    }).catch((reason: unknown) => { if (!stale) setError(String(reason)); });
-    return () => { stale = true; };
-  }, [queries, budgetId, statementDate]);
 
   useEffect(() => {
     let stale = false;
@@ -103,19 +89,13 @@ export function ReconciliationPanel({
             </button>
           ) : (
             <div style={{ display: "grid", gap: 8 }}>
-              <label>Adjustment category{" "}
-                <select aria-label="Adjustment category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
-                  <option value="">Select category…</option>
-                  {categories.map((category) => <option key={category.id} value={category.id}>{category.groupName} / {category.name}</option>)}
-                </select>
-              </label>
               <label>Adjustment memo{" "}
                 <input aria-label="Adjustment memo" value={adjustmentMemo}
                   onChange={(event) => setAdjustmentMemo(event.target.value)} />
               </label>
-              <p>Confirm a {difference > 0 ? "deposit" : "withdrawal"} of <strong>{currency(Math.abs(difference))}</strong> dated {statementDate}. It will be saved as a separate, cleared, categorised transaction.</p>
+              <p>Confirm a {difference > 0 ? "deposit" : "withdrawal"} of <strong>{currency(Math.abs(difference))}</strong> dated {statementDate}. It will be saved as a separate, cleared Ready to Assign adjustment for the statement month, which may make Ready to Assign negative.</p>
               <div style={{ display: "flex", gap: 8 }}>
-                <button type="button" disabled={busy || !adjustmentMemo.trim() || !categoryId} onClick={async () => {
+                <button type="button" disabled={busy || !adjustmentMemo.trim()} onClick={async () => {
                   if (difference === null || !Number.isSafeInteger(difference)) return;
                   setBusy(true);
                   setError("");
@@ -129,7 +109,8 @@ export function ReconciliationPanel({
                     const id = crypto.randomUUID();
                     await commands.addTransaction({
                       id, budgetId, accountId, date: statementDate,
-                      amount: difference, payeeName: "Balance Adjustment", categoryId,
+                      amount: difference, payeeName: "Balance Adjustment",
+                      incomeBudgetMonth: statementDate.slice(0, 7), inflowClassification: "reconciliation-adjustment",
                       memo: adjustmentMemo.trim(),
                     });
                     await commands.setTransactionsCleared({ budgetId, transactionIds: [id], cleared: true });
