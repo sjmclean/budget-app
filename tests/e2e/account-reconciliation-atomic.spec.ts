@@ -99,7 +99,8 @@ test("reconciliation completes atomically and a failed statement preserves statu
   await expect(page.getByLabel("Transaction reconciled")).toBeVisible();
   await page.reload();
   await expect(page.getByLabel("Transaction reconciled")).toBeVisible();
-  await page.getByRole("button", { name: "Reconcile account", exact: true }).click();
+  await page.getByRole("button", { name: "Register options" }).first().click();
+  await page.getByRole("menuitem", { name: "Reconcile", exact: true }).click();
   await expect(page.getByRole("region", { name: "Reconcile account" })).toBeVisible();
   await page.getByLabel("Statement date").fill("2026-12-31");
   await page.getByLabel("Statement closing balance").fill("-12.34");
@@ -123,7 +124,8 @@ test("reconciliation completes atomically and a failed statement preserves statu
   }, accountId);
   expect(adjusted).toEqual([{ amount: 234, clearedStatus: "cleared" }]);
   await page.getByRole("button", { name: "Finish reconciliation" }).click();
-  await expect(page.getByRole("button", { name: "Reconcile account", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Register options" }).first()).toBeVisible();
+  await expect(page.getByRole("region", { name: "Reconcile account" })).toHaveCount(0);
 
 
   const persisted = await page.evaluate(async (accountId) => {
