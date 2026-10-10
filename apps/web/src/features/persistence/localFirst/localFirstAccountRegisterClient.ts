@@ -1507,6 +1507,10 @@ export function createLocalBudgetRuntime(
     addTransactionAttachment: publicOrdinaryCommands.addTransactionAttachment,
     removeTransactionAttachment: publicOrdinaryCommands.removeTransactionAttachment,
     readTransactionAttachment: attachmentCommands.readTransactionAttachment,
+    async listReconciliationCheckpoints(input) {
+      const local = await syncThenDatabase(input.budgetId);
+      return local.listReconciliationCheckpoints(input);
+    },
     async listAccounts(budgetId) {
       const local = await syncThenDatabase(budgetId);
       return (await local.listAccounts(budgetId)).map((row) => ({
