@@ -104,7 +104,7 @@ test("reconciliation completes atomically and a failed statement preserves statu
   await expect(page.getByRole("dialog", { name: "Reconcile account" })).toBeVisible();
   await page.getByLabel("Statement date").fill("2026-12-31");
   await page.getByLabel("Statement closing balance").fill("-12.34");
-  await expect(page.getByText("Cleared balance at statement date:")).toBeVisible();
+  await expect(page.getByText("Cleared balance at statement date", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Finish reconciliation" })).toBeEnabled();
   await page.getByLabel("Statement closing balance").fill("-10.00");
   await expect(page.getByRole("button", { name: "Finish reconciliation" })).toBeDisabled();
