@@ -97,4 +97,16 @@ test("reconciliation completes atomically and a failed statement preserves statu
   expect(evidence.afterSuccess[0]?.transactionIds).toEqual(evidence.success.transactionIds);
   expect(evidence.afterSuccess[0]?.statementBalanceMinor).toBe(-1234);
   await expect(page.getByLabel("Transaction reconciled")).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel("Transaction reconciled")).toBeVisible();
+  const persisted = await page.evaluate(async (accountId) => {
+    const { getBudgetPersistenceProvider } = await import("/src/features/persistence/budgetPersistenceProviderFactory.ts");
+    const { useUIStore } = await import("/src/stores/uiStore.ts");
+    const budgetId = useUIStore.getState().selectedBudgetId;
+    const engine = getBudgetPersistenceProvider().localBudgetEngine;
+    if (!budgetId || !engine) throw new Error("Budget must survive a page reload.");
+    return engine.listReconciliationCheckpoints({ budgetId, accountId });
+  }, accountId);
+  expect(persisted).toHaveLength(1);
+  expect(persisted[0]?.transactionIds).toEqual(evidence.success.transactionIds);
 });
