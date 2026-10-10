@@ -368,6 +368,12 @@ export type LocalBudgetWorkerRequest =
     }
   | {
       readonly requestId: string;
+      readonly type: "listReconciliationCheckpoints";
+      readonly budgetId: string;
+      readonly accountId: string;
+    }
+  | {
+      readonly requestId: string;
       readonly type: "prepareReconciliation";
       readonly budgetId: string;
       readonly accountId: string;
