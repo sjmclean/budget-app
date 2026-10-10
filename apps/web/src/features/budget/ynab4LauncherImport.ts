@@ -1277,7 +1277,7 @@ export function toSqliteImportTransaction(
         ? null
         : transaction.category ?? null,
     incomeBudgetMonth: transaction.incomeBudgetMonth ?? null,
-    inflowClassification: transaction.inflowClassification === "reconciliation-adjustment" ? null : transaction.inflowClassification ?? null,
+    inflowClassification: transaction.inflowClassification ?? null,
     transferAccountId: transaction.transferAccountId ?? null,
     transferTransactionId: transaction.transferTransactionId ?? null,
     splitLines: (transaction.splitLines ?? []).map((line) => ({
@@ -1289,7 +1289,7 @@ export function toSqliteImportTransaction(
           ? null
           : line.category ?? null,
       incomeBudgetMonth: line.incomeBudgetMonth ?? null,
-      inflowClassification: line.inflowClassification === "reconciliation-adjustment" ? null : line.inflowClassification ?? null,
+      inflowClassification: line.inflowClassification ?? null,
       transferAccountId: line.transferAccountId ?? null,
       transferTransactionId: line.transferTransactionId ?? null,
       memo: line.memo ?? null,
