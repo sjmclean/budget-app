@@ -6795,9 +6795,9 @@ async function handleWithRegisterDelta(request: LocalBudgetWorkerRequest): Promi
     if (diagnostic) latestImportDeltaAfterMs = performance.now() - deltaAfterStartedAt;
     return { result };
   }
+  const summaries = [...accountIds].map((accountId) => getAccountSummary(plan.budgetId, accountId));
   if (diagnostic) latestImportDeltaAfterMs = performance.now() - deltaAfterStartedAt;
-    return { result, registerDelta: { mode: "patch", budgetId: plan.budgetId, affectedAccountIds: [...accountIds], beforeRows, afterRows,
-    summaries: [...accountIds].map((accountId) => getAccountSummary(plan.budgetId, accountId)) } };
+  return { result, registerDelta: { mode: "patch", budgetId: plan.budgetId, affectedAccountIds: [...accountIds], beforeRows, afterRows, summaries } };
 }
 
 let requestTail: Promise<unknown> = Promise.resolve();
