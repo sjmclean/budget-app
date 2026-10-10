@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import type { LocalBudgetRuntimeClient } from "../../persistence/accountRegisterQueryContracts";
 
-type ReconciliationClient = Pick<LocalBudgetRuntimeClient, "previewReconciliation" | "completeReconciliation">;
+type ReconciliationPreview = Pick<LocalBudgetRuntimeClient, "previewReconciliation">;
+type ReconciliationCommand = Pick<LocalBudgetRuntimeClient, "completeReconciliation">;
 
 export function ReconciliationPanel({
-  budgetId, accountId, currencyCode, engine, onComplete,
+  budgetId, accountId, currencyCode, queries, commands, onComplete,
 }: {
   budgetId: string;
   accountId: string;
   currencyCode: string;
-  engine: ReconciliationClient;
+  queries: ReconciliationPreview;
+  commands: ReconciliationCommand;
   onComplete?: () => void;
 }) {
   const [statementDate, setStatementDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -25,13 +27,13 @@ export function ReconciliationPanel({
     setFinished(false);
     setError("");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(statementDate)) return;
-    void engine.previewReconciliation({ budgetId, accountId, statementDate }).then((result) => {
+    void queries.previewReconciliation({ budgetId, accountId, statementDate }).then((result) => {
       if (!stale) setPreview(result);
     }).catch((reason: unknown) => {
       if (!stale) setError(String(reason));
     });
     return () => { stale = true; };
-  }, [engine, budgetId, accountId, statementDate]);
+  }, [queries, budgetId, accountId, statementDate]);
 
   const balanceIsValid = /^-?\d+(?:\.\d{1,2})?$/.test(balanceText.trim());
   const statementBalanceMinor = balanceIsValid ? Math.round(Number(balanceText) * 100) : null;
@@ -70,13 +72,13 @@ export function ReconciliationPanel({
             setBusy(true);
             setError("");
             try {
-              await engine.completeReconciliation({ budgetId, accountId, statementDate, statementBalanceMinor });
+              await commands.completeReconciliation({ budgetId, accountId, statementDate, statementBalanceMinor });
               setFinished(true);
               onComplete?.();
             } catch (reason) {
               setError(String(reason));
               setPreview(null);
-              void engine.previewReconciliation({ budgetId, accountId, statementDate }).then(setPreview).catch(() => undefined);
+              void queries.previewReconciliation({ budgetId, accountId, statementDate }).then(setPreview).catch(() => undefined);
             } finally {
               setBusy(false);
             }
