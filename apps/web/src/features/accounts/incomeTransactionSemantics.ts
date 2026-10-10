@@ -1,4 +1,4 @@
-export type InflowClassification = "income" | "category-inflow";
+export type InflowClassification = "income" | "category-inflow" | "reconciliation-adjustment";
 
 const BUDGET_MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -58,6 +58,13 @@ export function requireCanonicalInflowSemantics(
   const transferAccountId = input.transferAccountId ?? null;
   const incomeBudgetMonth = input.incomeBudgetMonth ?? null;
   const classification = input.inflowClassification ?? null;
+
+  if (classification === "reconciliation-adjustment") {
+    if (categoryId || transferAccountId || !incomeBudgetMonth || incomeBudgetMonth !== transactionMonth(input.date)) {
+      throw new Error("Reconciliation adjustments must target Ready to Assign in their statement month.");
+    }
+    return { incomeBudgetMonth, inflowClassification: classification };
+  }
 
   if (input.amount <= 0 || transferAccountId) {
     if (incomeBudgetMonth || classification) {
