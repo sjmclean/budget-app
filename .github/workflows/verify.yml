@@ -6,6 +6,11 @@ on:
     branches:
       - master
   workflow_dispatch:
+    inputs:
+      reconciliation_benchmark:
+        description: "Run disposable 15,000-transaction reconciliation benchmark"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -94,3 +99,41 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Run required tests
         run: pnpm test:required
+
+  reconciliation-benchmark:
+    name: Reconciliation large-account benchmark
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.reconciliation_benchmark }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Chromium and system dependencies
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run disposable reconciliation benchmark
+        env:
+          BUDGET_APP_RECONCILIATION_BENCHMARK: "1"
+          BUDGET_APP_RECONCILIATION_BENCHMARK_COUNT: "15000"
+          BUDGET_APP_E2E_ISOLATED_PORTS: "1"
+        run: pnpm exec playwright test tests/e2e/reconciliation-large-benchmark.spec.ts --project=chromium --workers=1
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reconciliation-benchmark-failure
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
