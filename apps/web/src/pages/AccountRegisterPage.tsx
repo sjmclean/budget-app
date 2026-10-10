@@ -1837,7 +1837,7 @@ export function AccountRegisterPage() {
             onRedo={() => void redo()}
           />
 
-          {activeRegisterView === "register" && storageMode === "sqlite" && activeBudgetId && persistenceGateway.localBudgetEngine ? (
+          {activeRegisterView === "register" && storageMode === "sqlite" && activeBudgetId && persistenceGateway.localBudgetEngine && persistenceGateway.accountRegisterQueries ? (
             <>
               <div style={{ padding: "6px 16px" }}>
                 <button type="button" onClick={() => setShowReconciliation((value) => !value)}
@@ -1847,7 +1847,8 @@ export function AccountRegisterPage() {
               </div>
               {showReconciliation ? (
                 <ReconciliationPanel budgetId={activeBudgetId} accountId={accountId}
-                  currencyCode={data.currencyCode} engine={persistenceGateway.localBudgetEngine}
+                  currencyCode={data.currencyCode} commands={persistenceGateway.localBudgetEngine}
+                  queries={persistenceGateway.accountRegisterQueries}
                   onComplete={() => setShowReconciliation(false)} />
               ) : null}
             </>
