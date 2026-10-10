@@ -849,6 +849,7 @@ export class LocalBudgetDatabaseClient {
     readonly statementDate: string;
     readonly statementBalanceMinor: number;
     readonly completedAt: string;
+    readonly checkpointMutation: LocalBudgetMutation;
     readonly writes: readonly { readonly transaction: LocalTransactionRecord; readonly mutation: LocalBudgetMutation }[];
   }): Promise<{ readonly checkpointId: string; readonly transactionIds: readonly string[] }> {
     return this.#request({
