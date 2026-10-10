@@ -2,9 +2,11 @@ import { ArrowDown, ArrowUp, Paperclip, Tag } from "lucide-react";
 import "../styles/register.css";
 import {
   Suspense,
+  Profiler,
   lazy,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -21,7 +23,6 @@ import {
   WorkspaceStickyHeader,
 } from "../components/workspace";
 import { SelectionBar } from "../components/ui/SelectionBar";
-import { ScheduledTransactionsPanel } from "../components/accounts/ScheduledTransactionsPanel";
 import { ScheduledTransactionsPreview } from "../components/accounts/ScheduledTransactionsPreview";
 import { RegisterToolbar } from "../features/accounts/components/RegisterToolbar";
 import {
@@ -133,6 +134,11 @@ import {
 const AttachmentManager = lazy(() =>
   import("../features/accounts/components/AttachmentManager").then((module) => ({
     default: module.AttachmentManager,
+  })),
+);
+const ScheduledTransactionsPanel = lazy(() =>
+  import("../components/accounts/ScheduledTransactionsPanel").then((module) => ({
+    default: module.ScheduledTransactionsPanel,
   })),
 );
 const TransactionImportDialog = lazy(() =>
@@ -440,6 +446,17 @@ export function AccountRegisterPage() {
     storageMode,
     setRegisterViewQuery,
   } = useAccountRegister(accountId, activeBudgetId);
+  // Diagnostic-only: distinguish local data readiness from the React commit
+  // and the following browser frame during Register navigation.
+  useLayoutEffect(() => {
+    if (isLoading || !data || error) return;
+    globalThis.performance?.mark?.("budget-app:register-view:committed");
+    const frame = window.requestAnimationFrame(() => {
+      globalThis.performance?.mark?.("budget-app:register-view:frame");
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [accountId, isLoading, data, error]);
+
   const {
     addTransaction,
     updateTransaction,
@@ -869,6 +886,15 @@ export function AccountRegisterPage() {
       storageMode === "sqlite" ? totalTransactionCount : undefined,
   });
 
+  // Commit boundary for the rendered page; compare with the click and fetch marks.
+  useLayoutEffect(() => {
+    globalThis.performance?.mark?.("budget-app:register-pagination:committed");
+    const frame = requestAnimationFrame(() => {
+      globalThis.performance?.mark?.("budget-app:register-pagination:frame");
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [registerPagination.currentPage]);
+
   useEffect(() => {
     setActiveRegisterSearchSuggestionIndex(null);
   }, [registerSearchDraft]);
@@ -952,12 +978,24 @@ export function AccountRegisterPage() {
     setSelectionExportError(null);
   }, [accountId, categoryFilter, committedRegisterSearch, registerSort]);
 
+  const visibleMonthKeySignature = [...new Set(visibleTransactions
+    .map((transaction) => getRegisterMonthKey(transaction.date))
+    .filter((monthKey): monthKey is string => monthKey !== null))].sort().join("|");
+  // Pagination changes the visible row array, but not necessarily the months.
+  // Keep the dependency stable to avoid clearing and re-querying month IDs.
   const visibleMonthKeys = useMemo(
-    () => [...new Set(visibleTransactions
-      .map((transaction) => getRegisterMonthKey(transaction.date))
-      .filter((monthKey): monthKey is string => monthKey !== null))],
-    [visibleTransactions],
+    () => visibleMonthKeySignature ? visibleMonthKeySignature.split("|") : [],
+    [visibleMonthKeySignature],
   );
+  const monthCheckboxStates = useMemo(() => new Map(
+    visibleMonthKeys.map((monthKey) => [
+      monthKey,
+      getRegisterMonthCheckboxState(
+        monthTransactionIds[monthKey] ?? [],
+        selectedRegisterTransactionIds,
+      ),
+    ] as const),
+  ), [visibleMonthKeys, monthTransactionIds, selectedRegisterTransactionIds]);
 
   useEffect(() => {
     let active = true;
@@ -974,6 +1012,7 @@ export function AccountRegisterPage() {
     const queries = persistenceGateway.accountRegisterQueries;
     if (!activeBudgetId || !queries) return () => { active = false; };
     setMonthTransactionIds({});
+    globalThis.performance?.mark?.("budget-app:register-month-ids:reload");
     void Promise.all(visibleMonthKeys.map(async (monthKey) => [
       monthKey,
       await loadRegisterTransactionIdsForMonth({
@@ -1838,22 +1877,26 @@ export function AccountRegisterPage() {
           />
         ) : null}
 
-        <ScheduledTransactionsPanel
-          key={accountId}
-          budgetId={activeBudgetId}
-          accountId={accountId}
-          isOpen={activeRegisterView === "scheduled"}
-          categoryOptions={categoryOptions}
-          transferAccounts={transferAccounts}
-          payeeOptions={payeeOptions}
-          tags={transactionTags}
-          onCreateTag={handleCreateTransactionTag}
-          onClose={() => setActiveRegisterView("register")}
-          presentation="workspace"
-          onDueCountChange={setScheduledDueCount}
-          editScheduleId={scheduleToEditId}
-          onEditScheduleHandled={() => setScheduleToEditId(null)}
-        />
+        {activeRegisterView === "scheduled" ? (
+          <Suspense fallback={<p role="status">Loading scheduled transactions…</p>}>
+            <ScheduledTransactionsPanel
+              key={accountId}
+              budgetId={activeBudgetId}
+              accountId={accountId}
+              isOpen
+              categoryOptions={categoryOptions}
+              transferAccounts={transferAccounts}
+              payeeOptions={payeeOptions}
+              tags={transactionTags}
+              onCreateTag={handleCreateTransactionTag}
+              onClose={() => setActiveRegisterView("register")}
+              presentation="workspace"
+              onDueCountChange={setScheduledDueCount}
+              editScheduleId={scheduleToEditId}
+              onEditScheduleHandled={() => setScheduleToEditId(null)}
+            />
+          </Suspense>
+        ) : null}
 
         {isTransactionTagManagerOpen ? (
           <div className="payee-manager-overlay" role="presentation">
@@ -2605,6 +2648,9 @@ export function AccountRegisterPage() {
             />
           )}
 
+          <Profiler id="register-visible-rows" onRender={(_id, _phase, actualDuration) => {
+            globalThis.performance?.mark?.("budget-app:register-rows:render", { detail: { actualDuration } });
+          }}>
           {visibleTransactions.map((transaction, transactionIndex) => {
             const previousTransaction =
               transactionIndex > 0
@@ -2617,10 +2663,9 @@ export function AccountRegisterPage() {
               previousMonthKey !== monthKey;
             const monthLabel = formatRegisterMonthSeparator(transaction.date);
             const idsForMonth = monthKey ? monthTransactionIds[monthKey] : undefined;
-            const monthCheckboxState = getRegisterMonthCheckboxState(
-              idsForMonth ?? [],
-              selectedRegisterTransactionIds,
-            );
+            const monthCheckboxState = monthKey
+              ? monthCheckboxStates.get(monthKey) ?? "unchecked"
+              : "unchecked";
 
             return (
               <div
@@ -2716,6 +2761,7 @@ export function AccountRegisterPage() {
               </div>
             );
           })}
+          </Profiler>
         </div>
 
         {hasRegisterActionSelection && !editingTransactionId ? (
@@ -2764,15 +2810,19 @@ export function AccountRegisterPage() {
                   registerPagination.totalPages,
                   registerPagination.currentPage + 1,
                 );
+                globalThis.performance?.mark?.("budget-app:register-pagination:click");
                 if (
                   storageMode === "sqlite" &&
                   hasMoreTransactions &&
                   nextPage * registerPagination.pageSize >
                     registerTransactions.length
                 ) {
+                  globalThis.performance?.mark?.("budget-app:register-pagination:fetch:start");
                   await loadMoreTransactions();
+                  globalThis.performance?.mark?.("budget-app:register-pagination:fetch:end");
                 }
                 setRegisterPage(nextPage);
+                globalThis.performance?.mark?.("budget-app:register-pagination:state-set");
               }}
             >
               Next

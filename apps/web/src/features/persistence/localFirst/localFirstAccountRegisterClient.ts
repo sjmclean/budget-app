@@ -264,6 +264,11 @@ export function createLocalBudgetRuntime(
   const tabSyncCoordinator =
     options.tabSyncCoordinator ?? createLocalFirstTabSyncCoordinator();
   let database: LocalBudgetDatabaseClient | null = null;
+  // Production startup gets one worker-backed client ready before a budget is
+  // activated so module-worker/WASM startup can overlap the rest of bootstrap.
+  // Injected database factories retain their existing lazy construction semantics.
+  let prewarmedDatabase: LocalBudgetDatabaseClient | null =
+    options.databaseFactory ? null : new LocalBudgetDatabaseClient(undefined, storage);
   let activeBudgetId: string | null = null;
   let activeSyncEpoch: string | null = null;
   let activePulledCursor = 0;
@@ -450,6 +455,8 @@ export function createLocalBudgetRuntime(
   async function readyDatabase(budgetId: string): Promise<LocalBudgetDatabaseClient | null> {
     if (database && activeBudgetId === budgetId) return database;
     if (opening) return opening;
+    const readyPrefix = `budget-app:ready-database:${budgetId}`;
+    globalThis.performance?.mark?.(`${readyPrefix}:start`);
     opening = (async () => {
       if (database && activeBudgetId) {
         await captureOwnedRestorePoint(activeBudgetId, "before-switch");
@@ -465,7 +472,9 @@ export function createLocalBudgetRuntime(
       );
       const next =
         options.databaseFactory?.() ??
+        prewarmedDatabase ??
         new LocalBudgetDatabaseClient(undefined, storage);
+      if (next === prewarmedDatabase) prewarmedDatabase = null;
       let oldGenerationProvenSafe = false;
 
       try {
@@ -486,12 +495,16 @@ export function createLocalBudgetRuntime(
           hasPublishedLocalBudgetDatabase(storage, budgetId)
         ) {
           try {
+            globalThis.performance?.mark?.(`${readyPrefix}:local-open:start`);
             await next.open({
               budgetId,
               syncEpoch: cachedSyncEpoch,
               deviceId,
             });
+            globalThis.performance?.mark?.(`${readyPrefix}:local-open:end`);
+            globalThis.performance?.mark?.(`${readyPrefix}:sync-state:start`);
             const syncState = await next.getSyncState();
+            globalThis.performance?.mark?.(`${readyPrefix}:sync-state:end`);
             if (syncState.baselineHash) {
               activePulledCursor = syncState.pulledCursor;
               database = next;
@@ -506,8 +519,12 @@ export function createLocalBudgetRuntime(
           }
         }
 
+        globalThis.performance?.mark?.(`${readyPrefix}:relay-bootstrap:start`);
         let remote = await relay.getBootstrap(budgetId).catch(() => null);
+        globalThis.performance?.mark?.(`${readyPrefix}:relay-bootstrap:end`);
+        globalThis.performance?.mark?.(`${readyPrefix}:restore-recover:start`);
         const recovered = await replacement.recover(budgetId);
+        globalThis.performance?.mark?.(`${readyPrefix}:restore-recover:end`);
         cachedSyncEpoch = storage.getItem(
           `${SYNC_EPOCH_KEY_PREFIX}${budgetId}`,
         );
@@ -638,6 +655,7 @@ export function createLocalBudgetRuntime(
         if (database !== next) await next.close();
       }
     })().finally(() => {
+      globalThis.performance?.mark?.(`${readyPrefix}:end`);
       opening = null;
     });
     return opening;
@@ -1429,10 +1447,18 @@ export function createLocalBudgetRuntime(
       return (await syncThenDatabase(input.budgetId)).getAccountSummary(input);
     },
     async queryTransactions(input) {
-      return (await syncThenDatabase(input.budgetId)).queryTransactions({
-        ...toLocalQuery(input),
-        includeTotalCount: false,
-      });
+      globalThis.performance?.mark?.("budget-app:register-query:database:start");
+      const database = await syncThenDatabase(input.budgetId);
+      globalThis.performance?.mark?.("budget-app:register-query:database:end");
+      globalThis.performance?.mark?.("budget-app:register-query:worker:start");
+      try {
+        return await database.queryTransactions({
+          ...toLocalQuery(input),
+          includeTotalCount: false,
+        });
+      } finally {
+        globalThis.performance?.mark?.("budget-app:register-query:worker:end");
+      }
     },
     async queryLocalTransactions(input) {
       return (await requireDatabase(input.budgetId)).queryTransactions({
@@ -1513,7 +1539,13 @@ export function createLocalBudgetRuntime(
       return (await syncThenDatabase(input.budgetId)).getCategoryGoal(input.budgetId, input.categoryId);
     },
     async listCategoryGoals(input) {
-      return (await syncThenDatabase(input.budgetId)).listCategoryGoals(input.budgetId);
+      const prefix = `budget-app:runtime-category-goals:${input.budgetId}`;
+      globalThis.performance?.mark?.(`${prefix}:start`);
+      try {
+        return await (await syncThenDatabase(input.budgetId)).listCategoryGoals(input.budgetId);
+      } finally {
+        globalThis.performance?.mark?.(`${prefix}:end`);
+      }
     },
     createCategoryGoal: publicOrdinaryCommands.createCategoryGoal,
     updateCategoryGoal: publicOrdinaryCommands.updateCategoryGoal,
@@ -1533,21 +1565,34 @@ export function createLocalBudgetRuntime(
       return client.getLocalBudgetMonthView(input);
     },
     async getLocalBudgetMonthView(input) {
+      const prefix = `budget-app:runtime-budget-month-read:${input.month}`;
+      globalThis.performance?.mark?.(`${prefix}:start`);
       const local = await requireDatabase(input.budgetId);
-      const view = await local.readEntity<BudgetMonthView>(
-        "budgetMonths",
-        input.month,
-      );
+      let view: BudgetMonthView | null = null;
+      try {
+        view = await local.readEntity<BudgetMonthView>(
+          "budgetMonths",
+          input.month,
+        );
+      } finally {
+        globalThis.performance?.mark?.(`${prefix}:end`);
+      }
       if (!view) throw new Error(`Budget month ${input.month} is not available locally.`);
       if (storage.getItem(BUDGET_ENGINE_DIAGNOSTIC_STORAGE_KEY) === "true") {
-        await local.getBudgetProjectionDiagnostic(input.budgetId, input.month).then(
-          (diagnostic) => {
-            if (!diagnostic.matchesSnapshot) {
-              console.warn("Budget engine diagnostic differs from the legacy snapshot.", diagnostic);
-            }
-          },
-          (error) => console.warn("Budget engine diagnostic could not run.", error),
-        );
+        const diagnosticPrefix = `budget-app:budget-engine-diagnostic:${input.month}`;
+        globalThis.performance?.mark?.(`${diagnosticPrefix}:start`);
+        try {
+          await local.getBudgetProjectionDiagnostic(input.budgetId, input.month).then(
+            (diagnostic) => {
+              if (!diagnostic.matchesSnapshot) {
+                console.warn("Budget engine diagnostic differs from the legacy snapshot.", diagnostic);
+              }
+            },
+            (error) => console.warn("Budget engine diagnostic could not run.", error),
+          );
+        } finally {
+          globalThis.performance?.mark?.(`${diagnosticPrefix}:end`);
+        }
       }
       return view;
     },
@@ -1682,7 +1727,16 @@ export function createLocalBudgetRuntime(
   const owned = new Proxy(client, {
     get(target, key) {
       if (key === "releaseLocalDatabase") return ownership.leave;
-      if (key === "activateLocalBudget") return ownership.enter;
+      if (key === "activateLocalBudget") {
+        const method = async (budgetId: string) => {
+          await ownership.enter(budgetId);
+          await ownership.run(budgetId, async () => {
+            await requireDatabase(budgetId);
+          });
+        };
+        methods.set(key, method);
+        return method;
+      }
       if (key === "isLocalDatabaseReleased") return ownership.isReleased;
       if (key === "runWithExclusiveLocalDatabase") return ownership.exclusive;
       if (methods.has(key)) return methods.get(key);
@@ -1747,6 +1801,23 @@ export function createLocalBudgetRuntime(
           );
           return commandExecutor.execute(`${key}:${createRuntimeUuid()}`, { execute: invokeRecovery })
             .then(({ result }) => result);
+        }
+        if (
+          key === "getBudgetMonthView" ||
+          key === "listCategoryGoals" ||
+          key === "synchroniseLocalBudget"
+        ) {
+          const markPrefix = `budget-app:ownership-admission:${String(key)}`;
+          globalThis.performance?.mark?.(`${markPrefix}:requested`);
+          return runWithOwnershipReadiness(
+            budgetId,
+            () => {
+              globalThis.performance?.mark?.(`${markPrefix}:admitted`);
+              return value.apply(target, args);
+            },
+          ).finally(() => {
+            globalThis.performance?.mark?.(`${markPrefix}:completed`);
+          });
         }
         return runWithOwnershipReadiness(
           budgetId,

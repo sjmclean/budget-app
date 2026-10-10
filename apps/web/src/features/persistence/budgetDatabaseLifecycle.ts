@@ -98,6 +98,28 @@ export async function activateBudgetPersistence(
   let operation = activationInFlight?.budgetId === budgetId
     ? activationInFlight.promise
     : null;
+  if (operation) {
+    await operation;
+    if (!options.deferBackgroundSync && intendedActiveBudgetId === budgetId) {
+      nudgeActiveBudgetReplication();
+    }
+    return;
+  }
+
+  const provider = getBudgetPersistenceProvider();
+  const queries = provider.accountRegisterQueries;
+  if (
+    provider.syncArchitecture === "local-first-relay" &&
+    hasLocalFirstDatabaseTabOwnership(budgetId) &&
+    !queries?.isLocalDatabaseReleased?.()
+  ) {
+    if (!options.deferBackgroundSync) {
+      nudgeActiveBudgetReplication();
+    }
+    return;
+  }
+
+  operation = null;
   if (!operation) {
     operation = (async () => {
       if (activationInFlight && activationInFlight.budgetId !== budgetId) {
@@ -147,9 +169,31 @@ export async function ensureActiveBudgetPersistenceReady(
 }
 
 export function nudgeActiveBudgetReplication(): void {
+  globalThis.performance?.mark?.("budget-app:replication-trigger:explicit-nudge");
   void getReplicationBackgroundService()?.syncNow().catch((error: unknown) => {
     console.error("Unable to synchronise the active budget after local activation.", error);
   });
+}
+
+export function nudgeActiveBudgetReplicationAfterPaint(): void {
+  const run = () => setTimeout(nudgeActiveBudgetReplication, 0);
+  const scheduleIdle = () => {
+    const requestIdleCallback = (
+      globalThis as typeof globalThis & {
+        requestIdleCallback?: (callback: () => void) => number;
+      }
+    ).requestIdleCallback;
+    if (typeof requestIdleCallback === "function") {
+      requestIdleCallback(() => run());
+      return;
+    }
+    run();
+  };
+  if (typeof globalThis.requestAnimationFrame === "function") {
+    globalThis.requestAnimationFrame(() => scheduleIdle());
+    return;
+  }
+  scheduleIdle();
 }
 
 /** Shared boundary for independent staged-import clients (blank, YNAB4, Actual). */

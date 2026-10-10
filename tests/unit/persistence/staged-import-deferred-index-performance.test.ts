@@ -68,37 +68,32 @@ test("register schema retains all transaction read indexes", () => {
   }
 });
 
-test("fresh staged imports defer transaction secondary indexes", () => {
+test("fresh staged imports omit transaction secondary indexes", () => {
   assert.match(
-    workerSource,
-    /function deferStagedTransactionIndexes\(\): void/,
-    "worker should expose a staged-only index deferral helper",
+    schemaSource,
+    /export const LOCAL_REGISTER_BASE_SCHEMA_SQL/,
+    "register schema should expose a base schema for staging",
+  );
+  assert.match(
+    schemaSource,
+    /export const LOCAL_TRANSACTION_READ_INDEX_SQL/,
+    "register schema should expose the deferred transaction indexes",
   );
 
-  const helperStart = workerSource.indexOf(
-    "function deferStagedTransactionIndexes(): void",
-  );
-
-  const helperEnd = workerSource.indexOf(
-    "\nfunction ",
-    helperStart + 1,
-  );
-
-  assert.notEqual(helperStart, -1);
-  assert.notEqual(helperEnd, -1);
-
-  const helper = workerSource.slice(
-    helperStart,
-    helperEnd,
-  );
+  const baseStart = schemaSource.indexOf("export const LOCAL_REGISTER_BASE_SCHEMA_SQL");
+  const indexStart = schemaSource.indexOf("export const LOCAL_TRANSACTION_READ_INDEX_SQL");
+  const baseSchema = schemaSource.slice(baseStart, indexStart);
 
   for (const indexName of transactionIndexes) {
+    assert.doesNotMatch(
+      baseSchema,
+      new RegExp(`CREATE INDEX IF NOT EXISTS ${indexName}`),
+      `staging base schema must not create ${indexName}`,
+    );
     assert.match(
-      helper,
-      new RegExp(
-        `DROP INDEX IF EXISTS ${indexName}`,
-      ),
-      `staging should defer ${indexName}`,
+      schemaSource.slice(indexStart),
+      new RegExp(`CREATE INDEX IF NOT EXISTS ${indexName}`),
+      `final schema must retain ${indexName}`,
     );
   }
 });
@@ -120,8 +115,13 @@ test("index deferral is applied only after staged schema creation", () => {
 
   assert.match(
     body,
-    /initialiseSchema\(\);[\s\S]*deferStagedTransactionIndexes\(\);/,
-    "fresh staging database should create tables before deferring transaction indexes",
+    /initialiseSchema\(\{ deferTransactionIndexes: true \}\)/,
+    "fresh staging database should build the base schema without transaction read indexes",
+  );
+  assert.doesNotMatch(
+    body,
+    /deferStagedTransactionIndexes/,
+    "fresh staging should not create indexes only to drop them",
   );
 });
 

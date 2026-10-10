@@ -31,6 +31,13 @@ const scheduledMaintenanceSource = fs.readFileSync(
   ),
   "utf8",
 );
+const accountRegisterLoaderSource = fs.readFileSync(
+  new URL(
+    "../../../apps/web/src/pages/accountRegisterPageLoader.ts",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 test("account navigation avoids joining and grouping every transaction", () => {
   const match = workerSource.match(
@@ -119,16 +126,34 @@ test("sidebar shares the reactive account navigation read instead of issuing its
 });
 
 
-test("startup prefetches cheap account identities before the workspace renders", () => {
+test("startup leaves account navigation loading to the rendered Sidebar", () => {
   const activation = routerSource.indexOf("await activateBudgetPersistence(budgetId,");
-  const identityPrefetch = routerSource.indexOf("await prefetchAccountIdentityQuery({ budgetId })");
-  const replicationNudge = routerSource.indexOf("nudgeActiveBudgetReplication()");
+  const replicationNudge = routerSource.indexOf("nudgeActiveBudgetReplicationAfterPaint()");
   assert.ok(activation >= 0, "route startup should activate the budget");
-  assert.ok(identityPrefetch > activation, "account identities should load after local activation");
-  assert.ok(replicationNudge > identityPrefetch, "background convergence should start after critical identity loading");
-  assert.match(sidebarSource, /useAccountIdentityQuery/);
-  assert.match(sidebarSource, /setAccounts\(\[\.\.\.accountIdentityQuery\.data\]\)/);
+  assert.ok(
+    replicationNudge > activation,
+    "background convergence should be scheduled after local activation and first paint",
+  );
+  assert.doesNotMatch(routerSource, /\bnudgeActiveBudgetReplication\(\)/);
+  assert.doesNotMatch(routerSource, /prefetchAccountIdentityQuery/);
+  assert.doesNotMatch(sidebarSource, /useAccountIdentityQuery/);
+  assert.match(sidebarSource, /useAccountNavigationQuery/);
+  assert.match(
+    sidebarSource,
+    /setAccounts\(sqliteNavigation\.map\(\(entry\) => entry\.account\)\)/,
+  );
   assert.match(sidebarSource, /isNavigationSummaryPending \? "…" : formattedBalance/);
+});
+
+test("account navigation preloads the shared Register route chunk", () => {
+  assert.match(sidebarSource, /preloadAccountRegisterPage\(\)/);
+  assert.match(sidebarSource, /requestIdleCallback/);
+  assert.match(sidebarSource, /accounts\.length === 0/);
+  assert.match(routerSource, /loadAccountRegisterPage\(\)/);
+  assert.match(
+    accountRegisterLoaderSource,
+    /accountRegisterPagePromise \?\?= import\("\.\/AccountRegisterPage"\)/,
+  );
 });
 
 test("local-first scheduled maintenance skips capability probes and uses the cheap account list", () => {

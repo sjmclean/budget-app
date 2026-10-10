@@ -6,6 +6,10 @@ import { join, resolve } from "node:path";
 import { childSpawnOptions, terminateProcessTree } from "./e2e-process-lifecycle.mjs";
 
 const repositoryRoot = process.cwd();
+const isolatedPorts = process.env.BUDGET_APP_E2E_ISOLATED_PORTS === "1";
+const apiPort = isolatedPorts ? 3001 : 3000;
+const webPort = isolatedPorts ? 5174 : 5173;
+const supervisorPort = isolatedPorts ? 3002 : 3001;
 const stateDirectory = mkdtempSync(join(tmpdir(), "budget-app-e2e-"));
 const children = [];
 let shutdownPromise;
@@ -59,7 +63,7 @@ async function waitForServer() {
 
   while (Date.now() < deadline) {
     try {
-      const response = await fetch("http://127.0.0.1:3000/api/ready");
+      const response = await fetch(`http://127.0.0.1:${apiPort}/api/ready`);
       if (response.ok) return;
       lastError = new Error(`Readiness returned HTTP ${response.status}.`);
     } catch (error) {
@@ -122,7 +126,7 @@ console.log(`Isolated server state: ${stateDirectory}`);
 try {
   await new Promise((resolveListen, rejectListen) => {
     controlServer.once("error", rejectListen);
-    controlServer.listen(3001, "127.0.0.1", resolveListen);
+    controlServer.listen(supervisorPort, "127.0.0.1", resolveListen);
   });
 } catch (error) {
   console.error("Unable to start the E2E supervisor control server.", error);
@@ -137,7 +141,7 @@ try {
 const serverEnvironment = process.exitCode ? null : {
   ...process.env,
   HOST: "127.0.0.1",
-  PORT: "3000",
+  PORT: String(apiPort),
   BUDGET_APP_DATA_DIR: stateDirectory,
 };
 
@@ -151,6 +155,7 @@ try {
   const webEnvironment = {
     ...process.env,
     BUDGET_APP_E2E_HTTP: "1",
+    BUDGET_APP_E2E_API_PORT: String(apiPort),
   };
   start("web", [
     resolve("apps/web/node_modules/vite/bin/vite.js"),
@@ -158,7 +163,7 @@ try {
     "--host",
     "127.0.0.1",
     "--port",
-    "5173",
+    String(webPort),
     "--strictPort",
   ], webEnvironment);
 } catch (error) {

@@ -59,3 +59,97 @@ test("Account Register bundle budget measures the route static graph rather than
   assert.match(analyzer, /filter\(\(key\) => !initialChunkKeys\.has\(key\)\)/);
   assert.match(analyzer, /accountRegisterJavaScriptBytes: sumBytes\(accountRegisterJavaScript\)/);
 });
+
+
+test("startup overlaps extended merchant catalogue loading with persistence initialization", () => {
+  const main = read("../../../apps/web/src/main.tsx");
+  const preloadStart = main.indexOf("const extendedMerchantCataloguePromise = import(");
+  const persistenceInitialize = main.indexOf("await persistenceProvider.initialize?.()");
+  const appImportStart = main.indexOf('const appImportPromise = import("./App")');
+  const preloadBarrier = main.indexOf("await Promise.all([");
+  const render = main.indexOf("reactRoot.render(");
+
+  assert.ok(preloadStart >= 0);
+  assert.ok(persistenceInitialize > preloadStart);
+  assert.ok(appImportStart > persistenceInitialize);
+  assert.ok(preloadBarrier > appImportStart);
+  assert.match(
+    main.slice(preloadBarrier, render),
+    /extendedMerchantCataloguePromise[\s\S]*initialBudgetActivationPromise/,
+  );
+  assert.ok(render > preloadBarrier);
+});
+
+
+test("Register defers archived payee loading until Payee Manager opens", () => {
+  const workflow = read("../../../apps/web/src/features/accounts/usePayeeManagerWorkflow.ts");
+  const initialLoad = workflow.slice(
+    workflow.indexOf("useEffect(() => {"),
+    workflow.indexOf("useEffect(() => {", workflow.indexOf("useEffect(() => {") + 1),
+  );
+
+  assert.match(initialLoad, /payeesPersistence\.listPayees\(\)/);
+  assert.doesNotMatch(initialLoad, /listArchivedPayees\(\)/);
+  assert.match(
+    workflow,
+    /if \(!isPayeeManagerOpen \|\| archivedPayeesLoaded\)[\s\S]*?listArchivedPayees\(\)/,
+  );
+});
+
+
+test("Actual backend import exposes diagnostic-only stage timings", () => {
+  const importer = read("../../../apps/web/src/features/budget/actualBudgetLauncherImport.ts");
+
+  assert.match(importer, /onPerformanceSample\?:/);
+  for (const stage of [
+    "map",
+    "provision",
+    "begin-staged-import",
+    "entities",
+    "transactions",
+    "budget-months",
+    "commit",
+    "publish-baseline",
+    "restore-point",
+    "finalize-storage",
+    "total",
+  ]) {
+    assert.match(importer, new RegExp(`recordActualImportPerformance\\(input, "${stage}"`));
+  }
+  for (const stage of [
+    "begin-sqlite-runtime",
+    "begin-capacity-reserve",
+    "begin-remove-stage-file",
+    "begin-open-database",
+    "begin-initialise-schema",
+    "begin-defer-indexes",
+    "begin-metadata",
+    "begin-manifest",
+  ]) {
+    assert.match(importer, new RegExp(`\\["${stage}"`));
+  }
+  assert.match(importer, /input\.onPerformanceSample\(\{ stage, elapsedMs \}\)/);
+  for (const stage of [
+    "restore-module-import",
+    "restore-quick-check",
+    "restore-manifest",
+    "restore-export-prepare",
+    "restore-store-capture",
+    "restore-store-catalogue",
+    "restore-store-source-read",
+    "restore-store-chunk-hash",
+    "restore-store-existing-chunk-verify",
+    "restore-store-final-write",
+    "restore-store-final-verify",
+    "restore-store-manifest-write",
+    "restore-store-cleanup",
+    "restore-store-total-store",
+  ]) {
+    assert.match(importer, new RegExp(`"${stage}"`));
+  }
+
+  const recordStart = importer.indexOf("function createActualImportRecord(");
+  const recordEnd = importer.indexOf("\nexport function createActualBudgetLauncherImport(", recordStart);
+  const recordBody = importer.slice(recordStart, recordEnd);
+  assert.doesNotMatch(recordBody, /onPerformanceSample|elapsedMs|PerformanceSample/);
+});

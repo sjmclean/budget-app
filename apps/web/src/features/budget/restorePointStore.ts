@@ -7,6 +7,22 @@ import { REQUIRED_BUDGET_DOMAINS } from "../persistence/localFirst/contracts";
 export const RESTORE_POINT_DIRECTORY = "budget-app-sqlite-restore-points";
 // A multiple of every supported SQLite page size (512 through 65536 bytes).
 export const RESTORE_POINT_CHUNK_BYTES = 64 * 1024;
+
+export type RestorePointCapturePerformanceStage =
+  | "catalogue"
+  | "source-read"
+  | "chunk-hash"
+  | "existing-chunk-verify"
+  | "final-write"
+  | "final-verify"
+  | "manifest-write"
+  | "cleanup"
+  | "total-store";
+
+export interface RestorePointCapturePerformanceSample {
+  readonly stage: RestorePointCapturePerformanceStage;
+  readonly elapsedMs: number;
+}
 const SAFE_ID = /^[a-zA-Z0-9-]{1,100}$/;
 const HASH = /^[a-f0-9]{64}$/;
 type Directory = "manifests" | "chunks";
@@ -204,17 +220,45 @@ export function createRestorePointStore(filesForBudget: (budgetId: string) => Re
     return files.exclusive(() => files.removeBudgetNamespace());
   }
 
-  async function capture(metadata: RestorePointCaptureMetadata, totalBytes: number,
-    readChunk: (offset: number, length: number) => Promise<Uint8Array>) {
+  async function capture(
+    metadata: RestorePointCaptureMetadata,
+    totalBytes: number,
+    readChunk: (offset: number, length: number) => Promise<Uint8Array>,
+    onPerformanceSample?: (sample: RestorePointCapturePerformanceSample) => void,
+  ) {
     const files = filesForBudget(metadata.budgetId);
-    return files.exclusive(async () => {
-      const existing = await listUnlocked(files, metadata.budgetId);
+    const timings: Record<RestorePointCapturePerformanceStage, number> = {
+      catalogue: 0,
+      "source-read": 0,
+      "chunk-hash": 0,
+      "existing-chunk-verify": 0,
+      "final-write": 0,
+      "final-verify": 0,
+      "manifest-write": 0,
+      cleanup: 0,
+      "total-store": 0,
+    };
+    const totalStartedAt = performance.now();
+    const measure = async <T>(
+      stage: RestorePointCapturePerformanceStage,
+      operation: () => T | Promise<T>,
+    ): Promise<T> => {
+      const startedAt = performance.now();
+      try {
+        return await operation();
+      } finally {
+        timings[stage] += performance.now() - startedAt;
+      }
+    };
+
+    const point = await files.exclusive(async () => {
+      const existing = await measure("catalogue", () => listUnlocked(files, metadata.budgetId));
       const equivalent = existing.find((point) => point.reason === metadata.reason &&
         point.syncEpoch === metadata.syncEpoch && point.localRevision === metadata.localRevision);
       if (equivalent) return equivalent;
       if (!Number.isSafeInteger(totalBytes) || totalBytes < 512) throw new Error("Invalid SQLite snapshot length.");
       const id = createRuntimeUuid();
-      const known = new Set(await files.names("chunks"));
+      const known = new Set(await measure("catalogue", () => files.names("chunks")));
       const referenced = new Set(existing.flatMap((point) => point.chunks.map((chunk) => `${chunk.hash}.bin`)));
       const chunks: RestorePointMetadata["chunks"][number][] = [];
       const hasher = await createSHA256(); hasher.init();
@@ -222,14 +266,18 @@ export function createRestorePointStore(filesForBudget: (budgetId: string) => Re
       let newChunkCount = 0;
       for (let offset = 0; offset < totalBytes; offset += RESTORE_POINT_CHUNK_BYTES) {
         const length = Math.min(RESTORE_POINT_CHUNK_BYTES, totalBytes - offset);
-        const content = await readChunk(offset, length);
+        const content = await measure("source-read", () => readChunk(offset, length));
         if (content.length !== length) throw new Error("SQLite snapshot ended unexpectedly.");
         if (offset === 0) validateSqliteHeader(content, totalBytes);
         hasher.update(content);
-        const chunkHash = await hash(content);
+        const chunkHash = await measure("chunk-hash", () => hash(content));
         const name = `${chunkHash}.bin`;
         if (known.has(name)) {
-          try { await verifiedChunk(files, name, chunkHash, length); }
+          try {
+            await measure("existing-chunk-verify", () =>
+              verifiedChunk(files, name, chunkHash, length),
+            );
+          }
           catch (error) {
             // An interrupted final publication may leave an empty/invalid handle.
             // Only a complete catalogue proving it unreferenced permits removal.
@@ -240,24 +288,39 @@ export function createRestorePointStore(filesForBudget: (budgetId: string) => Re
           }
         }
         if (!known.has(name)) {
-          const temporary = `${createRuntimeUuid()}.partial`;
-          await files.write("chunks", temporary, bytes(content));
-          const verified = await verifiedChunk(files, temporary, chunkHash, length);
-          try { await files.write("chunks", name, bytes(verified)); }
+          try {
+            // RestorePointFiles.write is required to publish atomically on close.
+            // The manifest is not committed until this final identity verifies,
+            // so a crash or failed close can only leave an unreferenced chunk.
+            await measure("final-write", () =>
+              files.write("chunks", name, bytes(content)),
+            );
+          }
           catch (error) {
             // Lost close acknowledgement is success only if final identity verifies.
-            try { await verifiedChunk(files, name, chunkHash, length); } catch { throw error; }
+            try {
+              await measure("final-verify", () =>
+                verifiedChunk(files, name, chunkHash, length),
+              );
+            } catch {
+              throw error;
+            }
           }
-          await verifiedChunk(files, name, chunkHash, length);
+          await measure("final-verify", () =>
+            verifiedChunk(files, name, chunkHash, length),
+          );
           known.add(name); newBytesStored += length; newChunkCount++;
-          await files.remove("chunks", temporary).catch(() => undefined);
         }
         chunks.push({ hash: chunkHash, length });
       }
       const point = validateMetadata({ ...metadata, schema: "sqlite-restore-point.v2", id,
         totalBytes, databaseHash: hasher.digest("hex"), chunks, newBytesStored, newChunkCount });
       const encoded = JSON.stringify(point);
-      try { await files.write("manifests", manifestName(id), bytes(new TextEncoder().encode(encoded))); }
+      try {
+        await measure("manifest-write", () =>
+          files.write("manifests", manifestName(id), bytes(new TextEncoder().encode(encoded))),
+        );
+      }
       catch (error) {
         // No speculative deletion after uncertain publication. Verify or leak.
         try {
@@ -267,13 +330,27 @@ export function createRestorePointStore(filesForBudget: (budgetId: string) => Re
       // Manifest close is the commit point. Nothing below may invalidate it or
       // make successful capture depend on cleanup. Failed capture may leak chunks.
       try {
-        for (const old of retainRestorePoints([...existing, point], Date.parse(point.createdAt)).pruned) {
-          if (old.id !== point.id) await files.remove("manifests", manifestName(old.id));
-        }
-        await garbageCollectUnlocked(files, metadata.budgetId);
+        await measure("cleanup", async () => {
+          for (const old of retainRestorePoints([...existing, point], Date.parse(point.createdAt)).pruned) {
+            if (old.id !== point.id) await files.remove("manifests", manifestName(old.id));
+          }
+          await garbageCollectUnlocked(files, metadata.budgetId);
+        });
       } catch (error) { console.warn("Restore point completed; cleanup deferred.", error); }
       return point;
     });
+
+    timings["total-store"] = performance.now() - totalStartedAt;
+    for (const [stage, elapsedMs] of Object.entries(timings) as [
+      RestorePointCapturePerformanceStage,
+      number,
+    ][]) {
+      onPerformanceSample?.({
+        stage,
+        elapsedMs: Math.round(elapsedMs * 100) / 100,
+      });
+    }
+    return point;
   }
   return { list, read, capture, collectGarbage, deleteBudget };
 }

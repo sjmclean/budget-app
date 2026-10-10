@@ -137,6 +137,11 @@ export class LocalBudgetDatabaseClient {
       const pending = this.#pending.get(response.requestId);
       if (!pending) return;
       this.#pending.delete(response.requestId);
+      if (response.ok && response.importTiming) {
+        globalThis.performance?.mark?.("budget-app:import-worker:timing", {
+          detail: response.importTiming,
+        });
+      }
       if (response.ok) {
         pending.resolve(response.result, response.registerDelta);
       } else {
@@ -193,6 +198,27 @@ export class LocalBudgetDatabaseClient {
       globalThis.dispatchEvent?.(new CustomEvent("budget-app:restore-points-changed", { detail: { budgetId: point.budgetId } }));
     }
     return point;
+  }
+
+  async captureRestorePointWithDiagnostics(
+    input: import("../../budget/restorePointTypes").CaptureRestorePointInput,
+  ): Promise<{
+    readonly point: import("../../budget/restorePointTypes").RestorePointMetadata;
+    readonly timingsMs: Record<string, number>;
+  }> {
+    const result = await this.#request<{
+      point: import("../../budget/restorePointTypes").RestorePointMetadata;
+      timingsMs: Record<string, number>;
+    }>({
+      requestId: createRuntimeUuid(),
+      type: "captureRestorePoint",
+      input,
+      includePerformanceTimings: true,
+    });
+    if (typeof globalThis.CustomEvent === "function") {
+      globalThis.dispatchEvent?.(new CustomEvent("budget-app:restore-points-changed", { detail: { budgetId: result.point.budgetId } }));
+    }
+    return result;
   }
 
   prepareBaselineExport(): Promise<{ readonly totalBytes: number }> {
@@ -394,6 +420,31 @@ export class LocalBudgetDatabaseClient {
       requestId: createRuntimeUuid(),
       type: "beginStagedImport",
       ...input,
+    });
+  }
+
+  beginStagedImportWithDiagnostics(input: {
+    readonly budgetId: string;
+    readonly syncEpoch: string;
+    readonly deviceId: string;
+  }): Promise<{
+    readonly manifest: LocalBudgetManifest;
+    readonly timingsMs: {
+      readonly sqliteRuntime: number;
+      readonly capacityReserve: number;
+      readonly removeStageFile: number;
+      readonly openDatabase: number;
+      readonly initialiseSchema: number;
+      readonly deferIndexes: number;
+      readonly metadata: number;
+      readonly manifest: number;
+    };
+  }> {
+    return this.#request({
+      requestId: createRuntimeUuid(),
+      type: "beginStagedImport",
+      ...input,
+      includePerformanceTimings: true,
     });
   }
 

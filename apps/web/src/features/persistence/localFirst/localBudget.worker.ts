@@ -17,6 +17,7 @@ import {
   type LocalBudgetWorkerResponse,
 } from "./contracts";
 import {
+  LOCAL_REGISTER_BASE_SCHEMA_SQL,
   LOCAL_REGISTER_SCHEMA_SQL,
   LOCAL_TRANSACTION_UPSERT_SQL,
   localTransactionUpsertBindings,
@@ -276,18 +277,7 @@ function upsertTransactionAttachment(
   );
 }
 
-function deferStagedTransactionIndexes(): void {
-  execute(`
-    DROP INDEX IF EXISTS local_transactions_register;
-    DROP INDEX IF EXISTS local_transactions_account_summary;
-    DROP INDEX IF EXISTS local_transactions_category_month;
-    DROP INDEX IF EXISTS local_transactions_budget_date;
-    DROP INDEX IF EXISTS local_transactions_budget_month;
-    DROP INDEX IF EXISTS local_transactions_payee;
-  `);
-}
-
-function initialiseSchema(): void {
+function initialiseSchema(options: { deferTransactionIndexes?: boolean } = {}): void {
   execute(`
     PRAGMA foreign_keys = ON;
     CREATE TABLE IF NOT EXISTS local_budget_metadata (
@@ -420,7 +410,11 @@ function initialiseSchema(): void {
       "ALTER TABLE local_budget_outbox ADD COLUMN base_cursor INTEGER NOT NULL DEFAULT 0",
     );
   }
-  execute(LOCAL_REGISTER_SCHEMA_SQL);
+  execute(
+    options.deferTransactionIndexes
+      ? LOCAL_REGISTER_BASE_SCHEMA_SQL
+      : LOCAL_REGISTER_SCHEMA_SQL,
+  );
   const transactionColumns = new Set(
     resultRows<{ name: string }>("PRAGMA table_info(local_transactions)")
       .map(({ name }) => name),
@@ -2094,8 +2088,27 @@ async function beginStagedImport(
     throw workerError("STAGED_IMPORT_ACTIVE", "A staged local import is already active.");
   }
 
-  await ensurePersistentSqlite();
-  await reservePersistentDatabaseCapacity();
+  const timingsMs = {
+    sqliteRuntime: 0,
+    capacityReserve: 0,
+    removeStageFile: 0,
+    openDatabase: 0,
+    initialiseSchema: 0,
+    deferIndexes: 0,
+    metadata: 0,
+    manifest: 0,
+  };
+  const measure = async <T>(key: keyof typeof timingsMs, action: () => T | Promise<T>): Promise<T> => {
+    const startedAt = performance.now();
+    try {
+      return await action();
+    } finally {
+      timingsMs[key] = Math.round((performance.now() - startedAt) * 100) / 100;
+    }
+  };
+
+  await measure("sqliteRuntime", () => ensurePersistentSqlite());
+  await measure("capacityReserve", () => reservePersistentDatabaseCapacity());
 
   const stage: StagedImportState = {
     budgetId: request.budgetId,
@@ -2112,24 +2125,37 @@ async function beginStagedImport(
     database?.close();
     database = null;
 
-    await removeOpfsFile(stage.filename);
+    await measure("removeStageFile", () => removeOpfsFile(stage.filename));
 
     activeBudgetId = stage.budgetId;
     activeSyncEpoch = stage.syncEpoch;
     activeFilename = stage.filename;
 
-    database = openPersistentDatabase(stage.filename);
-    durable = true;
-    initialiseSchema();
-    deferStagedTransactionIndexes();
+    await measure("openDatabase", () => {
+      database = openPersistentDatabase(stage.filename);
+      durable = true;
+    });
+    await measure("initialiseSchema", () =>
+      initialiseSchema({ deferTransactionIndexes: true }),
+    );
+    timingsMs.deferIndexes = 0;
 
-    writeMetadata("budgetId", stage.budgetId);
-    writeMetadata("syncEpoch", stage.syncEpoch);
-    writeMetadata("schemaVersion", String(LOCAL_BUDGET_SCHEMA_VERSION));
-    writeMetadata("deviceId", stage.deviceId);
-    writeMetadata("localRevision", "0");
+    await measure("metadata", () => {
+      writeMetadata("budgetId", stage.budgetId);
+      writeMetadata("syncEpoch", stage.syncEpoch);
+      writeMetadata("schemaVersion", String(LOCAL_BUDGET_SCHEMA_VERSION));
+      writeMetadata("deviceId", stage.deviceId);
+      writeMetadata("localRevision", "0");
+    });
 
-    return currentManifest();
+    let manifest!: LocalBudgetManifest;
+    await measure("manifest", () => {
+      manifest = currentManifest();
+    });
+
+    return request.includePerformanceTimings
+      ? { manifest, timingsMs }
+      : manifest;
   } catch (error) {
     await restorePreviousDatabaseFromStage(stage);
     throw error;
@@ -3728,6 +3754,10 @@ function writeTransactionBatch(
   return currentManifest();
 }
 
+let latestImportSqliteMs: number | undefined;
+let latestImportDeltaBeforeMs: number | undefined;
+let latestImportDeltaAfterMs: number | undefined;
+
 function writeImportBatch(
   payeeWrites: readonly ImportPayeeWrite[],
   writes: readonly TransactionBatchWrite[],
@@ -3830,6 +3860,7 @@ function writeImportBatch(
     attachmentIds.add(attachment.id);
   }
 
+  const sqliteStartedAt = performance.now();
   execute("BEGIN IMMEDIATE");
   try {
     const before = history
@@ -3981,6 +4012,7 @@ function writeImportBatch(
       : null;
 
     execute("COMMIT");
+    latestImportSqliteMs = performance.now() - sqliteStartedAt;
     if (before && after) return { before, after };
   } catch (error) {
     execute("ROLLBACK");
@@ -5745,51 +5777,86 @@ async function openBudget(request: Extract<LocalBudgetWorkerRequest, { type: "op
 
 async function captureRestorePoint(
   input: import("../../budget/restorePointTypes").CaptureRestorePointInput,
+  includePerformanceTimings = false,
 ) {
   if (!database || stagedImport || replacement || restoreCandidate) {
     throw workerError("RESTORE_POINT_DATABASE_BUSY", "A complete owned budget is required for a restore point.");
   }
+
+  const timingsMs: Record<string, number> = {};
+  const measure = async <T>(stage: string, operation: () => T | Promise<T>): Promise<T> => {
+    const startedAt = globalThis.performance?.now?.() ?? Date.now();
+    try {
+      return await operation();
+    } finally {
+      const finishedAt = globalThis.performance?.now?.() ?? Date.now();
+      timingsMs[stage] = Math.round((finishedAt - startedAt) * 100) / 100;
+    }
+  };
+
+  const restoreModuleStartedAt = globalThis.performance?.now?.() ?? Date.now();
   const { createRestorePointStore } = await import("../../budget/restorePointStore");
+  const restoreModuleFinishedAt = globalThis.performance?.now?.() ?? Date.now();
+  timingsMs["restore-module-import"] =
+    Math.round((restoreModuleFinishedAt - restoreModuleStartedAt) * 100) / 100;
   // The ownership queue serializes this client. SQLite's reserved write lock
   // additionally prevents another native-OPFS connection changing the file
   // during asynchronous chunk reads. No application writes occur in this txn.
   execute("BEGIN IMMEDIATE");
   try {
-    const check = resultRows<Record<string, unknown>>("PRAGMA quick_check");
+    const check = await measure("restore-quick-check", () =>
+      resultRows<Record<string, unknown>>("PRAGMA quick_check"),
+    );
     if (check.length !== 1 || Object.values(check[0])[0] !== "ok") {
       throw workerError("RESTORE_POINT_DATABASE_CORRUPT", "SQLite integrity validation failed before capture.");
     }
-    const manifest = currentManifest();
-    const journalMode = Object.values(resultRows<Record<string, unknown>>("PRAGMA journal_mode")[0])[0];
+
+    const manifest = await measure("restore-manifest", () => currentManifest());
+    const journalMode = Object.values(
+      resultRows<Record<string, unknown>>("PRAGMA journal_mode")[0],
+    )[0];
+
     let totalBytes: number;
-    if (journalMode === "wal") {
-      // A main-file copy cannot represent uncheckpointed WAL pages. SQLite
-      // serialization includes the transaction's complete logical database.
-      baselineExportBytes = sqliteRuntime!.capi.sqlite3_js_db_export(database!.pointer as number);
-      baselineExportBytes[18] = baselineExportBytes[19] = 1;
-      totalBytes = baselineExportBytes.byteLength;
-    } else if (persistentBackend === "opfs-sahpool") {
-      // The pool API exports a whole Uint8Array; this is the only full copy in
-      // JS memory. Chunk writes remain in this worker, never a download Blob.
-      baselineExportBytes = await sahPool!.exportFile(activeFilename);
-      totalBytes = baselineExportBytes.byteLength;
-    } else {
-      const root = await navigator.storage.getDirectory();
-      const file = await (await root.getFileHandle(activeFilename.replace(/^\//, ""))).getFile();
-      totalBytes = file.size;
-    }
-    return await createRestorePointStore().capture({
-      budgetId: manifest.budgetId,
-      budgetName: input.budgetName,
-      createdAt: new Date().toISOString(),
-      reason: input.reason,
-      syncEpoch: manifest.syncEpoch,
-      localRevision: manifest.localRevision,
-      counts: manifest.counts,
-      mutationCount: input.mutationCount,
-    }, totalBytes, (offset, length) => baselineExportBytes
-      ? Promise.resolve(baselineExportBytes.subarray(offset, offset + length))
-      : readBaselineExportChunk(offset, length));
+    await measure("restore-export-prepare", async () => {
+      if (journalMode === "wal") {
+        // A main-file copy cannot represent uncheckpointed WAL pages. SQLite
+        // serialization includes the transaction's complete logical database.
+        baselineExportBytes = sqliteRuntime!.capi.sqlite3_js_db_export(database!.pointer as number);
+        baselineExportBytes[18] = baselineExportBytes[19] = 1;
+        totalBytes = baselineExportBytes.byteLength;
+      } else if (persistentBackend === "opfs-sahpool") {
+        // The pool API exports a whole Uint8Array; this is the only full copy in
+        // JS memory. Chunk writes remain in this worker, never a download Blob.
+        baselineExportBytes = await sahPool!.exportFile(activeFilename);
+        totalBytes = baselineExportBytes.byteLength;
+      } else {
+        const root = await navigator.storage.getDirectory();
+        const file = await (await root.getFileHandle(activeFilename.replace(/^\//, ""))).getFile();
+        totalBytes = file.size;
+      }
+    });
+
+    const storeTimings: Record<string, number> = {};
+    const point = await measure("restore-store-capture", () =>
+      createRestorePointStore().capture({
+        budgetId: manifest.budgetId,
+        budgetName: input.budgetName,
+        createdAt: new Date().toISOString(),
+        reason: input.reason,
+        syncEpoch: manifest.syncEpoch,
+        localRevision: manifest.localRevision,
+        counts: manifest.counts,
+        mutationCount: input.mutationCount,
+      }, totalBytes!, (offset, length) => baselineExportBytes
+        ? Promise.resolve(baselineExportBytes.subarray(offset, offset + length))
+        : readBaselineExportChunk(offset, length),
+      ({ stage, elapsedMs }) => {
+        storeTimings[`restore-store-${stage}`] = elapsedMs;
+      }),
+    );
+    Object.assign(timingsMs, storeTimings);
+
+    return includePerformanceTimings ? { point, timingsMs } : point;
   } finally {
     baselineExportBytes = null;
     try { execute("ROLLBACK"); }
@@ -6318,7 +6385,7 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       restoreCandidate = null;
       return null;
     case "captureRestorePoint":
-      return captureRestorePoint(request.input);
+      return captureRestorePoint(request.input, request.includePerformanceTimings === true);
     case "prepareBaselineExport":
       return prepareBaselineExport();
     case "readBaselineExportChunk":
@@ -6692,8 +6759,37 @@ function materialiseRegisterRows(budgetId: string, roots: readonly string[]): Ac
 }
 
 async function handleWithRegisterDelta(request: LocalBudgetWorkerRequest): Promise<{ result: unknown; registerDelta?: AccountRegisterMutationDelta }> {
+  const diagnostic = request.type === "writeImportBatch";
+  const deltaStartedAt = diagnostic ? performance.now() : 0;
   const plan = registerDeltaPlan(request);
   if (!plan || plan.rootIds.length === 0) return { result: await handle(request) };
+  // Bulk imports can affect running balances well beyond the written rows.
+  // Refresh affected accounts from authoritative SQLite data rather than
+  // constructing expensive per-row before/after patches for every batch.
+  // Ordinary edits retain the precise patch path below.
+  if (request.type === "writeImportBatch") {
+    const accountIds = new Set(plan.knownAccountIds);
+    for (const { transaction } of request.writes) accountIds.add(transaction.accountId);
+    for (const accountId of registerAccountIdsForRoots(plan.budgetId, plan.rootIds)) {
+      accountIds.add(accountId);
+    }
+    latestImportDeltaBeforeMs = performance.now() - deltaStartedAt;
+    const result = await handle(request);
+    const afterStartedAt = performance.now();
+    for (const accountId of registerAccountIdsForRoots(plan.budgetId, plan.rootIds)) {
+      accountIds.add(accountId);
+    }
+    latestImportDeltaAfterMs = performance.now() - afterStartedAt;
+    return {
+      result,
+      registerDelta: {
+        mode: "refresh-required",
+        budgetId: plan.budgetId,
+        affectedAccountIds: [...accountIds],
+        reason: "unsupported-register-change",
+      },
+    };
+  }
   const roots = [...new Set(plan.rootIds)];
   const tooLarge = roots.length > MAX_REGISTER_DELTA_TRANSACTION_ROOTS;
   const beforeRoots = tooLarge ? [] : expandRegisterRoots(plan.budgetId, roots);
@@ -6703,38 +6799,65 @@ async function handleWithRegisterDelta(request: LocalBudgetWorkerRequest): Promi
       ? registerAccountIdsForRoots(plan.budgetId, beforeRoots)
       : [];
   const beforeRows = tooLarge || beforeRoots.length > MAX_REGISTER_DELTA_TRANSACTION_ROOTS ? [] : materialiseRegisterRows(plan.budgetId, beforeRoots);
+  if (diagnostic) latestImportDeltaBeforeMs = performance.now() - deltaStartedAt;
   const result = await handle(request);
+  const deltaAfterStartedAt = diagnostic ? performance.now() : 0;
   const accountIds = new Set(plan.knownAccountIds);
   for (const accountId of largeBeforeAccountIds) accountIds.add(accountId);
   for (const { accountId } of beforeRows) accountIds.add(accountId);
   if (tooLarge || beforeRoots.length > MAX_REGISTER_DELTA_TRANSACTION_ROOTS) {
     for (const accountId of registerAccountIdsForRoots(plan.budgetId, roots)) accountIds.add(accountId);
+    if (diagnostic) latestImportDeltaAfterMs = performance.now() - deltaAfterStartedAt;
     return { result, registerDelta: { mode: "refresh-required", budgetId: plan.budgetId, affectedAccountIds: [...accountIds], reason: "delta-too-large" } };
   }
   const afterRoots = expandRegisterRoots(plan.budgetId, [...new Set([...beforeRoots, ...roots])]);
   if (afterRoots.length > MAX_REGISTER_DELTA_TRANSACTION_ROOTS) {
     for (const accountId of registerAccountIdsForRoots(plan.budgetId, afterRoots)) accountIds.add(accountId);
+    if (diagnostic) latestImportDeltaAfterMs = performance.now() - deltaAfterStartedAt;
     return { result, registerDelta: { mode: "refresh-required", budgetId: plan.budgetId, affectedAccountIds: [...accountIds], reason: "delta-too-large" } };
   }
   const afterRows = materialiseRegisterRows(plan.budgetId, afterRoots);
   for (const { accountId } of afterRows) accountIds.add(accountId);
-  if (JSON.stringify(beforeRows) === JSON.stringify(afterRows)) return { result };
-  return { result, registerDelta: { mode: "patch", budgetId: plan.budgetId, affectedAccountIds: [...accountIds], beforeRows, afterRows,
-    summaries: [...accountIds].map((accountId) => getAccountSummary(plan.budgetId, accountId)) } };
+  if (JSON.stringify(beforeRows) === JSON.stringify(afterRows)) {
+    if (diagnostic) latestImportDeltaAfterMs = performance.now() - deltaAfterStartedAt;
+    return { result };
+  }
+  const summaries = [...accountIds].map((accountId) => getAccountSummary(plan.budgetId, accountId));
+  if (diagnostic) latestImportDeltaAfterMs = performance.now() - deltaAfterStartedAt;
+  return { result, registerDelta: { mode: "patch", budgetId: plan.budgetId, affectedAccountIds: [...accountIds], beforeRows, afterRows, summaries } };
 }
 
 let requestTail: Promise<unknown> = Promise.resolve();
 self.onmessage = (event: MessageEvent<LocalBudgetWorkerRequest>) => {
   const request = event.data;
-  const operation = requestTail.then(() => handleWithRegisterDelta(request));
+  const receivedAt = request.type === "writeImportBatch" ? performance.now() : null;
+  const operation = requestTail.then(async () => {
+    if (receivedAt !== null) {
+      latestImportSqliteMs = undefined;
+      latestImportDeltaBeforeMs = undefined;
+      latestImportDeltaAfterMs = undefined;
+    }
+    const startedAt = receivedAt === null ? null : performance.now();
+    const value = await handleWithRegisterDelta(request);
+    const finishedAt = startedAt === null ? null : performance.now();
+    return {
+      ...value,
+      importTiming: receivedAt === null || startedAt === null || finishedAt === null
+        ? undefined
+        : { queueMs: startedAt - receivedAt, workerMs: finishedAt - startedAt, sqliteMs: latestImportSqliteMs ?? null,
+          deltaBeforeMs: latestImportDeltaBeforeMs ?? null,
+          deltaAfterMs: latestImportDeltaAfterMs ?? null },
+    };
+  });
   requestTail = operation.catch(() => undefined);
   void operation.then(
-    ({ result, registerDelta }) => {
+    ({ result, registerDelta, importTiming }) => {
       const response: LocalBudgetWorkerResponse = {
         requestId: request.requestId,
         ok: true,
         result,
         registerDelta,
+        importTiming,
       };
       if (result instanceof Uint8Array && result.buffer instanceof ArrayBuffer) {
         self.postMessage(response, { transfer: [result.buffer] });

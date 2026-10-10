@@ -107,7 +107,12 @@ export interface ReplicationBackgroundService {
 
 export function startReplicationBackgroundService(
   provider: BudgetPersistenceProvider,
-  options: { apiBaseUrl?: string; intervalMs?: number; debounceMs?: number } = {},
+  options: {
+    apiBaseUrl?: string;
+    intervalMs?: number;
+    debounceMs?: number;
+    startImmediately?: boolean;
+  } = {},
 ): ReplicationBackgroundService {
   service?.stop();
   if (provider.syncArchitecture === "local-first-relay") {
@@ -125,6 +130,7 @@ export function startReplicationBackgroundService(
     let subscribedBudgetId: string | null = null;
     let eventDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     let mutationDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastCompletedSync: { budgetId: string; pulledCursor: number } | null = null;
     const publishedMetadata = new Map<string, string>();
     const mutationDebounceMs = options.debounceMs ?? 250;
     const localConflictClient = () => provider.localBudgetConflictRecovery;
@@ -139,9 +145,25 @@ export function startReplicationBackgroundService(
       eventSubscription = subscribeToLocalFirstRelayEvents({
         budgetId,
         apiBaseUrl: options.apiBaseUrl,
-        onEvent: () => {
+        onEvent: (event) => {
+          globalThis.performance?.mark?.(
+            `budget-app:replication-trigger:relay-event:${event.type}`,
+          );
           if (eventDebounceTimer) clearTimeout(eventDebounceTimer);
-          eventDebounceTimer = setTimeout(() => void syncNow(), 100);
+          eventDebounceTimer = setTimeout(() => {
+            if (
+              (event.type === "connected" ||
+                event.type === "mutations-available") &&
+              lastCompletedSync?.budgetId === event.budgetId &&
+              lastCompletedSync.pulledCursor >= event.latestCursor
+            ) {
+              globalThis.performance?.mark?.(
+                "budget-app:replication-trigger:relay-event-coalesced",
+              );
+              return;
+            }
+            void syncNow();
+          }, 100);
         },
       });
     };
@@ -216,6 +238,10 @@ export function startReplicationBackgroundService(
           }
           const synchronisation =
             await provider.accountRegisterQueries.synchroniseLocalBudget(budgetId);
+          lastCompletedSync = {
+            budgetId,
+            pulledCursor: synchronisation.pulledCursor,
+          };
           if (provider.accountRegisterQueries.isLocalDatabaseReleased?.()) return null;
           const conflicts = await localConflictClient()
             ?.listSyncConflicts?.(budgetId) ?? [];
@@ -267,17 +293,21 @@ export function startReplicationBackgroundService(
       supported: true,
       lastError: null,
     });
-    const online = () => { void syncNow(); };
+    const online = () => {
+      globalThis.performance?.mark?.("budget-app:replication-trigger:online");
+      void syncNow();
+    };
     const offline = () => update({ ...snapshot, supported: true, status: "offline" });
     const visible = () => {
       if (typeof document === "undefined" || document.visibilityState === "visible") {
+        globalThis.performance?.mark?.("budget-app:replication-trigger:visibility");
         void syncNow();
       }
     };
-    const pageShow = () => { void syncNow(); };
     const unsubscribeMutationCommits = subscribeToLocalFirstMutationCommits(
       (budgetId) => {
         if (budgetId !== activeBudgetId()) return;
+        globalThis.performance?.mark?.("budget-app:replication-trigger:mutation");
         update({
           ...snapshot,
           supported: true,
@@ -294,7 +324,6 @@ export function startReplicationBackgroundService(
     );
     globalThis.addEventListener?.("online", online);
     globalThis.addEventListener?.("offline", offline);
-    globalThis.addEventListener?.("pageshow", pageShow);
     globalThis.document?.addEventListener?.("visibilitychange", visible);
     intervalTimer = setInterval(() => { void syncNow(); }, intervalMs);
     subscriptionScopeTimer = setInterval(connectEvents, 2_000);
@@ -363,11 +392,13 @@ export function startReplicationBackgroundService(
         eventSubscription?.close();
         globalThis.removeEventListener?.("online", online);
         globalThis.removeEventListener?.("offline", offline);
-        globalThis.removeEventListener?.("pageshow", pageShow);
         globalThis.document?.removeEventListener?.("visibilitychange", visible);
       },
     };
-    void syncNow();
+    globalThis.performance?.mark?.("budget-app:replication-trigger:service-start");
+    if (options.startImmediately !== false) {
+      void syncNow();
+    }
     service = localFirstService;
     return localFirstService;
   }

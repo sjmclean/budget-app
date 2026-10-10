@@ -28,6 +28,54 @@ test("pending restore journals block ordinary warm-open bypass", () => {
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 
+test("production runtime prewarms one local SQLite worker client", () => {
+  const source = read("../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts");
+  assert.match(
+    source,
+    /let prewarmedDatabase: LocalBudgetDatabaseClient \| null =[\s\S]*options\.databaseFactory \? null : new LocalBudgetDatabaseClient\(undefined, storage\)/,
+  );
+  assert.match(
+    source,
+    /const next =[\s\S]*options\.databaseFactory\?\.\(\)[\s\S]*prewarmedDatabase[\s\S]*new LocalBudgetDatabaseClient\(undefined, storage\)/,
+  );
+  assert.match(
+    source,
+    /if \(next === prewarmedDatabase\) prewarmedDatabase = null/,
+  );
+});
+
+test("bootstrap starts selected-budget activation before app import and overlaps their completion", () => {
+  const main = read("../../../apps/web/src/main.tsx");
+  const activation = main.indexOf("const initialBudgetActivationPromise = selectedBudgetId");
+  const appImport = main.indexOf('const appImportPromise = import("./App")');
+  assert.ok(activation >= 0);
+  assert.ok(appImport > activation);
+  assert.match(
+    main.slice(activation, appImport),
+    /activateBudgetPersistence\(selectedBudgetId, \{[\s\S]*deferBackgroundSync: true/,
+  );
+  assert.match(
+    main,
+    /const appImportPromise = import\("\.\/App"\)[\s\S]*await Promise\.all\(\[[\s\S]*extendedMerchantCataloguePromise,[\s\S]*initialBudgetActivationPromise/,
+  );
+  assert.doesNotMatch(
+    main,
+    /initialBudgetActivationPromise[\s\S]{0,500}nudgeActiveBudgetReplication\(/,
+  );
+});
+
+test("local budget activation readies SQLite before workspace reads", () => {
+  const source = read("../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts");
+  const start = source.indexOf('if (key === "activateLocalBudget")');
+  const end = source.indexOf('if (key === "isLocalDatabaseReleased")', start);
+  const activation = source.slice(start, end);
+  assert.match(activation, /await ownership\.enter\(budgetId\)/);
+  assert.match(
+    activation,
+    /await ownership\.run\(budgetId, async \(\) => \{[\s\S]*await requireDatabase\(budgetId\)/,
+  );
+});
+
 test("ordinary local-first reads do not launch relay convergence", () => {
   const source = read("../../../apps/web/src/features/persistence/localFirst/localFirstAccountRegisterClient.ts");
   const start = source.indexOf("async function syncThenDatabase");
@@ -98,6 +146,72 @@ test("local-first timed restore points use the held tab lease as active budget",
 });
 
 
+test("relay mutation events already covered by the last completed cursor are coalesced", () => {
+  const service = read("../../../apps/web/src/features/persistence/replicationService.ts");
+  assert.match(
+    service,
+    /let lastCompletedSync: \{ budgetId: string; pulledCursor: number \} \| null = null/,
+  );
+  assert.match(
+    service,
+    /lastCompletedSync = \{[\s\S]*budgetId,[\s\S]*pulledCursor: synchronisation\.pulledCursor/,
+  );
+  assert.match(
+    service,
+    /\(event\.type === "connected" \|\|[\s\S]*event\.type === "mutations-available"\)[\s\S]*lastCompletedSync\?\.budgetId === event\.budgetId[\s\S]*lastCompletedSync\.pulledCursor >= event\.latestCursor[\s\S]*relay-event-coalesced/,
+  );
+});
+
+test("bootstrap installs replication service without immediate convergence", () => {
+  const main = read("../../../apps/web/src/main.tsx");
+  const service = read("../../../apps/web/src/features/persistence/replicationService.ts");
+  assert.match(
+    main,
+    /startReplicationBackgroundService\(persistenceProvider, \{[\s\S]*startImmediately: false/,
+  );
+  assert.match(
+    service,
+    /if \(options\.startImmediately !== false\) \{[\s\S]*void syncNow\(\)/,
+  );
+});
+
+test("initial route convergence is scheduled after first paint and browser idle", () => {
+  const lifecycle = read("../../../apps/web/src/features/persistence/budgetDatabaseLifecycle.ts");
+  const router = read("../../../apps/web/src/app/router.tsx");
+  const start = lifecycle.indexOf("export function nudgeActiveBudgetReplicationAfterPaint()");
+  const end = lifecycle.indexOf("/** Shared boundary", start);
+  const helper = lifecycle.slice(start, end);
+  assert.ok(start >= 0);
+  assert.match(helper, /const run = \(\) => setTimeout\(nudgeActiveBudgetReplication, 0\)/);
+  assert.match(helper, /requestIdleCallback/);
+  assert.match(helper, /requestAnimationFrame\(\(\) => scheduleIdle\(\)\)/);
+  assert.match(router, /nudgeActiveBudgetReplicationAfterPaint\(\)/);
+  assert.doesNotMatch(router, /\bnudgeActiveBudgetReplication\(\)/);
+});
+
+test("already-owned active budget activation is idempotent after in-flight readiness completes", () => {
+  const lifecycle = read("../../../apps/web/src/features/persistence/budgetDatabaseLifecycle.ts");
+  const start = lifecycle.indexOf("export async function activateBudgetPersistence");
+  const end = lifecycle.indexOf("export async function ensureActiveBudgetPersistenceReady", start);
+  const activation = lifecycle.slice(start, end);
+  const inFlight = activation.indexOf("activationInFlight?.budgetId === budgetId");
+  const readyFastPath = activation.indexOf("hasLocalFirstDatabaseTabOwnership(budgetId)");
+  assert.ok(inFlight >= 0);
+  assert.ok(readyFastPath > inFlight);
+  assert.match(
+    activation,
+    /if \(operation\) \{[\s\S]*await operation;[\s\S]*return;/,
+  );
+  assert.match(
+    activation,
+    /hasLocalFirstDatabaseTabOwnership\(budgetId\)[\s\S]*!queries\?\.isLocalDatabaseReleased\?\.\(\)[\s\S]*return;/,
+  );
+  assert.match(
+    activation,
+    /if \(!options\.deferBackgroundSync\)[\s\S]*nudgeActiveBudgetReplication\(\)/,
+  );
+});
+
 test("initial route startup can defer convergence without changing normal reactivation", () => {
   const lifecycle = read("../../../apps/web/src/features/persistence/budgetDatabaseLifecycle.ts");
   const router = read("../../../apps/web/src/app/router.tsx");
@@ -113,9 +227,10 @@ test("initial route startup can defer convergence without changing normal reacti
     router,
     /activateBudgetPersistence\(budgetId, \{\s*deferBackgroundSync: true,/,
   );
+  assert.doesNotMatch(router, /prefetchAccountIdentityQuery/);
   assert.match(
     router,
-    /prefetchAccountIdentityQuery\(\{ budgetId \}\)[\s\S]*nudgeActiveBudgetReplication\(\)/,
+    /activateBudgetPersistence\(budgetId, \{\s*deferBackgroundSync: true,[\s\S]*nudgeActiveBudgetReplicationAfterPaint\(\)/,
   );
 });
 

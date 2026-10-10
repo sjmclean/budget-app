@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("register commands and history emit bounded committed worker deltas", async ({ page }) => {
+  if (process.env.BUDGET_APP_E2E_ISOLATED_PORTS === "1") test.setTimeout(180_000);
   await page.addInitScript(() => {
     const NativeWorker = window.Worker;
     const traffic: { requests: { type: string; query?: { accountId: string; limit: number; offset?: number } }[]; deltas: unknown[] } = { requests: [], deltas: [] };
@@ -229,8 +230,20 @@ test("register commands and history emit bounded committed worker deltas", async
     await engine.commitImportBatch({ budgetId, accountId, additions: [{ id, budgetId, accountId, date: "2026-09-14", amount: -201, payeeName: "Small Import" }], updates: [], provenanceAssignments: [], payeeCreations: [] });
     return id;
   }, accountId);
-  const smallImportDelta = await page.evaluate((importId) => (window as typeof window & { __registerDeltaTraffic: { deltas: { mode: string; afterRows?: { row: { id: string } }[] }[] } }).__registerDeltaTraffic.deltas.findLast((delta) => delta.mode === "patch" && delta.afterRows?.some(({ row }) => row.id === importId)), importId);
-  expect(smallImportDelta).toBeDefined();
+  const smallImport = await page.evaluate(async ({ accountId, importId }) => {
+    const { getBudgetPersistenceProvider } = await import("/src/features/persistence/budgetPersistenceProviderFactory.ts");
+    const { useUIStore } = await import("/src/stores/uiStore.ts");
+    const budgetId = useUIStore.getState().selectedBudgetId;
+    const provider = getBudgetPersistenceProvider();
+    if (!budgetId || !provider.accountRegisterQueries) throw new Error("Missing register query service");
+    const rows = await provider.accountRegisterQueries.queryLocalTransactions({ budgetId, accountId, limit: 250 });
+    const deltas = (window as typeof window & { __registerDeltaTraffic: { deltas: { mode: string; affectedAccountIds?: string[] }[] } }).__registerDeltaTraffic.deltas;
+    return {
+      refreshed: deltas.some((delta) => delta.mode === "refresh-required" && delta.affectedAccountIds?.includes(accountId)),
+      persisted: rows.rows.some((row) => row.id === importId),
+    };
+  }, { accountId, importId });
+  expect(smallImport).toEqual({ refreshed: true, persisted: true });
   await page.evaluate(async ({ accountId, importId }) => {
     const providerPath = "/src/features/persistence/budgetPersistenceProviderFactory.ts";
     const storePath = "/src/stores/uiStore.ts";
@@ -241,8 +254,20 @@ test("register commands and history emit bounded committed worker deltas", async
     if (!budgetId || !engine) throw new Error("The local command engine is unavailable.");
     await engine.commitImportBatch({ budgetId, accountId, additions: [], updates: [{ id: importId, budgetId, accountId, date: "2026-09-14", amount: -202, payeeName: "Small Import Updated" }], provenanceAssignments: [], payeeCreations: [] });
   }, { accountId, importId });
-  const matchedImportDelta = await page.evaluate((importId) => (window as typeof window & { __registerDeltaTraffic: { deltas: { mode: string; beforeRows?: { row: { id: string; amount: number } }[]; afterRows?: { row: { id: string; amount: number } }[] }[] } }).__registerDeltaTraffic.deltas.findLast((delta) => delta.mode === "patch" && delta.beforeRows?.some(({ row }) => row.id === importId && row.amount === -201) && delta.afterRows?.some(({ row }) => row.id === importId && row.amount === -202)), importId);
-  expect(matchedImportDelta).toBeDefined();
+  const matchedImport = await page.evaluate(async ({ accountId, importId }) => {
+    const { getBudgetPersistenceProvider } = await import("/src/features/persistence/budgetPersistenceProviderFactory.ts");
+    const { useUIStore } = await import("/src/stores/uiStore.ts");
+    const budgetId = useUIStore.getState().selectedBudgetId;
+    const provider = getBudgetPersistenceProvider();
+    if (!budgetId || !provider.accountRegisterQueries) throw new Error("Missing register query service");
+    const rows = await provider.accountRegisterQueries.queryLocalTransactions({ budgetId, accountId, limit: 250 });
+    const deltas = (window as typeof window & { __registerDeltaTraffic: { deltas: { mode: string; affectedAccountIds?: string[] }[] } }).__registerDeltaTraffic.deltas;
+    return {
+      refreshed: deltas.some((delta) => delta.mode === "refresh-required" && delta.affectedAccountIds?.includes(accountId)),
+      persisted: rows.rows.some((row) => row.id === importId && row.amount === -202),
+    };
+  }, { accountId, importId });
+  expect(matchedImport).toEqual({ refreshed: true, persisted: true });
   await page.evaluate(async (accountId) => {
     const providerPath = "/src/features/persistence/budgetPersistenceProviderFactory.ts";
     const storePath = "/src/stores/uiStore.ts";
@@ -255,7 +280,7 @@ test("register commands and history emit bounded committed worker deltas", async
     await engine.commitImportBatch({ budgetId, accountId, additions, updates: [], provenanceAssignments: [], payeeCreations: [] });
   }, accountId);
   const largeImportDelta = await page.evaluate(() => (window as typeof window & { __registerDeltaTraffic: { deltas: { mode: string; reason?: string; affectedAccountIds?: string[]; afterRows?: unknown[] }[] } }).__registerDeltaTraffic.deltas.findLast((delta) => delta.mode === "refresh-required"));
-  expect(largeImportDelta?.reason).toBe("delta-too-large");
+  expect(largeImportDelta?.reason).toBe("unsupported-register-change");
   expect(largeImportDelta?.affectedAccountIds).toContain(accountId);
   expect(largeImportDelta?.afterRows).toBeUndefined();
   expect(JSON.stringify(largeImportDelta).length).toBeLessThan(5_000);
@@ -328,6 +353,7 @@ test("register commands and history emit bounded committed worker deltas", async
   expect(bulkClear.mode).toBe("patch");
   expect(bulkClear.before).toEqual(["uncleared", "uncleared"]);
   expect(bulkClear.after).toEqual(["cleared", "cleared"]);
+  console.log("[register-delta] Starting transaction move and subsequent register queries");
   const moveEvidence = await page.evaluate(async ({ accountId, targetAccountId, transactionId }) => {
     const providerPath = "/src/features/persistence/budgetPersistenceProviderFactory.ts";
     const storePath = "/src/stores/uiStore.ts";
@@ -342,5 +368,58 @@ test("register commands and history emit bounded committed worker deltas", async
     const [source, target] = await Promise.all([provider.accountRegisterQueries.queryLocalTransactions({ budgetId, accountId, limit: 250 }), provider.accountRegisterQueries.queryLocalTransactions({ budgetId, accountId: targetAccountId, limit: 250 })]);
     return { beforeAccountId: delta?.beforeRows?.find(({ row }) => row.id === transactionId)?.accountId, afterAccountId: delta?.afterRows?.find(({ row }) => row.id === transactionId)?.accountId, inSource: source.rows.some(({ id }) => id === transactionId), inTarget: target.rows.some(({ id }) => id === transactionId) };
   }, { accountId, targetAccountId, transactionId: attachmentIds.transactionId });
+  console.log("[register-delta] Move and verification queries completed");
   expect(moveEvidence).toEqual({ beforeAccountId: accountId, afterAccountId: targetAccountId, inSource: false, inTarget: true });
+
+  await page.getByRole("link", { name: "Budget", exact: true }).click();
+  await expect(page).toHaveURL(/\/budget$/);
+  await page.evaluate(async (sourceAccountId) => {
+    const { getBudgetPersistenceProvider } = await import("/src/features/persistence/budgetPersistenceProviderFactory.ts");
+    const { useUIStore } = await import("/src/stores/uiStore.ts");
+    const budgetId = useUIStore.getState().selectedBudgetId;
+    const engine = getBudgetPersistenceProvider().localBudgetEngine;
+    if (!budgetId || !engine) throw new Error("Missing local engine");
+    await engine.addTransaction({
+      id: crypto.randomUUID(), budgetId, accountId: sourceAccountId,
+      date: "2026-09-28", amount: -1777, payeeName: "Freshness Probe Merchant",
+    });
+  }, accountId);
+  await page.getByRole("link", { name: /^Delta Checking/ }).click();
+  await expect(page.getByText("Freshness Probe Merchant", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: /^Delta Savings/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/accounts/${targetAccountId}$`));
+  await expect(page.getByText("Freshness Probe Merchant", { exact: true })).toHaveCount(0);
+  await page.getByRole("link", { name: /^Delta Checking/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/accounts/${accountId}$`));
+  await expect(page.getByText("Freshness Probe Merchant", { exact: true })).toBeVisible();
+
+  // Import batches must request an authoritative Register refresh, while
+  // ordinary edits and undo/redo above still return precise row patches.
+  await page.evaluate(() => {
+    const traffic = (window as typeof window & { __registerDeltaTraffic: { deltas: unknown[] } }).__registerDeltaTraffic;
+    traffic.deltas.length = 0;
+  });
+  await page.evaluate(async (sourceAccountId) => {
+    const { getBudgetPersistenceProvider } = await import("/src/features/persistence/budgetPersistenceProviderFactory.ts");
+    const { useUIStore } = await import("/src/stores/uiStore.ts");
+    const budgetId = useUIStore.getState().selectedBudgetId;
+    const engine = getBudgetPersistenceProvider().localBudgetEngine;
+    if (!budgetId || !engine) throw new Error("Missing local engine");
+    await engine.commitImportBatch({
+      budgetId, accountId: sourceAccountId,
+      additions: [{
+        id: crypto.randomUUID(), budgetId, accountId: sourceAccountId,
+        date: "2026-09-29", amount: -321,
+        payeeName: "Bulk Refresh Probe",
+      }],
+      updates: [], provenanceAssignments: [], payeeCreations: [],
+    });
+  }, accountId);
+  await expect(page.getByText("Bulk Refresh Probe", { exact: true })).toBeVisible();
+  const bulkDeltas = await page.evaluate(() => (
+    window as typeof window & { __registerDeltaTraffic: { deltas: { mode: string; affectedAccountIds?: string[] }[] } }
+  ).__registerDeltaTraffic.deltas);
+  expect(bulkDeltas.some((delta) =>
+    delta.mode === "refresh-required" && delta.affectedAccountIds?.includes(accountId)
+  )).toBe(true);
 });

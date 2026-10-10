@@ -99,6 +99,7 @@ export function usePayeeManagerWorkflow({
   const [archivedPayeeOptions, setArchivedPayeeOptions] = useState<PayeeView[]>(
     [],
   );
+  const [archivedPayeesLoaded, setArchivedPayeesLoaded] = useState(false);
   const [isPayeeManagerOpen, setIsPayeeManagerOpen] = useState(false);
   const [selectedPayeeId, setSelectedPayeeId] = useState<string | null>(null);
   const [payeeRenameDraft, setPayeeRenameDraft] = useState("");
@@ -118,19 +119,18 @@ export function usePayeeManagerWorkflow({
 
     setPayeeOptions(payees);
     setArchivedPayeeOptions(archivedPayees);
+    setArchivedPayeesLoaded(true);
     return payees;
   }
 
   useEffect(() => {
     let isMounted = true;
+    setArchivedPayeeOptions([]);
+    setArchivedPayeesLoaded(false);
 
-    void Promise.all([
-      payeesPersistence.listPayees(),
-      payeesPersistence.listArchivedPayees(),
-    ]).then(([payees, archivedPayees]) => {
+    void payeesPersistence.listPayees().then((payees) => {
       if (isMounted) {
         setPayeeOptions(payees);
-        setArchivedPayeeOptions(archivedPayees);
       }
     });
 
@@ -138,6 +138,24 @@ export function usePayeeManagerWorkflow({
       isMounted = false;
     };
   }, [payeesPersistence]);
+
+  useEffect(() => {
+    if (!isPayeeManagerOpen || archivedPayeesLoaded) {
+      return;
+    }
+
+    let isMounted = true;
+    void payeesPersistence.listArchivedPayees().then((archivedPayees) => {
+      if (isMounted) {
+        setArchivedPayeeOptions(archivedPayees);
+        setArchivedPayeesLoaded(true);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [archivedPayeesLoaded, isPayeeManagerOpen, payeesPersistence]);
 
   const allManagedPayees = useMemo(
     () => [...payeeOptions, ...archivedPayeeOptions],

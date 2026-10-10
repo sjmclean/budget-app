@@ -1,4 +1,6 @@
-const CONTROL_URL = "http://127.0.0.1:3001";
+const CONTROL_URL = process.env.BUDGET_APP_E2E_ISOLATED_PORTS === "1"
+  ? "http://127.0.0.1:3002"
+  : "http://127.0.0.1:3001";
 
 export default async function globalTeardown() {
   try {

@@ -69,12 +69,57 @@ export interface ActualBudgetLauncherImportRecord {
   }>;
 }
 
+export type ActualBudgetImportPerformanceStage =
+  | "map"
+  | "provision"
+  | "begin-staged-import"
+  | "begin-sqlite-runtime"
+  | "begin-capacity-reserve"
+  | "begin-remove-stage-file"
+  | "begin-open-database"
+  | "begin-initialise-schema"
+  | "begin-defer-indexes"
+  | "begin-metadata"
+  | "begin-manifest"
+  | "entities"
+  | "transactions"
+  | "budget-months"
+  | "commit"
+  | "publish-baseline"
+  | "restore-point"
+  | "restore-module-import"
+  | "restore-quick-check"
+  | "restore-manifest"
+  | "restore-export-prepare"
+  | "restore-store-capture"
+  | "restore-store-catalogue"
+  | "restore-store-source-read"
+  | "restore-store-chunk-hash"
+  | "restore-store-existing-chunk-verify"
+  | "restore-store-final-write"
+  | "restore-store-final-verify"
+  | "restore-store-manifest-write"
+  | "restore-store-cleanup"
+  | "restore-store-total-store"
+  | "finalize-storage"
+  | "total";
+
+export interface ActualBudgetImportPerformanceSample {
+  readonly stage: ActualBudgetImportPerformanceStage;
+  readonly elapsedMs: number;
+}
+
 export interface CreateActualBudgetLauncherImportInput {
   preview: FullBudgetImportPreview;
   sourceFileName?: string | null;
   creditCardBehaviour?: CreditCardBehaviour;
   now?: Date;
   apiBaseUrl?: string;
+  /**
+   * Optional diagnostic-only timing sink. Samples are never persisted and do
+   * not alter import behaviour.
+   */
+  onPerformanceSample?: (sample: ActualBudgetImportPerformanceSample) => void;
 }
 
 export interface ActualBudgetLauncherImportResult {
@@ -113,6 +158,21 @@ export function readActualBudgetLauncherImportRecord(
   }
 }
 
+function actualImportPerformanceNow(): number {
+  return globalThis.performance?.now?.() ?? Date.now();
+}
+
+function recordActualImportPerformance(
+  input: CreateActualBudgetLauncherImportInput,
+  stage: ActualBudgetImportPerformanceStage,
+  startedAt: number,
+): void {
+  input.onPerformanceSample?.({
+    stage,
+    elapsedMs: Math.round((actualImportPerformanceNow() - startedAt) * 100) / 100,
+  });
+}
+
 export async function createActualBudgetLauncherImportWithBackend(
   storage: KeyValueStoragePort,
   input: CreateActualBudgetLauncherImportInput,
@@ -123,6 +183,7 @@ export async function createActualBudgetLauncherImportWithBackend(
   const selectedBudgetBeforeImport = storage.getItem(SELECTED_BUDGET_STORAGE_KEY);
   const keysBeforeImport = new Set(storage.listKeys?.() ?? []);
   const now = input.now ?? new Date();
+  const totalStartedAt = actualImportPerformanceNow();
 
   let budget: BudgetSummary | null = null;
   let provisioned:
@@ -146,25 +207,52 @@ export async function createActualBudgetLauncherImportWithBackend(
       now,
     });
 
+    // Start the SQLite worker as soon as the import budget exists so module
+    // startup can overlap source mapping and fresh relay provisioning. The
+    // worker does not open or mutate a database until beginStagedImport().
+    database = new LocalBudgetDatabaseClient(undefined, storage);
+
+    let stageStartedAt = actualImportPerformanceNow();
     const mapped = mapActualBudgetForLocalFirst(
       budget,
       input.preview,
       now,
     );
+    recordActualImportPerformance(input, "map", stageStartedAt);
 
+    stageStartedAt = actualImportPerformanceNow();
     provisioned = await provisionFreshLocalFirstBudget(budget.id, {
       apiBaseUrl: input.apiBaseUrl,
     });
+    recordActualImportPerformance(input, "provision", stageStartedAt);
 
-    database = new LocalBudgetDatabaseClient(undefined, storage);
-
-    await database.beginStagedImport({
+    stageStartedAt = actualImportPerformanceNow();
+    const stagedImportInput = {
       budgetId: budget.id,
       syncEpoch: provisioned.syncEpoch,
       deviceId: getOrCreateLocalFirstDeviceId(storage),
-    });
+    };
+    if (input.onPerformanceSample) {
+      const diagnostic = await database.beginStagedImportWithDiagnostics(stagedImportInput);
+      for (const [stage, elapsedMs] of [
+        ["begin-sqlite-runtime", diagnostic.timingsMs.sqliteRuntime],
+        ["begin-capacity-reserve", diagnostic.timingsMs.capacityReserve],
+        ["begin-remove-stage-file", diagnostic.timingsMs.removeStageFile],
+        ["begin-open-database", diagnostic.timingsMs.openDatabase],
+        ["begin-initialise-schema", diagnostic.timingsMs.initialiseSchema],
+        ["begin-defer-indexes", diagnostic.timingsMs.deferIndexes],
+        ["begin-metadata", diagnostic.timingsMs.metadata],
+        ["begin-manifest", diagnostic.timingsMs.manifest],
+      ] as const) {
+        input.onPerformanceSample({ stage, elapsedMs });
+      }
+    } else {
+      await database.beginStagedImport(stagedImportInput);
+    }
+    recordActualImportPerformance(input, "begin-staged-import", stageStartedAt);
     staged = true;
 
+    stageStartedAt = actualImportPerformanceNow();
     if (
       mapped.accounts.length > 0 ||
       mapped.payees.length > 0 ||
@@ -176,13 +264,17 @@ export async function createActualBudgetLauncherImportWithBackend(
         categories: mapped.categories,
       });
     }
+    recordActualImportPerformance(input, "entities", stageStartedAt);
 
+    stageStartedAt = actualImportPerformanceNow();
     if (mapped.transactions.length > 0) {
       await database.importRegisterBatch({
         transactions: mapped.transactions,
       });
     }
+    recordActualImportPerformance(input, "transactions", stageStartedAt);
 
+    stageStartedAt = actualImportPerformanceNow();
     if (mapped.budgetMonths.length > 0) {
       await database.importEntityBatch(
         mapped.budgetMonths.map(({ month, view }) => ({
@@ -192,6 +284,7 @@ export async function createActualBudgetLauncherImportWithBackend(
         })),
       );
     }
+    recordActualImportPerformance(input, "budget-months", stageStartedAt);
 
     const expectedCounts = {
       ...emptyDomainCounts(),
@@ -202,9 +295,12 @@ export async function createActualBudgetLauncherImportWithBackend(
       budgetMonths: mapped.budgetMonths.length,
     };
 
+    stageStartedAt = actualImportPerformanceNow();
     await database.commitStagedImport(expectedCounts);
+    recordActualImportPerformance(input, "commit", stageStartedAt);
     staged = false;
 
+    stageStartedAt = actualImportPerformanceNow();
     await publishLocalBaseline({
       budgetId: budget.id,
       budgetName: budget.name,
@@ -213,8 +309,26 @@ export async function createActualBudgetLauncherImportWithBackend(
       database,
       relay: provisioned.relay,
     });
+    recordActualImportPerformance(input, "publish-baseline", stageStartedAt);
 
-    await database.captureRestorePoint({ budgetName: budget.name, reason: "initial-import", mutationCount: 0 });
+    stageStartedAt = actualImportPerformanceNow();
+    const restorePointInput = {
+      budgetName: budget.name,
+      reason: "initial-import" as const,
+      mutationCount: 0,
+    };
+    if (input.onPerformanceSample) {
+      const diagnostic = await database.captureRestorePointWithDiagnostics(restorePointInput);
+      for (const [stage, elapsedMs] of Object.entries(diagnostic.timingsMs)) {
+        input.onPerformanceSample({
+          stage: stage as ActualBudgetImportPerformanceStage,
+          elapsedMs,
+        });
+      }
+    } else {
+      await database.captureRestorePoint(restorePointInput);
+    }
+    recordActualImportPerformance(input, "restore-point", stageStartedAt);
     await database.close();
     database = null;
 
@@ -235,7 +349,10 @@ export async function createActualBudgetLauncherImportWithBackend(
 
     const openedBudget = markBudgetOpened(storage, budget.id, now) ?? budget;
 
+    stageStartedAt = actualImportPerformanceNow();
     await storage.flush?.();
+    recordActualImportPerformance(input, "finalize-storage", stageStartedAt);
+    recordActualImportPerformance(input, "total", totalStartedAt);
 
     return {
       budget: openedBudget,

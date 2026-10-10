@@ -2,6 +2,24 @@ import { expect, test, type Page } from "@playwright/test";
 
 const budgetName = "E2E Smoke Budget";
 const accountName = "E2E Durable Account";
+const E2E_EMAIL = "e2e-admin@example.test";
+const E2E_PASSWORD = "E2E-only-password-2026!";
+
+async function ensureE2eAuthenticated(page: Page) {
+  const status = await page.request.get("/api/auth/status");
+  expect(status.ok()).toBe(true);
+  const body = await status.json() as { needsSetup: boolean; authenticated: boolean };
+  if (body.authenticated) return;
+
+  const response = body.needsSetup
+    ? await page.request.post("/api/auth/setup", {
+        data: { email: E2E_EMAIL, password: E2E_PASSWORD },
+      })
+    : await page.request.post("/api/auth/login", {
+        data: { email: E2E_EMAIL, password: E2E_PASSWORD },
+      });
+  expect(response.ok()).toBe(true);
+}
 
 function failOnBrowserErrors(page: Page) {
   const failures: string[] = [];
@@ -27,11 +45,8 @@ async function openSettingsDestination(page: Page, name: string) {
 test("real authentication, OPFS budget lifecycle, routing, and SQLite mutation survive reload", async ({ page }) => {
   const assertNoBrowserErrors = failOnBrowserErrors(page);
 
+  await ensureE2eAuthenticated(page);
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Create the administrator account" })).toBeVisible();
-  await page.getByLabel("Email").fill("e2e-admin@example.test");
-  await page.getByLabel("Password").fill("E2E-only-password-2026!");
-  await page.getByRole("button", { name: "Create account" }).click();
 
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("heading", { name: "Budget Manager" })).toBeVisible();

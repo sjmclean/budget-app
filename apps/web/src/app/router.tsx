@@ -4,12 +4,18 @@ import { BudgetSelectorPage } from "../pages/BudgetSelectorPage";
 import { RouteErrorScreen } from "./errors/RouteErrorScreen";
 import {
   activateBudgetPersistence,
-  nudgeActiveBudgetReplication,
+  nudgeActiveBudgetReplicationAfterPaint,
   releaseActiveBudgetPersistence,
 } from "../features/persistence/budgetDatabaseLifecycle";
 import { useUIStore } from "../stores/uiStore";
 import { getBudgetPersistenceProvider } from "../features/persistence";
-import { prefetchAccountIdentityQuery } from "../features/persistence/reactiveQueries";
+import { getCurrentBudgetMonth } from "../features/budget/budgetMonthNavigation";
+import { prefetchBudgetMonthQuery } from "../features/persistence/reactiveQueries";
+import { loadAccountRegisterPage } from "../pages/accountRegisterPageLoader";
+
+function markStartup(name: string): void {
+  globalThis.performance?.mark?.(`budget-app:${name}`);
+}
 
 export const router = createBrowserRouter([
   {
@@ -25,21 +31,32 @@ export const router = createBrowserRouter([
   },
   {
     element: <AppShell />,
-    async loader() {
+    async loader({ request }) {
+      markStartup("workspace-loader:start");
       const budgetId = useUIStore.getState().selectedBudgetId;
       if (budgetId) {
+        markStartup("budget-activation:start");
         await activateBudgetPersistence(budgetId, {
           deferBackgroundSync: true,
         });
+        markStartup("budget-activation:end");
         const provider = getBudgetPersistenceProvider();
         if (
           provider.syncArchitecture === "local-first-relay" &&
           provider.accountRegisterQueries
         ) {
-          await prefetchAccountIdentityQuery({ budgetId });
-          nudgeActiveBudgetReplication();
+          if (new URL(request.url).pathname === "/budget") {
+            markStartup("budget-primary-prefetch:start");
+            await prefetchBudgetMonthQuery({
+              budgetId,
+              month: getCurrentBudgetMonth(),
+            });
+            markStartup("budget-primary-prefetch:end");
+          }
+          nudgeActiveBudgetReplicationAfterPaint();
         }
       }
+      markStartup("workspace-loader:end");
       return null;
     },
     hydrateFallbackElement: <p role="status">Opening budget…</p>,
@@ -48,14 +65,18 @@ export const router = createBrowserRouter([
       {
         path: "/dashboard",
         lazy: async () => {
+          markStartup("dashboard-page-import:start");
           const { DashboardPage } = await import("../pages/DashboardPage");
+          markStartup("dashboard-page-import:end");
           return { Component: DashboardPage };
         },
       },
       {
         path: "/budget",
         lazy: async () => {
+          markStartup("budget-page-import:start");
           const { BudgetPage } = await import("../pages/BudgetPage");
+          markStartup("budget-page-import:end");
           return { Component: BudgetPage };
         },
       },
@@ -69,9 +90,9 @@ export const router = createBrowserRouter([
       {
         path: "/accounts/:accountId",
         lazy: async () => {
-          const { AccountRegisterPage } = await import(
-            "../pages/AccountRegisterPage"
-          );
+          markStartup("account-register-page-import:start");
+          const { AccountRegisterPage } = await loadAccountRegisterPage();
+          markStartup("account-register-page-import:end");
           return { Component: AccountRegisterPage };
         },
       },

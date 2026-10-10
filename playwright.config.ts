@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const isolatedPorts = process.env.BUDGET_APP_E2E_ISOLATED_PORTS === "1";
+const webPort = isolatedPorts ? 5174 : 5173;
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: false,
@@ -16,7 +19,7 @@ export default defineConfig({
     ? [["line"], ["html", { outputFolder: "playwright-report", open: "never" }]]
     : "list",
   use: {
-    baseURL: "http://127.0.0.1:5173",
+    baseURL: `http://127.0.0.1:${webPort}`,
     actionTimeout: 10_000,
     navigationTimeout: 15_000,
     trace: "retain-on-first-failure",
@@ -31,7 +34,7 @@ export default defineConfig({
   ],
   webServer: {
     command: "node scripts/start-e2e-stack.mjs",
-    url: "http://127.0.0.1:5173",
+    url: `http://127.0.0.1:${webPort}`,
     reuseExistingServer: false,
     timeout: 30_000,
   },

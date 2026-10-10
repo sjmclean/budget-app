@@ -132,6 +132,7 @@ export type LocalBudgetWorkerRequest =
       readonly requestId: string;
       readonly type: "captureRestorePoint";
       readonly input: import("../../budget/restorePointTypes").CaptureRestorePointInput;
+      readonly includePerformanceTimings?: boolean;
     }
   | {
       readonly requestId: string;
@@ -196,6 +197,7 @@ export type LocalBudgetWorkerRequest =
       readonly budgetId: string;
       readonly syncEpoch: string;
       readonly deviceId: string;
+      readonly includePerformanceTimings?: boolean;
     }
   | {
       readonly requestId: string;
@@ -652,6 +654,7 @@ export type LocalBudgetWorkerResponse =
       readonly ok: true;
       readonly result: unknown;
       readonly registerDelta?: import("../accountRegisterMutationDelta").AccountRegisterMutationDelta;
+      readonly importTiming?: { readonly queueMs: number; readonly workerMs: number; readonly sqliteMs: number | null; readonly deltaBeforeMs: number | null; readonly deltaAfterMs: number | null };
     }
   | {
       readonly requestId: string;

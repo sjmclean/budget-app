@@ -119,7 +119,11 @@ test("pending register data, preference notifications and payee loads settle und
     assert.equal(listenerCount(), 6, "three preference hooks each subscribe to two events exactly once");
     assert.equal(writes, 0, "mount and reads are read-only");
     assert.equal(listPayeesCalls, 2, "Strict Mode performs two bounded mount reads");
-    assert.equal(listArchivedCalls, 2);
+    assert.equal(
+      listArchivedCalls,
+      0,
+      "closed Payee Manager must not load archived payees during Register mount",
+    );
     assert.equal(monthEffects, 2, "loading month synchronization must settle after Strict Mode replay");
     await toggle(true);
     await toggle(false);
@@ -137,6 +141,11 @@ test("pending register data, preference notifications and payee loads settle und
     await act(async () => { root = create(createElement(StrictMode, null, createElement(Probe))); });
     assert.equal(lastEnabled, true, "remount reads the persisted ON preference");
     assert.equal(listPayeesCalls, 4);
+    assert.equal(
+      listArchivedCalls,
+      0,
+      "remounting the Register must still defer archived payee loading",
+    );
     await act(async () => { root.unmount(); });
     assert.equal(listenerCount(), 0);
     const afterUnmount = renders;

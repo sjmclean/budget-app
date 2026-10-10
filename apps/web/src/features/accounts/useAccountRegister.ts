@@ -1,3 +1,4 @@
+import { canReuseCurrentRegisterBootstrap } from "./registerWarmBootstrapReuse";
 import { runAccountRegisterSqliteMutation } from "./accountRegisterMutationRunner";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getBudgetPersistenceProvider } from "../persistence";
@@ -206,10 +207,17 @@ export function useAccountRegister(
     }
 
     if (!warm) {
+      globalThis.performance?.mark?.("budget-app:register-warm-bootstrap:miss");
       setIsLoading(true);
       return;
     }
 
+    globalThis.performance?.mark?.("budget-app:register-warm-bootstrap:hit");
+    if (warm.revision === getPersistenceRevisionForInterest(persistenceInterest)) {
+      globalThis.performance?.mark?.("budget-app:register-warm-bootstrap:revision-current");
+    } else {
+      globalThis.performance?.mark?.("budget-app:register-warm-bootstrap:revision-stale");
+    }
     const { summary, page } = warm.bootstrap;
     const next = {
       summary,
@@ -234,7 +242,9 @@ export function useAccountRegister(
     }
     await ensureSqliteReady();
     const generation = ++loadGenerationRef.current;
+    globalThis.performance?.mark?.("budget-app:register-reload:requested");
     try {
+      globalThis.performance?.mark?.("budget-app:account-register-bootstrap:start");
       const consistent = await loadConsistentRegisterSnapshot({
         readRevision: () =>
           getPersistenceRevisionForInterest(persistenceInterest),
@@ -258,6 +268,7 @@ export function useAccountRegister(
       });
 
       if (generation !== loadGenerationRef.current) return;
+      globalThis.performance?.mark?.("budget-app:account-register-bootstrap:end");
       const { summary, page } = consistent.result;
       const next = {
         summary,
@@ -319,6 +330,32 @@ export function useAccountRegister(
         ) {
           await ensureSqliteReady();
           void generateDueScheduledTransactionsForBudget(provider, budgetId).catch(() => undefined);
+          globalThis.performance?.mark?.(hasLoadedDataRef.current
+            ? "budget-app:register-load-effect:warm-data-present"
+            : "budget-app:register-load-effect:no-warm-data");
+          const warmKey = JSON.stringify({
+            budgetId,
+            accountId,
+            search: registerViewQuery.search ?? null,
+            categoryFilter: registerViewQuery.categoryFilter,
+            sort: registerViewQuery.sort,
+          });
+          // The prefetched snapshot was applied during the layout effect.
+          // Do not repeat its query while it still represents the current
+          // local revision. Persistence publications trigger normal refreshes.
+          if (canReuseCurrentRegisterBootstrap({
+            hasLoadedData: hasLoadedDataRef.current,
+            hasSqlitePage: sqlitePageRef.current !== null,
+            claimedWarmKey: claimedWarmBootstrapRef.current?.key ?? null,
+            currentQueryKey: warmKey,
+            appliedRevision: appliedRevisionRef.current,
+            currentRevision: getPersistenceRevisionForInterest(persistenceInterest),
+          })) {
+            globalThis.performance?.mark?.("budget-app:register-load-effect:reuse-current-warm-data");
+            if (!isMounted) return;
+            setIsLoading(false);
+            return;
+          }
           await reloadSqliteRegister();
           if (!isMounted) return;
           setIsLoading(false);
@@ -398,6 +435,8 @@ export function useAccountRegister(
     budgetId,
     ensureSqliteReady,
     provider,
+    persistenceInterest,
+    registerViewQuery,
     reloadSqliteRegister,
   ]);
 
@@ -465,7 +504,10 @@ export function useAccountRegister(
     const generation = loadGenerationRef.current;
     const revision = getPersistenceRevisionForInterest(persistenceInterest);
 
+    globalThis.performance?.mark?.("budget-app:register-pagination:readiness:start");
     await ensureSqliteReady();
+    globalThis.performance?.mark?.("budget-app:register-pagination:readiness:end");
+    globalThis.performance?.mark?.("budget-app:register-pagination:query:start");
     const page = await accountRegisterQueries.queryTransactions({
       budgetId,
       accountId,
@@ -475,6 +517,7 @@ export function useAccountRegister(
       categoryFilter: registerViewQuery.categoryFilter,
       sort: registerViewQuery.sort,
     });
+    globalThis.performance?.mark?.("budget-app:register-pagination:query:end");
     if (generation !== loadGenerationRef.current || revision !== getPersistenceRevisionForInterest(persistenceInterest)) return;
     const current = sqlitePageRef.current;
     if (!current) return;
