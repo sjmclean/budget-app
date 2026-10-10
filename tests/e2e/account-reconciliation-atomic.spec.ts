@@ -122,7 +122,7 @@ test("reconciliation completes atomically and a failed statement preserves statu
     return result.page.rows.filter((row) => row.payeeName === "Balance Adjustment")
       .map(({ amount, clearedStatus, categoryId, incomeBudgetMonth, inflowClassification }) => ({ amount, clearedStatus, categoryId, incomeBudgetMonth, inflowClassification }));
   }, accountId);
-  expect(adjusted).toEqual([{ amount: 234, clearedStatus: "cleared", categoryId: null, incomeBudgetMonth: "2026-12", inflowClassification: "income" }]);
+  expect(adjusted).toEqual([{ amount: 234, clearedStatus: "cleared", categoryId: null, incomeBudgetMonth: "2026-12", inflowClassification: "reconciliation-adjustment" }]);
   await page.getByRole("button", { name: "Finish reconciliation" }).click();
   await expect(page.getByRole("button", { name: "Register options" }).first()).toBeVisible();
   await expect(page.getByRole("region", { name: "Reconcile account" })).toHaveCount(0);
