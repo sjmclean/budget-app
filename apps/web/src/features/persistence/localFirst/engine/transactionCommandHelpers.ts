@@ -16,7 +16,7 @@ function normaliseInflowMetadata(input: {
   readonly existingClassification?: import("../../../accounts/incomeTransactionSemantics").InflowClassification | null;
 }) {
   const requiresCanonicalValidation =
-    (input.amount > 0 || input.requestedClassification === "reconciliation-adjustment") &&
+    input.amount > 0 &&
     !input.transferAccountId &&
     input.categoryId !== null;
   const hasRequestedCanonicalMetadata =
@@ -45,7 +45,7 @@ function normaliseInflowMetadata(input: {
 
     if (
       !hasRequestedCanonicalMetadata &&
-      (input.amount <= 0 || input.transferAccountId) && input.requestedClassification !== "reconciliation-adjustment"
+      (input.amount <= 0 || input.transferAccountId)
     ) {
       return requireCanonicalInflowSemantics({
         date: input.transactionDate,
