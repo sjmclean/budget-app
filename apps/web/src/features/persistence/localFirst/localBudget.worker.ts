@@ -3582,10 +3582,23 @@ type ImportAttachmentWrite = {
   readonly mutation: LocalBudgetMutation;
 };
 
+function assertHistoryDoesNotModifyReconciled(transactionIds: readonly string[]): void {
+  for (const id of new Set(transactionIds)) {
+    const row = resultRows<{ clearedStatus: string }>(
+      "SELECT cleared_status AS clearedStatus FROM local_transactions WHERE budget_id = ? AND id = ?",
+      [activeBudgetId, id],
+    )[0];
+    if (row?.clearedStatus === "reconciled") {
+      throw workerError("RECONCILED_TRANSACTION_LOCKED", "Reconciled transactions cannot be changed by history or imports.");
+    }
+  }
+}
+
 function applyTransactionBatchInCurrentTransaction(
   writes: readonly TransactionBatchWrite[],
   requireAbsentTransactionIds: readonly string[] = [],
   verifyWrittenTransactions = false,
+  allowReconciliationStatusTransition = false,
 ): void {
   const requiredAbsentIds = new Set(requireAbsentTransactionIds);
   if (requiredAbsentIds.size !== requireAbsentTransactionIds.length) {
@@ -3629,6 +3642,15 @@ function applyTransactionBatchInCurrentTransaction(
   }
 
   for (const { transaction, mutation, resolveConflictId } of writes) {
+    const existingStatus = resultRows<{ clearedStatus: string }>(
+      "SELECT cleared_status AS clearedStatus FROM local_transactions WHERE budget_id = ? AND id = ?",
+      [activeBudgetId, transaction.id],
+    )[0]?.clearedStatus;
+    if (existingStatus === "reconciled" ||
+        (transaction.clearedStatus === "reconciled" &&
+          !(allowReconciliationStatusTransition && existingStatus === "cleared"))) {
+      throw workerError("RECONCILED_TRANSACTION_LOCKED", "Reconciliation status can only be set by the completion command.");
+    }
     resolveLocalConflictInTransaction(resolveConflictId);
 
     const previousMonth = resultRows<{ month: string }>(
@@ -3831,7 +3853,7 @@ function completeReconciliation(request: Extract<LocalBudgetWorkerRequest, { typ
       }
       ids.push(transaction.id);
     }
-    applyTransactionBatchInCurrentTransaction(request.writes, [], true);
+    applyTransactionBatchInCurrentTransaction(request.writes, [], true, true);
     execute(
       `INSERT INTO local_reconciliation_checkpoints
        (id, budget_id, account_id, statement_date, statement_balance_minor, completed_at, transaction_ids_json)
@@ -4294,7 +4316,8 @@ function replaceImportHistorySnapshot(
   for (const mutation of mutations) assertMutationScope(mutation);
   execute("BEGIN IMMEDIATE");
   try {
-    const current = captureImportHistorySnapshot(activeBudgetId!, expected.transactionIds, expected.payeeIds);
+ 
+    assertHistoryDoesNotModifyReconciled([...expected.transactions.transactions, ...replacement.transactions.transactions].map(({ id }) => id));   const current = captureImportHistorySnapshot(activeBudgetId!, expected.transactionIds, expected.payeeIds);
     if (!importHistorySnapshotsEqual(current, expected)) {
       throw workerError("IMPORT_HISTORY_CONFLICT", "Current import-owned state no longer matches the expected snapshot.");
     }
@@ -4468,7 +4491,8 @@ function deleteTransactionHistorySnapshot(
   validateHistoryMutations(snapshot, mutations, "delete");
   execute("BEGIN IMMEDIATE");
   try {
-    const current = captureTransactionHistorySnapshots(snapshot.budgetId, snapshot.transactions.map(({ id }) => id));
+ 
+    assertHistoryDoesNotModifyReconciled(snapshot.transactions.map(({ id }) => id));   const current = captureTransactionHistorySnapshots(snapshot.budgetId, snapshot.transactions.map(({ id }) => id));
     if (!transactionHistorySnapshotsEqual(current, snapshot)) {
       throw workerError("TRANSACTION_HISTORY_CONFLICT", "Persisted transaction graph no longer matches its snapshot.");
     }
@@ -4499,7 +4523,8 @@ function replaceTransactionHistorySnapshot(
   validateHistoryReplacementMutations(expected, replacement, mutations);
   execute("BEGIN IMMEDIATE");
   try {
-    const current = captureTransactionHistorySnapshots(
+ 
+    assertHistoryDoesNotModifyReconciled([...expected.transactions, ...replacement.transactions].map(({ id }) => id));   const current = captureTransactionHistorySnapshots(
       expected.budgetId,
       expected.transactions.map(({ id }) => id),
     );
