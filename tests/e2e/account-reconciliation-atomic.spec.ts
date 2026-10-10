@@ -111,6 +111,17 @@ test("reconciliation completes atomically and a failed statement preserves statu
   await expect(page.getByText(/Confirm a deposit of/)).toBeVisible();
   await page.getByRole("button", { name: "Confirm adjustment" }).click();
   await expect(page.getByRole("button", { name: "Finish reconciliation" })).toBeEnabled();
+  const adjusted = await page.evaluate(async (accountId) => {
+    const { getBudgetPersistenceProvider } = await import("/src/features/persistence/budgetPersistenceProviderFactory.ts");
+    const { useUIStore } = await import("/src/stores/uiStore.ts");
+    const budgetId = useUIStore.getState().selectedBudgetId;
+    const engine = getBudgetPersistenceProvider().accountRegisterQueries;
+    if (!budgetId || !engine) throw new Error("Budget query client unavailable.");
+    const result = await engine.getAccountRegisterBootstrap({ budgetId, accountId, limit: 150 });
+    return result.page.rows.filter((row) => row.payeeName === "Balance Adjustment")
+      .map(({ amount, clearedStatus }) => ({ amount, clearedStatus }));
+  }, accountId);
+  expect(adjusted).toEqual([{ amount: 234, clearedStatus: "cleared" }]);
   await page.getByRole("button", { name: "Finish reconciliation" }).click();
   await expect(page.getByRole("button", { name: "Reconcile account", exact: true })).toBeVisible();
 
