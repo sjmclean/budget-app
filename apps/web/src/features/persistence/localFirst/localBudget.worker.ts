@@ -3754,6 +3754,8 @@ function writeTransactionBatch(
   return currentManifest();
 }
 
+let latestImportSqliteMs: number | undefined;
+
 function writeImportBatch(
   payeeWrites: readonly ImportPayeeWrite[],
   writes: readonly TransactionBatchWrite[],
@@ -3856,6 +3858,7 @@ function writeImportBatch(
     attachmentIds.add(attachment.id);
   }
 
+  const sqliteStartedAt = performance.now();
   execute("BEGIN IMMEDIATE");
   try {
     const before = history
@@ -4007,6 +4010,7 @@ function writeImportBatch(
       : null;
 
     execute("COMMIT");
+    latestImportSqliteMs = performance.now() - sqliteStartedAt;
     if (before && after) return { before, after };
   } catch (error) {
     execute("ROLLBACK");
@@ -6789,6 +6793,7 @@ self.onmessage = (event: MessageEvent<LocalBudgetWorkerRequest>) => {
   const request = event.data;
   const receivedAt = request.type === "writeImportBatch" ? performance.now() : null;
   const operation = requestTail.then(async () => {
+    if (receivedAt !== null) latestImportSqliteMs = undefined;
     const startedAt = receivedAt === null ? null : performance.now();
     const value = await handleWithRegisterDelta(request);
     const finishedAt = startedAt === null ? null : performance.now();
@@ -6796,7 +6801,7 @@ self.onmessage = (event: MessageEvent<LocalBudgetWorkerRequest>) => {
       ...value,
       importTiming: receivedAt === null || startedAt === null || finishedAt === null
         ? undefined
-        : { queueMs: startedAt - receivedAt, workerMs: finishedAt - startedAt },
+        : { queueMs: startedAt - receivedAt, workerMs: finishedAt - startedAt, sqliteMs: latestImportSqliteMs ?? null },
     };
   });
   requestTail = operation.catch(() => undefined);
