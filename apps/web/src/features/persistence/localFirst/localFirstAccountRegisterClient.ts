@@ -1502,6 +1502,7 @@ export function createLocalBudgetRuntime(
     updateTransaction: publicOrdinaryCommands.updateTransaction,
     toggleTransactionCleared: publicOrdinaryCommands.toggleTransactionCleared,
     setTransactionsCleared: publicOrdinaryCommands.setTransactionsCleared,
+    completeReconciliation: publicOrdinaryCommands.completeReconciliation,
     deleteTransaction: publicOrdinaryCommands.deleteTransaction,
     addTransactionAttachment: publicOrdinaryCommands.addTransactionAttachment,
     removeTransactionAttachment: publicOrdinaryCommands.removeTransactionAttachment,
