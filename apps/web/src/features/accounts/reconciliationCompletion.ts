@@ -64,3 +64,47 @@ export function planReconciliationCompletion(input: ReconciliationCompletionInpu
   }
   return { transactionIds, clearedBalanceMinor, statementBalanceMinor: input.statementBalanceMinor, statementDate: input.statementDate };
 }
+
+/**
+ * A durable record of a successfully completed account reconciliation.
+ *
+ * This is a persistence contract, not a claim that the checkpoint was committed.
+ * The authoritative worker must generate and insert it within the SAME SQLite
+ * transaction that changes cleared transactions to reconciled and records outbox
+ * mutations. A failed transaction must leave neither statuses nor checkpoint.
+ */
+export interface ReconciliationCheckpoint {
+  readonly id: string;
+  readonly budgetId: string;
+  readonly accountId: string;
+  readonly statementDate: string;
+  readonly statementBalanceMinor: number;
+  readonly completedAt: string;
+  readonly transactionIds: readonly string[];
+}
+
+export function prepareReconciliationCheckpoint(
+  plan: ReconciliationCompletionPlan,
+  input: {
+    readonly id: string;
+    readonly budgetId: string;
+    readonly accountId: string;
+    readonly completedAt: string;
+  },
+): ReconciliationCheckpoint {
+  if (!input.id.trim() || !input.budgetId.trim() || !input.accountId.trim()) {
+    throw new Error("A reconciliation checkpoint requires stable identifiers.");
+  }
+  if (Number.isNaN(Date.parse(input.completedAt)) || !/^\d{4}-\d{2}-\d{2}T/.test(input.completedAt)) {
+    throw new Error("Invalid reconciliation completion timestamp.");
+  }
+  return {
+    id: input.id,
+    budgetId: input.budgetId,
+    accountId: input.accountId,
+    statementDate: plan.statementDate,
+    statementBalanceMinor: plan.statementBalanceMinor,
+    completedAt: input.completedAt,
+    transactionIds: [...plan.transactionIds],
+  };
+}
