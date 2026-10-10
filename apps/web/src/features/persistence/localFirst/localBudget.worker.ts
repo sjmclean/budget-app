@@ -1373,7 +1373,17 @@ function applyRemoteMutations(
           ],
         );
       }
-      if (
+      if (mutation.domain === "transactions" &&
+          mutation.entityId.startsWith("reconciliation:")) {
+        if (mutation.operation !== "upsert") {
+          throw workerError("INVALID_RECONCILIATION_CHECKPOINT", "Checkpoint history cannot be deleted by ordinary mutations.");
+        }
+        const checkpoint = mutation.payload as ReplicatedReconciliationCheckpoint;
+        if (mutation.entityId !== `reconciliation:${checkpoint.id}`) {
+          throw workerError("INVALID_RECONCILIATION_CHECKPOINT", "Checkpoint mutation identity mismatch.");
+        }
+        storeReplicatedReconciliationCheckpoint(checkpoint);
+      } else if (
         mutation.domain === "transactions" &&
         mutation.entityId.startsWith("attachment:")
       ) {
@@ -3803,6 +3813,41 @@ function prepareReconciliation(request: Extract<LocalBudgetWorkerRequest, { type
   };
 }
 
+interface ReplicatedReconciliationCheckpoint {
+  readonly kind: "reconciliation-checkpoint";
+  readonly id: string;
+  readonly budgetId: string;
+  readonly accountId: string;
+  readonly statementDate: string;
+  readonly statementBalanceMinor: number;
+  readonly completedAt: string;
+  readonly transactionIds: readonly string[];
+}
+
+function storeReplicatedReconciliationCheckpoint(payload: ReplicatedReconciliationCheckpoint): void {
+  if (payload.kind !== "reconciliation-checkpoint" ||
+      !payload.id || !payload.accountId || payload.budgetId !== activeBudgetId ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(payload.statementDate) ||
+      !Number.isSafeInteger(payload.statementBalanceMinor) ||
+      !Number.isFinite(Date.parse(payload.completedAt)) ||
+      !Array.isArray(payload.transactionIds) ||
+      payload.transactionIds.some((id) => typeof id !== "string" || !id) ||
+      new Set(payload.transactionIds).size !== payload.transactionIds.length) {
+    throw workerError("INVALID_RECONCILIATION_CHECKPOINT", "Invalid replicated reconciliation checkpoint.");
+  }
+  execute(
+    `INSERT INTO local_reconciliation_checkpoints
+     (id, budget_id, account_id, statement_date, statement_balance_minor, completed_at, transaction_ids_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       budget_id=excluded.budget_id, account_id=excluded.account_id,
+       statement_date=excluded.statement_date, statement_balance_minor=excluded.statement_balance_minor,
+       completed_at=excluded.completed_at, transaction_ids_json=excluded.transaction_ids_json`,
+    [payload.id, payload.budgetId, payload.accountId, payload.statementDate,
+     payload.statementBalanceMinor, payload.completedAt, JSON.stringify(payload.transactionIds)],
+  );
+}
+
 function completeReconciliation(request: Extract<LocalBudgetWorkerRequest, { type: "completeReconciliation" }>) {
   if (request.budgetId !== activeBudgetId || !request.accountId || !request.checkpointId) {
     throw workerError("BUDGET_SCOPE_MISMATCH", "Invalid reconciliation budget or account.");
@@ -3813,6 +3858,12 @@ function completeReconciliation(request: Extract<LocalBudgetWorkerRequest, { typ
     throw workerError("INVALID_RECONCILIATION", "Invalid reconciliation statement or completion timestamp.");
   }
   for (const { mutation } of request.writes) assertMutationScope(mutation);
+  assertMutationScope(request.checkpointMutation);
+  if (request.checkpointMutation.domain !== "transactions" ||
+      request.checkpointMutation.entityId !== `reconciliation:${request.checkpointId}` ||
+      request.checkpointMutation.operation !== "upsert") {
+    throw workerError("INVALID_RECONCILIATION_CHECKPOINT", "Invalid checkpoint mutation.");
+  }
   execute("BEGIN IMMEDIATE");
   try {
     const account = resultRows<{ openingBalance: number }>(
@@ -3861,7 +3912,15 @@ function completeReconciliation(request: Extract<LocalBudgetWorkerRequest, { typ
       [request.checkpointId, request.budgetId, request.accountId, request.statementDate,
        request.statementBalanceMinor, request.completedAt, JSON.stringify(ids)],
     );
-    writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + request.writes.length));
+    const checkpointPayload = request.checkpointMutation.payload as ReplicatedReconciliationCheckpoint;
+    if (checkpointPayload.id !== request.checkpointId ||
+        checkpointPayload.accountId !== request.accountId ||
+        checkpointPayload.statementBalanceMinor !== request.statementBalanceMinor ||
+        JSON.stringify(checkpointPayload.transactionIds) !== JSON.stringify(ids)) {
+      throw workerError("INVALID_RECONCILIATION_CHECKPOINT", "Checkpoint mutation does not match completion.");
+    }
+    insertOutbox(request.checkpointMutation);
+    writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + request.writes.length + 1));
     execute("COMMIT");
     return { checkpointId: request.checkpointId, transactionIds: ids };
   } catch (error) {
