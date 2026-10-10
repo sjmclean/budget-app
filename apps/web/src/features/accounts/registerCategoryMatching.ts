@@ -10,7 +10,7 @@ export function resolveRegisterTransactionCategory(input: {
   transferAccountId?: string | null;
   date?: string | null;
   incomeBudgetMonth?: string | null;
-  inflowClassification?: "income" | "category-inflow" | null;
+  inflowClassification?: "income" | "category-inflow" | "reconciliation-adjustment" | null;
 }): string {
   if (input.splitLineCount > 0) {
     return SPLIT_CATEGORY_LABEL;
@@ -18,6 +18,10 @@ export function resolveRegisterTransactionCategory(input: {
 
   if (input.transferAccountId) {
     return "Transfer";
+  }
+
+  if (input.inflowClassification === "reconciliation-adjustment" && !input.categoryId) {
+    return "Ready to Assign";
   }
 
   if (
@@ -46,10 +50,14 @@ export function resolveRegisterSplitCategory(input: {
   transferAccountId?: string | null;
   date?: string | null;
   incomeBudgetMonth?: string | null;
-  inflowClassification?: "income" | "category-inflow" | null;
+  inflowClassification?: "income" | "category-inflow" | "reconciliation-adjustment" | null;
 }): string {
   if (input.transferAccountId) {
     return "Transfer";
+  }
+
+  if (input.inflowClassification === "reconciliation-adjustment" && !input.categoryId) {
+    return "Ready to Assign";
   }
 
   if (
