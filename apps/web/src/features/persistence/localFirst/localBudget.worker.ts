@@ -2614,7 +2614,7 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
         (sum, split) => sum + (
           (
             (
-              split.(inflowClassification === "income" || inflowClassification === "reconciliation-adjustment") &&
+              (split.inflowClassification === "income" || split.inflowClassification === "reconciliation-adjustment") &&
               split.categoryId === null &&
               split.incomeBudgetMonth === firstMonth
             )
@@ -2629,7 +2629,7 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
     return total + (
       (
         (
-          transaction.(inflowClassification === "income" || inflowClassification === "reconciliation-adjustment") &&
+          (transaction.inflowClassification === "income" || transaction.inflowClassification === "reconciliation-adjustment") &&
           transaction.categoryId === null &&
           transaction.incomeBudgetMonth === firstMonth
         )
