@@ -1824,6 +1824,8 @@ export function AccountRegisterPage() {
               });
             }}
             onOpenTagManager={() => setIsTransactionTagManagerOpen(true)}
+            canReconcile={storageMode === "sqlite" && Boolean(activeBudgetId && persistenceGateway.localBudgetEngine && persistenceGateway.accountRegisterQueries)}
+            onOpenReconcile={() => setShowReconciliation(true)}
             scheduledDueCount={scheduledDueCount}
             categoryFilter={categoryFilter}
             categoriesEnabled={data.accountType !== "Tracking"}
@@ -1839,12 +1841,9 @@ export function AccountRegisterPage() {
 
           {activeRegisterView === "register" && storageMode === "sqlite" && activeBudgetId && persistenceGateway.localBudgetEngine && persistenceGateway.accountRegisterQueries ? (
             <>
-              <div style={{ padding: "6px 16px" }}>
-                <button type="button" onClick={() => setShowReconciliation((value) => !value)}
-                  aria-expanded={showReconciliation}>
-                  {showReconciliation ? "Close reconciliation" : "Reconcile account"}
-                </button>
-              </div>
+              {showReconciliation ? <div style={{ padding: "6px 16px" }}>
+                <button type="button" onClick={() => setShowReconciliation(false)}>Close reconciliation</button>
+              </div> : null}
               {showReconciliation ? (
                 <ReconciliationPanel budgetId={activeBudgetId} accountId={accountId}
                   currencyCode={data.currencyCode} commands={persistenceGateway.localBudgetEngine}
