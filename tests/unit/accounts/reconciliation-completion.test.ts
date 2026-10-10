@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { planReconciliationCompletion } from "../../../apps/web/src/features/accounts/reconciliationCompletion.ts";
+import { planReconciliationCompletion, prepareReconciliationCheckpoint } from "../../../apps/web/src/features/accounts/reconciliationCompletion.ts";
 
 const transactions = [
   { id: "old", accountId: "a", date: "2026-09-02", amount: -200, clearedStatus: "reconciled" },
@@ -64,4 +64,28 @@ test("a cleared transaction dated after the statement does not affect reconcilia
     transactions: [{ id: "later", accountId: "a", date: "2026-10-01", amount: -250, clearedStatus: "cleared" }],
   });
   assert.deepEqual(result.transactionIds, []);
+});
+
+test("checkpoint records a reconciliation plan without mutating its transaction IDs", () => {
+  const plan = planReconciliationCompletion(input);
+  const checkpoint = prepareReconciliationCheckpoint(plan, {
+    id: "checkpoint-1", budgetId: "budget-1", accountId: "a",
+    completedAt: "2026-10-10T04:00:00.000Z",
+  });
+  assert.deepEqual(checkpoint, {
+    id: "checkpoint-1", budgetId: "budget-1", accountId: "a",
+    statementDate: "2026-09-30", statementBalanceMinor: 500,
+    completedAt: "2026-10-10T04:00:00.000Z", transactionIds: ["new"],
+  });
+  assert.notEqual(checkpoint.transactionIds, plan.transactionIds);
+});
+
+test("checkpoint rejects incomplete identifiers and invalid timestamps", () => {
+  const plan = planReconciliationCompletion(input);
+  assert.throws(() => prepareReconciliationCheckpoint(plan, {
+    id: "", budgetId: "budget-1", accountId: "a", completedAt: "2026-10-10T04:00:00.000Z",
+  }), /stable identifiers/);
+  assert.throws(() => prepareReconciliationCheckpoint(plan, {
+    id: "checkpoint-1", budgetId: "budget-1", accountId: "a", completedAt: "not-a-date",
+  }), /timestamp/);
 });
