@@ -128,3 +128,22 @@ test("uncategorised inflows, outflows and transfers cannot masquerade as income"
     /Outflows and transfers/,
   );
 });
+
+test("reconciliation adjustment permits signed amounts only for Ready to Assign in statement month", () => {
+  for (const amount of [-5000, 5000]) {
+    assert.deepEqual(requireCanonicalInflowSemantics({
+      date: "2026-09-30", amount, categoryId: null,
+      incomeBudgetMonth: "2026-09", inflowClassification: "reconciliation-adjustment",
+    }), {
+      incomeBudgetMonth: "2026-09", inflowClassification: "reconciliation-adjustment",
+    });
+  }
+  assert.throws(() => requireCanonicalInflowSemantics({
+    date: "2026-09-30", amount: -5000, categoryId: "groceries",
+    incomeBudgetMonth: "2026-09", inflowClassification: "reconciliation-adjustment",
+  }), /statement month/);
+  assert.throws(() => requireCanonicalInflowSemantics({
+    date: "2026-09-30", amount: -5000,
+    incomeBudgetMonth: "2026-10", inflowClassification: "reconciliation-adjustment",
+  }), /statement month/);
+});
