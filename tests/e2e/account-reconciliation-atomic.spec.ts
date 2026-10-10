@@ -96,9 +96,9 @@ test("reconciliation completes atomically and a failed statement preserves statu
   expect(evidence.afterSuccess).toHaveLength(1);
   expect(evidence.afterSuccess[0]?.transactionIds).toEqual(evidence.success.transactionIds);
   expect(evidence.afterSuccess[0]?.statementBalanceMinor).toBe(-1234);
-  await expect(page.getByLabel("Transaction reconciled")).toBeVisible();
+  await expect(page.getByLabel("Transaction reconciled and locked")).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel("Transaction reconciled")).toBeVisible();
+  await expect(page.getByLabel("Transaction reconciled and locked")).toBeVisible();
   await page.getByRole("button", { name: "Register options" }).first().click();
   await page.getByRole("menuitem", { name: "Reconcile", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Reconcile account" })).toBeVisible();
