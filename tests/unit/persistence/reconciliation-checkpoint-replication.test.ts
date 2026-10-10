@@ -25,7 +25,11 @@ test("reconciliation checkpoint and transaction writes share the same atomic SQL
   assert.ok(start >= 0 && end > start);
   const completion = worker.slice(start, end);
   assert.match(completion, /execute\("BEGIN IMMEDIATE"\)/);
-  assert.match(completion, /applyTransactionBatchInCurrentTransaction\(request\.writes, \[\], true, true\)/);
+  assert.match(completion, /UPDATE local_transactions SET cleared_status = 'reconciled', updated_at = \\?/);
+  assert.match(completion, /date <= \\? AND cleared_status = 'cleared'/);
+  assert.match(completion, /updatedCount !== request\\.writes\\.length/);
+  assert.match(completion, /for \\(const \\{ mutation \\} of request\\.writes\\) insertOutbox\\(mutation\\)/);
+  assert.doesNotMatch(completion, /applyTransactionBatchInCurrentTransaction/);
   assert.match(completion, /INSERT INTO local_reconciliation_checkpoints/);
   assert.match(completion, /insertOutbox\(request\.checkpointMutation\)/);
   assert.match(completion, /execute\("COMMIT"\)/);
