@@ -3803,8 +3803,13 @@ function prepareReconciliation(request: Extract<LocalBudgetWorkerRequest, { type
       AND date <= ? AND cleared_status = 'cleared' ORDER BY date, id`,
     [request.budgetId, request.accountId, request.statementDate],
   );
+  const clearedAmounts = resultRows<{ amount: number }>(
+    "SELECT amount FROM local_transactions WHERE budget_id = ? AND account_id = ? AND date <= ? AND cleared_status IN ('cleared','reconciled')",
+    [request.budgetId, request.accountId, request.statementDate],
+  );
   return {
     openingBalanceMinor: account.openingBalance,
+    clearedBalanceMinor: clearedAmounts.reduce((total, row) => total + row.amount, account.openingBalance),
     transactions: rows.map(({ id }) => {
       const record = getPersistedTransactionForVerification(request.budgetId, id);
       if (!record) throw workerError("RECONCILIATION_STALE", "A transaction disappeared.");
