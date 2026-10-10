@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("reconciliation completes atomically and a failed statement preserves statuses and checkpoints", async ({ page }) => {
+test("reconciliation completes atomically and a failed statement preserves statuses and checkpoints", async ({ page, browser }) => {
   if (process.env.BUDGET_APP_E2E_ISOLATED_PORTS === "1") test.setTimeout(180_000);
   await page.goto("/");
   const authenticationHeading = page.getByRole("heading", { name: /Create the administrator account|Sign in/ });
@@ -142,4 +142,51 @@ test("reconciliation completes atomically and a failed statement preserves statu
   expect(adjustmentCheckpoint?.statementBalanceMinor).toBe(-1000);
   expect(adjustmentCheckpoint?.transactionIds).toHaveLength(1);
   expect(adjustmentCheckpoint?.transactionIds[0]).not.toBe(evidence.success.transactionIds[0]);
+
+  // An isolated browser context has its own OPFS database and local-first device identity.
+  // It must receive the reconciled transaction and checkpoint through the relay rather than
+  // observing the first browser's local SQLite state.
+  const otherDevice = await browser.newContext();
+  try {
+    const otherPage = await otherDevice.newPage();
+    const auth = await otherPage.request.get("/api/auth/status");
+    const status = await auth.json() as { needsSetup: boolean; authenticated: boolean };
+    if (!status.authenticated) {
+      const result = await otherPage.request.post(status.needsSetup ? "/api/auth/setup" : "/api/auth/login", {
+        data: { email: "e2e-admin@example.test", password: "E2E-only-password-2026!" },
+      });
+      expect(result.ok()).toBe(true);
+    }
+    await otherPage.goto("/");
+    await expect(otherPage.getByRole("heading", { name: "Budget Manager" })).toBeVisible();
+    await otherPage.getByRole("button", { name: "Open Reconciliation Atomic E2E" }).click();
+    await expect(otherPage).toHaveURL(/\/dashboard$/);
+    await otherPage.getByRole("link", { name: /^Reconciliation Checking/ }).click();
+    await expect(otherPage).toHaveURL(/\/accounts\//);
+
+    await expect.poll(async () => otherPage.evaluate(async (accountId) => {
+      const { getBudgetPersistenceProvider } = await import("/src/features/persistence/budgetPersistenceProviderFactory.ts");
+      const { useUIStore } = await import("/src/stores/uiStore.ts");
+      const budgetId = useUIStore.getState().selectedBudgetId;
+      const provider = getBudgetPersistenceProvider();
+      if (!budgetId || !provider.accountRegisterQueries) return null;
+      const checkpoints = await provider.accountRegisterQueries.listReconciliationCheckpoints({ budgetId, accountId });
+      const register = await provider.accountRegisterQueries.getAccountRegisterBootstrap({ budgetId, accountId, limit: 150 });
+      return {
+        checkpoints: checkpoints.map(({ id, statementBalanceMinor, transactionIds }) => ({ id, statementBalanceMinor, transactionIds })),
+        reconciled: register.page.rows.filter((row) => row.clearedStatus === "reconciled")
+          .map(({ id }) => id).sort(),
+      };
+    }, accountId), { timeout: 30000, intervals: [500, 1000, 2000] }).toEqual({
+      checkpoints: expect.arrayContaining([
+        expect.objectContaining({ id: evidence.success.checkpointId, statementBalanceMinor: -1234,
+          transactionIds: evidence.success.transactionIds }),
+        expect.objectContaining({ id: adjustmentCheckpoint!.id, statementBalanceMinor: -1000,
+          transactionIds: adjustmentCheckpoint!.transactionIds }),
+      ]),
+      reconciled: [...evidence.success.transactionIds, ...adjustmentCheckpoint!.transactionIds].sort(),
+    });
+  } finally {
+    await otherDevice.close();
+  }
 });
