@@ -93,7 +93,7 @@ export function ReconciliationPanel({
                 <input aria-label="Adjustment memo" value={adjustmentMemo}
                   onChange={(event) => setAdjustmentMemo(event.target.value)} />
               </label>
-              <p>Confirm a {difference > 0 ? "deposit" : "withdrawal"} of <strong>{currency(Math.abs(difference))}</strong> dated {statementDate}. It will be saved as a separate, cleared Ready to Assign adjustment for the statement month, which may make Ready to Assign negative.</p>
+              <p>Confirm a {difference > 0 ? "deposit" : "withdrawal"} of <strong>{currency(Math.abs(difference))}</strong> dated {statementDate}. It will be saved as a separate, cleared Uncategorised transaction. Choose a category in the register before finishing reconciliation if you want to categorise it.</p>
               <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" disabled={busy || !adjustmentMemo.trim()} onClick={async () => {
                   if (difference === null || !Number.isSafeInteger(difference)) return;
@@ -110,7 +110,6 @@ export function ReconciliationPanel({
                     await commands.addTransaction({
                       id, budgetId, accountId, date: statementDate,
                       amount: difference, payeeName: "Balance Adjustment",
-                      incomeBudgetMonth: statementDate.slice(0, 7), inflowClassification: "reconciliation-adjustment",
                       memo: adjustmentMemo.trim(),
                     });
                     await commands.setTransactionsCleared({ budgetId, transactionIds: [id], cleared: true });
