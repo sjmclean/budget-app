@@ -66,6 +66,10 @@ export function requireCanonicalInflowSemantics(
     return { incomeBudgetMonth, inflowClassification: classification };
   }
 
+  if (input.amount <= 0 && classification === "income" && !categoryId && !transferAccountId && incomeBudgetMonth === transactionMonth(input.date)) {
+    return { incomeBudgetMonth, inflowClassification: "income" };
+  }
+
   if (input.amount <= 0 || transferAccountId) {
     if (incomeBudgetMonth || classification) {
       throw new Error(
