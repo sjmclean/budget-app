@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { LocalBudgetRuntimeClient } from "../../persistence/accountRegisterQueryContracts";
 
 type ReconciliationPreview = Pick<LocalBudgetRuntimeClient, "previewReconciliation">;
-type ReconciliationCommand = Pick<LocalBudgetRuntimeClient, "completeReconciliation">;
+type ReconciliationCommand = Pick<LocalBudgetRuntimeClient, "completeReconciliation" | "addTransaction" | "setTransactionsCleared">;
 
 export function ReconciliationPanel({
   budgetId, accountId, currencyCode, queries, commands, onComplete,
@@ -20,11 +20,14 @@ export function ReconciliationPanel({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [finished, setFinished] = useState(false);
+  const [showAdjustmentConfirmation, setShowAdjustmentConfirmation] = useState(false);
+  const [adjustmentMemo, setAdjustmentMemo] = useState("Statement balance adjustment");
 
   useEffect(() => {
     let stale = false;
     setPreview(null);
     setFinished(false);
+    setShowAdjustmentConfirmation(false);
     setError("");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(statementDate)) return;
     void queries.previewReconciliation({ budgetId, accountId, statementDate }).then((result) => {
@@ -53,7 +56,7 @@ export function ReconciliationPanel({
         </label>
         <label>Statement closing balance{" "}
           <input aria-label="Statement closing balance" inputMode="decimal" placeholder="0.00" value={balanceText}
-            onChange={(event) => { setBalanceText(event.target.value); setFinished(false); }} />
+            onChange={(event) => { setBalanceText(event.target.value); setFinished(false); setShowAdjustmentConfirmation(false); }} />
         </label>
       </div>
       {preview ? (
@@ -65,6 +68,54 @@ export function ReconciliationPanel({
       ) : <span className="muted">Loading statement-date balance…</span>}
       {error ? <p role="alert">{error}</p> : null}
       {finished ? <p role="status">Reconciliation completed and checkpoint saved.</p> : null}
+      {difference !== null && difference !== 0 && (
+        <div style={{ display: "grid", gap: 8 }}>
+          <p className="muted">Check for missing or incorrectly cleared transactions first. If the statement is correct, you may explicitly create an adjustment transaction for {currency(difference)}. This changes your account balance and is not performed automatically.</p>
+          {!showAdjustmentConfirmation ? (
+            <button type="button" disabled={busy} onClick={() => setShowAdjustmentConfirmation(true)}>
+              Create balance adjustment…
+            </button>
+          ) : (
+            <div style={{ display: "grid", gap: 8 }}>
+              <label>Adjustment memo{" "}
+                <input aria-label="Adjustment memo" value={adjustmentMemo}
+                  onChange={(event) => setAdjustmentMemo(event.target.value)} />
+              </label>
+              <p>Confirm a {difference > 0 ? "deposit" : "withdrawal"} of <strong>{currency(Math.abs(difference))}</strong> dated {statementDate}. It will be saved as a separate, cleared transaction.</p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" disabled={busy || !adjustmentMemo.trim()} onClick={async () => {
+                  if (difference === null || !Number.isSafeInteger(difference)) return;
+                  setBusy(true);
+                  setError("");
+                  try {
+                    const fresh = await queries.previewReconciliation({ budgetId, accountId, statementDate });
+                    if (statementBalanceMinor === null || statementBalanceMinor - fresh.clearedBalanceMinor !== difference) {
+                      setPreview(fresh);
+                      setShowAdjustmentConfirmation(false);
+                      throw new Error("The cleared balance changed. Review the new difference before adjusting.");
+                    }
+                    const id = crypto.randomUUID();
+                    await commands.addTransaction({
+                      id, budgetId, accountId, date: statementDate,
+                      amount: difference / 100, payeeName: "Balance Adjustment",
+                      memo: adjustmentMemo.trim(),
+                    });
+                    await commands.setTransactionsCleared({ budgetId, transactionIds: [id], cleared: true });
+                    setPreview(await queries.previewReconciliation({ budgetId, accountId, statementDate }));
+                    setShowAdjustmentConfirmation(false);
+                  } catch (reason) {
+                    setError(String(reason));
+                    void queries.previewReconciliation({ budgetId, accountId, statementDate }).then(setPreview).catch(() => undefined);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}>Confirm adjustment</button>
+                <button type="button" disabled={busy} onClick={() => setShowAdjustmentConfirmation(false)}>Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       <div>
         <button type="button" disabled={busy || !preview || difference !== 0 || !statementDate}
           onClick={async () => {
