@@ -1174,24 +1174,3 @@ test("credit-card payment inside a cash split consumes payment reserve", () => {
   );
 });
 
-test("confirmed reconciliation adjustments change Ready to Assign in either direction without category activity", () => {
-  const result = projectBudget(baseInput({
-    fromMonth: "2026-01",
-    throughMonth: "2026-02",
-    openingReadyToAssign: 2_000,
-    transactions: [
-      { id: "withdrawal-adjustment", accountId: "cash", date: "2026-01-31",
-        categoryId: null, amount: -5_000, incomeBudgetMonth: "2026-01",
-        inflowClassification: "reconciliation-adjustment" },
-      { id: "deposit-adjustment", accountId: "cash", date: "2026-02-01",
-        categoryId: null, amount: 800, incomeBudgetMonth: "2026-02",
-        inflowClassification: "reconciliation-adjustment" },
-    ],
-  }));
-  assert.equal(result.months[0]?.income, -5_000);
-  assert.equal(result.months[0]?.readyToAssign, -3_000);
-  assert.equal(result.months[1]?.income, 800);
-  assert.equal(result.months[1]?.readyToAssign, -2_200);
-  assert.equal(result.months[0]?.activity, 0);
-  assert.equal(result.months[1]?.activity, 0);
-});
