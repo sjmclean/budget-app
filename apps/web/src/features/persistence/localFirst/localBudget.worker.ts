@@ -6770,13 +6770,13 @@ async function handleWithRegisterDelta(request: LocalBudgetWorkerRequest): Promi
   if (request.type === "writeImportBatch") {
     const accountIds = new Set(plan.knownAccountIds);
     for (const { transaction } of request.writes) accountIds.add(transaction.accountId);
-    for (const { accountId } of registerAccountIdsForRoots(plan.budgetId, plan.rootIds)) {
+    for (const accountId of registerAccountIdsForRoots(plan.budgetId, plan.rootIds)) {
       accountIds.add(accountId);
     }
     latestImportDeltaBeforeMs = performance.now() - deltaStartedAt;
     const result = await handle(request);
     const afterStartedAt = performance.now();
-    for (const { accountId } of registerAccountIdsForRoots(plan.budgetId, plan.rootIds)) {
+    for (const accountId of registerAccountIdsForRoots(plan.budgetId, plan.rootIds)) {
       accountIds.add(accountId);
     }
     latestImportDeltaAfterMs = performance.now() - afterStartedAt;
