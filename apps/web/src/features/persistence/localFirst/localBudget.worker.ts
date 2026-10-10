@@ -3738,6 +3738,30 @@ function applyTransactionBatchInCurrentTransaction(
  * transitions participate in existing replication. Checkpoints are local until
  * reconciliation history is added to the replicated domain model.
  */
+function prepareReconciliation(request: Extract<LocalBudgetWorkerRequest, { type: "prepareReconciliation" }>) {
+  if (request.budgetId !== activeBudgetId) {
+    throw workerError("BUDGET_SCOPE_MISMATCH", "The reconciliation belongs to another budget.");
+  }
+  const account = resultRows<{ openingBalance: number }>(
+    "SELECT opening_balance AS openingBalance FROM local_accounts WHERE budget_id = ? AND id = ?",
+    [request.budgetId, request.accountId],
+  )[0];
+  if (!account) throw workerError("ACCOUNT_NOT_FOUND", "The reconciliation account was not found.");
+  const rows = resultRows<{ id: string }>(
+    `SELECT id FROM local_transactions WHERE budget_id = ? AND account_id = ?
+      AND date <= ? AND cleared_status = 'cleared' ORDER BY date, id`,
+    [request.budgetId, request.accountId, request.statementDate],
+  );
+  return {
+    openingBalanceMinor: account.openingBalance,
+    transactions: rows.map(({ id }) => {
+      const record = getPersistedTransactionForVerification(request.budgetId, id);
+      if (!record) throw workerError("RECONCILIATION_STALE", "A transaction disappeared.");
+      return record;
+    }),
+  };
+}
+
 function completeReconciliation(request: Extract<LocalBudgetWorkerRequest, { type: "completeReconciliation" }>) {
   if (request.budgetId !== activeBudgetId || !request.accountId || !request.checkpointId) {
     throw workerError("BUDGET_SCOPE_MISMATCH", "Invalid reconciliation budget or account.");
@@ -6564,6 +6588,8 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       return getBudgetProjectionDiagnostic(request.budgetId, request.month);
     case "writeTransaction":
       return writeTransaction(request.transaction, request.mutation, request.resolveConflictId);
+    case "prepareReconciliation":
+      return prepareReconciliation(request);
     case "completeReconciliation":
       return completeReconciliation(request);
     case "writeTransactionBatch":
