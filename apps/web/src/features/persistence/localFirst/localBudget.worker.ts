@@ -4317,7 +4317,8 @@ function replaceImportHistorySnapshot(
   execute("BEGIN IMMEDIATE");
   try {
  
-    assertHistoryDoesNotModifyReconciled([...expected.transactions.transactions, ...replacement.transactions.transactions].map(({ id }) => id));   const current = captureImportHistorySnapshot(activeBudgetId!, expected.transactionIds, expected.payeeIds);
+    assertHistoryDoesNotModifyReconciled([...expected.transactions.transactions, ...replacement.transactions.transactions].map(({ id }) => id));
+    const current = captureImportHistorySnapshot(activeBudgetId!, expected.transactionIds, expected.payeeIds);
     if (!importHistorySnapshotsEqual(current, expected)) {
       throw workerError("IMPORT_HISTORY_CONFLICT", "Current import-owned state no longer matches the expected snapshot.");
     }
@@ -4492,7 +4493,8 @@ function deleteTransactionHistorySnapshot(
   execute("BEGIN IMMEDIATE");
   try {
  
-    assertHistoryDoesNotModifyReconciled(snapshot.transactions.map(({ id }) => id));   const current = captureTransactionHistorySnapshots(snapshot.budgetId, snapshot.transactions.map(({ id }) => id));
+    assertHistoryDoesNotModifyReconciled(snapshot.transactions.map(({ id }) => id));
+    const current = captureTransactionHistorySnapshots(snapshot.budgetId, snapshot.transactions.map(({ id }) => id));
     if (!transactionHistorySnapshotsEqual(current, snapshot)) {
       throw workerError("TRANSACTION_HISTORY_CONFLICT", "Persisted transaction graph no longer matches its snapshot.");
     }
@@ -4524,7 +4526,8 @@ function replaceTransactionHistorySnapshot(
   execute("BEGIN IMMEDIATE");
   try {
  
-    assertHistoryDoesNotModifyReconciled([...expected.transactions, ...replacement.transactions].map(({ id }) => id));   const current = captureTransactionHistorySnapshots(
+    assertHistoryDoesNotModifyReconciled([...expected.transactions, ...replacement.transactions].map(({ id }) => id));
+    const current = captureTransactionHistorySnapshots(
       expected.budgetId,
       expected.transactions.map(({ id }) => id),
     );
