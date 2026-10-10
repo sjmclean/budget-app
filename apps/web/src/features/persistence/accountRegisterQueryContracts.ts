@@ -231,6 +231,18 @@ export interface LocalBudgetRuntimeClient extends AccountRegisterQueryPort {
     input: TransactionTarget,
   ): Promise<void>;
 
+  listReconciliationCheckpoints(input: {
+    readonly budgetId: string;
+    readonly accountId: string;
+  }): Promise<readonly {
+    readonly id: string;
+    readonly accountId: string;
+    readonly statementDate: string;
+    readonly statementBalanceMinor: number;
+    readonly completedAt: string;
+    readonly transactionIds: readonly string[];
+  }[]>;
+
   completeReconciliation(input: {
     readonly budgetId: string;
     readonly accountId: string;
