@@ -58,7 +58,7 @@ test("reconciliation completes atomically and a failed statement preserves statu
       mismatchRejected,
       beforeCount: before.length,
       afterMismatchCount: afterMismatch.length,
-      clearedBeforeCompletion: beforeSuccess.rows.some((row) => row.clearedStatus === "cleared"),
+      clearedBeforeCompletion: beforeSuccess.page.rows.some((row) => row.clearedStatus === "cleared"),
       success,
       afterSuccess,
     };
