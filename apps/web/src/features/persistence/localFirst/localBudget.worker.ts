@@ -6787,15 +6787,27 @@ async function handleWithRegisterDelta(request: LocalBudgetWorkerRequest): Promi
 let requestTail: Promise<unknown> = Promise.resolve();
 self.onmessage = (event: MessageEvent<LocalBudgetWorkerRequest>) => {
   const request = event.data;
-  const operation = requestTail.then(() => handleWithRegisterDelta(request));
+  const receivedAt = request.type === "writeImportBatch" ? performance.now() : null;
+  const operation = requestTail.then(async () => {
+    const startedAt = receivedAt === null ? null : performance.now();
+    const value = await handleWithRegisterDelta(request);
+    const finishedAt = startedAt === null ? null : performance.now();
+    return {
+      ...value,
+      importTiming: receivedAt === null || startedAt === null || finishedAt === null
+        ? undefined
+        : { queueMs: startedAt - receivedAt, workerMs: finishedAt - startedAt },
+    };
+  });
   requestTail = operation.catch(() => undefined);
   void operation.then(
-    ({ result, registerDelta }) => {
+    ({ result, registerDelta, importTiming }) => {
       const response: LocalBudgetWorkerResponse = {
         requestId: request.requestId,
         ok: true,
         result,
         registerDelta,
+        importTiming,
       };
       if (result instanceof Uint8Array && result.buffer instanceof ArrayBuffer) {
         self.postMessage(response, { transfer: [result.buffer] });
