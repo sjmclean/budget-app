@@ -24,6 +24,7 @@ export function ReconciliationPanel({
   const [busy, setBusy] = useState(false);
   const [finished, setFinished] = useState(false);
   const [showAdjustmentConfirmation, setShowAdjustmentConfirmation] = useState(false);
+  const [showTransactionInfo, setShowTransactionInfo] = useState(false);
   const [adjustmentMemo, setAdjustmentMemo] = useState("Statement balance adjustment");
   const [adjustmentCategoryId, setAdjustmentCategoryId] = useState("");
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -88,12 +89,18 @@ export function ReconciliationPanel({
             <strong>Difference</strong>
             <strong style={{ fontSize: "1.25rem", fontVariantNumeric: "tabular-nums" }}>{difference !== null ? currency(difference) : "—"}</strong>
           </div>
-          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12, display: "grid", gap: 4 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-              <span>Cleared transactions awaiting reconciliation</span>
-              <strong style={{ fontVariantNumeric: "tabular-nums" }}>{preview.eligibleTransactionCount.toLocaleString()}</strong>
-            </div>
-            <small className="muted">Includes all cleared, not-yet-reconciled transactions dated on or before the statement date. This is not the number of discrepancies.</small>
+          <div style={{ display: "flex", justifyContent: "flex-end", position: "relative" }}>
+            <button type="button" aria-label="About transactions to reconcile" aria-expanded={showTransactionInfo}
+              title="Transactions to reconcile" onClick={() => setShowTransactionInfo((value) => !value)}
+              style={{ border: "1px solid var(--border)", borderRadius: "50%", width: 26, height: 26, padding: 0, cursor: "pointer", fontWeight: 700, fontSize: 14 }}>
+              i
+            </button>
+            {showTransactionInfo ? (
+              <div role="note" style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", zIndex: 1, width: "min(300px, 75vw)", border: "1px solid var(--border)", borderRadius: 8, padding: 12, background: "var(--surface)", boxShadow: "0 8px 20px rgba(0,0,0,0.15)", fontSize: "0.875rem" }}>
+                <strong>{preview.eligibleTransactionCount.toLocaleString()} transactions to reconcile</strong>
+                <p style={{ margin: "6px 0 0" }}>Cleared, not-yet-reconciled transactions dated on or before the statement date. This is not the number of discrepancies.</p>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : <span className="muted">Loading statement-date balance…</span>}
