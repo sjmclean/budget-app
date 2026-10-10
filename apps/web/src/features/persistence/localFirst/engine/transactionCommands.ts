@@ -189,16 +189,30 @@ export function createTransactionCommands(
       }));
       const mutations = records.map((record) =>
         dependencies.createMutation(input.budgetId, "transactions", record.id, "upsert", record));
+      const checkpointMutation = dependencies.createMutation(
+        input.budgetId, "transactions", `reconciliation:${checkpointId}`, "upsert",
+        {
+          kind: "reconciliation-checkpoint",
+          id: checkpointId,
+          budgetId: input.budgetId,
+          accountId: input.accountId,
+          statementDate: input.statementDate,
+          statementBalanceMinor: input.statementBalanceMinor,
+          completedAt: now,
+          transactionIds: records.map(({ id }) => id),
+        },
+      );
       const result = await local.completeReconciliation({
         ...input,
         checkpointId,
         completedAt: now,
+        checkpointMutation,
         writes: records.map((transaction, index) => ({
           transaction,
           mutation: mutations[index]!,
         })),
       });
-      return committedCommandResult(result, mutations,
+      return committedCommandResult(result, [...mutations, checkpointMutation],
         deriveTransactionChangeScope({
           budgetId: input.budgetId,
           before: snapshot.transactions,
