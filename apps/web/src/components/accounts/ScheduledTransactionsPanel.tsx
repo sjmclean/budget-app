@@ -1634,7 +1634,7 @@ function draftFromScheduled(transaction: ScheduledTransactionView): ScheduledFor
     category: transaction.category,
     categoryId: transaction.categoryId,
     incomeBudgetMonthOffset: transaction.incomeBudgetMonthOffset,
-    inflowClassification: transaction.inflowClassification === "reconciliation-adjustment" ? undefined : transaction.inflowClassification,
+    inflowClassification: transaction.inflowClassification,
     memo: transaction.memo ?? "",
     outflow: transaction.outflow ? transaction.outflow.toFixed(2) : "",
     inflow: transaction.inflow ? transaction.inflow.toFixed(2) : "",
