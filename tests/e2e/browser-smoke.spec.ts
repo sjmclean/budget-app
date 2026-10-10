@@ -53,7 +53,7 @@ test("real authentication, OPFS budget lifecycle, routing, and SQLite mutation s
   await expect(page.evaluate(() => globalThis.crossOriginIsolated)).resolves.toBe(true);
   await expect(page.evaluate(() => "getDirectory" in navigator.storage)).resolves.toBe(true);
 
-  await page.getByRole("button", { name: "New Budget", exact: true }).click();
+  await page.getByRole("button", { name: /^(?:\+ )?New Budget$/ }).click();
   await page.getByLabel("Budget name").fill(budgetName);
   await page.getByRole("button", { name: "Create budget", exact: true }).click();
 
