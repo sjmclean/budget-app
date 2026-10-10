@@ -137,6 +137,11 @@ export class LocalBudgetDatabaseClient {
       const pending = this.#pending.get(response.requestId);
       if (!pending) return;
       this.#pending.delete(response.requestId);
+      if (response.ok && response.importTiming) {
+        globalThis.performance?.mark?.("budget-app:import-worker:timing", {
+          detail: response.importTiming,
+        });
+      }
       if (response.ok) {
         pending.resolve(response.result, response.registerDelta);
       } else {
