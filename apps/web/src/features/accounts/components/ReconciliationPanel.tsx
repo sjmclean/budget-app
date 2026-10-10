@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { LocalBudgetRuntimeClient } from "../../persistence/accountRegisterQueryContracts";
 
-type ReconciliationPreview = Pick<LocalBudgetRuntimeClient, "previewReconciliation">;
+type ReconciliationPreview = Pick<LocalBudgetRuntimeClient, "previewReconciliation" | "getBudgetCategoryOptions">;
 type ReconciliationCommand = Pick<LocalBudgetRuntimeClient, "completeReconciliation" | "addTransaction" | "setTransactionsCleared">;
 
 export function ReconciliationPanel({
-  budgetId, accountId, currencyCode, queries, commands, onComplete,
+  budgetId, accountId, currencyCode, queries, commands, onComplete, onClose,
 }: {
   budgetId: string;
   accountId: string;
@@ -13,6 +13,7 @@ export function ReconciliationPanel({
   queries: ReconciliationPreview;
   commands: ReconciliationCommand;
   onComplete?: () => void;
+  onClose: () => void;
 }) {
   const [statementDate, setStatementDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [balanceText, setBalanceText] = useState("");
@@ -22,6 +23,30 @@ export function ReconciliationPanel({
   const [finished, setFinished] = useState(false);
   const [showAdjustmentConfirmation, setShowAdjustmentConfirmation] = useState(false);
   const [adjustmentMemo, setAdjustmentMemo] = useState("Statement balance adjustment");
+  const [categoryId, setCategoryId] = useState("");
+  const [categories, setCategories] = useState<readonly { id: string; name: string; groupName: string }[]>([]);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    dialogRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose, busy]);
+
+  useEffect(() => {
+    let stale = false;
+    void queries.getBudgetCategoryOptions({ budgetId, month: statementDate.slice(0, 7) }).then((options) => {
+      if (stale) return;
+      const available = options.filter((option) => !option.isArchived);
+      setCategories(available);
+      setCategoryId((current) => current && available.some((option) => option.id === current)
+        ? current : available.find((option) => /^balance adjustments?$/i.test(option.name))?.id ?? "");
+    }).catch((reason: unknown) => { if (!stale) setError(String(reason)); });
+    return () => { stale = true; };
+  }, [queries, budgetId, statementDate]);
 
   useEffect(() => {
     let stale = false;
@@ -47,8 +72,9 @@ export function ReconciliationPanel({
   }).format(minor / 100);
 
   return (
-    <section aria-label="Reconcile account" style={{ padding: "12px 16px", display: "grid", gap: 10 }}>
-      <strong>Reconcile account</strong>
+    <div role="presentation" style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.55)", display: "grid", placeItems: "center", padding: 16 }}>
+    <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Reconcile account" style={{ background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 12, boxShadow: "0 24px 70px rgba(0,0,0,0.35)", padding: 24, width: "min(100%, 580px)", maxHeight: "90vh", overflowY: "auto", display: "grid", gap: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}><strong>Reconcile account</strong><button type="button" aria-label="Close reconciliation" disabled={busy} onClick={onClose}>✕</button></div>
       <p className="muted">Enter the closing balance and date shown on your bank statement. Clear transactions in the register until the difference is zero.</p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
         <label>Statement date{" "}
@@ -77,13 +103,19 @@ export function ReconciliationPanel({
             </button>
           ) : (
             <div style={{ display: "grid", gap: 8 }}>
+              <label>Adjustment category{" "}
+                <select aria-label="Adjustment category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
+                  <option value="">Select category…</option>
+                  {categories.map((category) => <option key={category.id} value={category.id}>{category.groupName} / {category.name}</option>)}
+                </select>
+              </label>
               <label>Adjustment memo{" "}
                 <input aria-label="Adjustment memo" value={adjustmentMemo}
                   onChange={(event) => setAdjustmentMemo(event.target.value)} />
               </label>
-              <p>Confirm a {difference > 0 ? "deposit" : "withdrawal"} of <strong>{currency(Math.abs(difference))}</strong> dated {statementDate}. It will be saved as a separate, cleared transaction.</p>
+              <p>Confirm a {difference > 0 ? "deposit" : "withdrawal"} of <strong>{currency(Math.abs(difference))}</strong> dated {statementDate}. It will be saved as a separate, cleared, categorised transaction.</p>
               <div style={{ display: "flex", gap: 8 }}>
-                <button type="button" disabled={busy || !adjustmentMemo.trim()} onClick={async () => {
+                <button type="button" disabled={busy || !adjustmentMemo.trim() || !categoryId} onClick={async () => {
                   if (difference === null || !Number.isSafeInteger(difference)) return;
                   setBusy(true);
                   setError("");
@@ -97,7 +129,7 @@ export function ReconciliationPanel({
                     const id = crypto.randomUUID();
                     await commands.addTransaction({
                       id, budgetId, accountId, date: statementDate,
-                      amount: difference, payeeName: "Balance Adjustment",
+                      amount: difference, payeeName: "Balance Adjustment", categoryId,
                       memo: adjustmentMemo.trim(),
                     });
                     await commands.setTransactionsCleared({ budgetId, transactionIds: [id], cleared: true });
@@ -138,5 +170,6 @@ export function ReconciliationPanel({
         </button>
       </div>
     </section>
+    </div>
   );
 }
