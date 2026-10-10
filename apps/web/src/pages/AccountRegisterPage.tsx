@@ -1843,7 +1843,7 @@ export function AccountRegisterPage() {
             <>
               {showReconciliation ? (
                 <ReconciliationPanel budgetId={activeBudgetId} accountId={accountId}
-                  currencyCode={data.currencyCode} commands={persistenceGateway.localBudgetEngine}
+                  currencyCode={data.currencyCode} categoryOptions={categoryOptions} commands={persistenceGateway.localBudgetEngine}
                   queries={persistenceGateway.accountRegisterQueries}
                   onComplete={() => setShowReconciliation(false)}
                   onClose={() => setShowReconciliation(false)} />
