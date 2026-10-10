@@ -110,6 +110,10 @@ test("reconciliation completes atomically and a failed statement preserves statu
   await expect(page.getByRole("button", { name: "Finish reconciliation" })).toBeDisabled();
   await page.getByRole("button", { name: "Create balance adjustment…" }).click();
   await expect(page.getByText(/Confirm a deposit of/)).toBeVisible();
+  const categorySelect = page.getByLabel("Adjustment category");
+  const categoryChoices = await categorySelect.locator("option").evaluateAll((options) => options.map((option) => (option as HTMLOptionElement).value).filter(Boolean));
+  expect(categoryChoices.length).toBeGreaterThan(0);
+  await categorySelect.selectOption(categoryChoices[0]!);
   await page.getByRole("button", { name: "Confirm adjustment" }).click();
   await expect(page.getByRole("button", { name: "Finish reconciliation" })).toBeEnabled();
   const adjusted = await page.evaluate(async (accountId) => {
@@ -120,9 +124,9 @@ test("reconciliation completes atomically and a failed statement preserves statu
     if (!budgetId || !engine) throw new Error("Budget query client unavailable.");
     const result = await engine.getAccountRegisterBootstrap({ budgetId, accountId, limit: 150 });
     return result.page.rows.filter((row) => row.payeeName === "Balance Adjustment")
-      .map(({ amount, clearedStatus }) => ({ amount, clearedStatus }));
+      .map(({ amount, clearedStatus, categoryId }) => ({ amount, clearedStatus, categoryId }));
   }, accountId);
-  expect(adjusted).toEqual([{ amount: 234, clearedStatus: "cleared" }]);
+  expect(adjusted).toEqual([{ amount: 234, clearedStatus: "cleared", categoryId: categoryChoices[0] }]);
   await page.getByRole("button", { name: "Finish reconciliation" }).click();
   await expect(page.getByRole("button", { name: "Register options" }).first()).toBeVisible();
   await expect(page.getByRole("region", { name: "Reconcile account" })).toHaveCount(0);
