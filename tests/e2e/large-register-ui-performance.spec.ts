@@ -77,6 +77,7 @@ test("measures real Register navigation, paging and interaction with 5000 transa
     stateToCommitMs: number | null;
     commitToFrameMs: number | null;
     monthIdReloads: number;
+    rowsRenderMs: number | null;
   }[] = [];
   for (let index = 0; index < 5; index += 1) {
     await page.evaluate(() => performance.clearMarks());
@@ -102,10 +103,14 @@ test("measures real Register navigation, paging and interaction with 5000 transa
       const databaseEnd = withinQuery("database:end").at(-1)?.startTime;
       const workerStart = withinQuery("worker:start").at(-1)?.startTime;
       const workerEnd = withinQuery("worker:end").at(-1)?.startTime;
+      const rowsRenderMark = marks.filter((mark) => mark.name === "budget-app:register-rows:render").at(-1);
+      const rowsRenderMs = typeof rowsRenderMark?.detail?.actualDuration === "number"
+        ? Math.round(rowsRenderMark.detail.actualDuration * 100) / 100 : null;
       const stateSet = last("state-set");
       const committed = last("committed");
       const frame = last("frame");
       return {
+        rowsRenderMs,
         fetchMs: fetchStart === undefined || fetchEnd === undefined
           ? null : Math.round((fetchEnd - fetchStart) * 100) / 100,
         readinessMs: readinessStart === undefined || readinessEnd === undefined
