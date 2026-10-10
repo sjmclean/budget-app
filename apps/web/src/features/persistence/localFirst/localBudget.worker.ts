@@ -277,62 +277,6 @@ function upsertTransactionAttachment(
   );
 }
 
-/**
- * SQLite cannot ALTER a CHECK constraint. Rebuild only the two affected tables
- * while foreign keys are temporarily disabled, preserving rows, indexes and
- * triggers. The whole migration rolls back on failure.
- */
-function migrateReconciliationClassificationConstraint(): void {
-  const tables = ["local_transactions", "local_transaction_splits"] as const;
-  const oldConstraint = "inflow_classification IN ('income', 'category-inflow')";
-  const replacements = tables.flatMap((name) => {
-    const ddl = resultRows<{ sql: string }>(
-      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
-      [name],
-    )[0]?.sql;
-    return ddl?.includes(oldConstraint) ? [{ name, ddl }] : [];
-  });
-  if (replacements.length === 0) return;
-
-  execute("PRAGMA foreign_keys = OFF");
-  let inTransaction = false;
-  try {
-    execute("BEGIN IMMEDIATE");
-    inTransaction = true;
-    for (const { name, ddl } of replacements) {
-      const temp = `__reconciliation_migration_${name}`;
-      const columnDefinitions = ddl.slice(ddl.indexOf("("));
-      const updatedDefinitions = columnDefinitions.replaceAll(
-        oldConstraint,
-        "inflow_classification IN ('income', 'category-inflow', 'reconciliation-adjustment')",
-      );
-      const columns = resultRows<{ name: string }>(
-        `PRAGMA table_info("${name}")`,
-      ).map((row) => `"${row.name.replaceAll('"', '""')}"`).join(", ");
-      const dependentSql = resultRows<{ sql: string }>(
-        `SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type IN ('index', 'trigger') AND sql IS NOT NULL`,
-        [name],
-      ).map((row) => row.sql);
-      execute(`CREATE TABLE "${temp}" ${updatedDefinitions}`);
-      execute(`INSERT INTO "${temp}" (${columns}) SELECT ${columns} FROM "${name}"`);
-      execute(`DROP TABLE "${name}"`);
-      execute(`ALTER TABLE "${temp}" RENAME TO "${name}"`);
-      for (const sql of dependentSql) execute(sql);
-    }
-    const violations = resultRows<{ table: string }>("PRAGMA foreign_key_check");
-    if (violations.length > 0) {
-      throw new Error("Reconciliation classification migration failed foreign-key validation.");
-    }
-    execute("COMMIT");
-    inTransaction = false;
-  } catch (error) {
-    if (inTransaction) execute("ROLLBACK");
-    throw error;
-  } finally {
-    execute("PRAGMA foreign_keys = ON");
-  }
-}
-
 function initialiseSchema(options: { deferTransactionIndexes?: boolean } = {}): void {
   execute(`
     PRAGMA foreign_keys = ON;
@@ -513,7 +457,6 @@ function initialiseSchema(options: { deferTransactionIndexes?: boolean } = {}): 
   if (!splitColumns.has("inflow_classification")) {
     execute("ALTER TABLE local_transaction_splits ADD COLUMN inflow_classification TEXT");
   }
-  migrateReconciliationClassificationConstraint();
   const payeeColumns = new Set(
     resultRows<{ name: string }>("PRAGMA table_info(local_payees)").map(({ name }) => name),
   );
@@ -2599,7 +2542,7 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
     categoryId: string | null;
     transferAccountId: string | null;
     incomeBudgetMonth: string | null;
-    inflowClassification: "income" | "category-inflow" | "reconciliation-adjustment" | null;
+    inflowClassification: "income" | "category-inflow" | null;
     amount: number;
     splitsJson: string;
   }>(
@@ -2649,7 +2592,7 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
       categoryId: string | null;
       transferAccountId: string | null;
       incomeBudgetMonth: string | null;
-      inflowClassification: "income" | "category-inflow" | "reconciliation-adjustment" | null;
+      inflowClassification: "income" | "category-inflow" | null;
       amount: number;
     }[],
   }));
@@ -2671,7 +2614,7 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
         (sum, split) => sum + (
           (
             (
-              (split.inflowClassification === "income" || split.inflowClassification === "reconciliation-adjustment") &&
+              split.inflowClassification === "income" &&
               split.categoryId === null &&
               split.incomeBudgetMonth === firstMonth
             )
@@ -2686,7 +2629,7 @@ function getBudgetProjectionDiagnostic(budgetId: string, targetMonth: string) {
     return total + (
       (
         (
-          (transaction.inflowClassification === "income" || transaction.inflowClassification === "reconciliation-adjustment") &&
+          transaction.inflowClassification === "income" &&
           transaction.categoryId === null &&
           transaction.incomeBudgetMonth === firstMonth
         )
@@ -3270,7 +3213,7 @@ function queryTransactions(query: LocalTransactionQuery) {
     categoryId: string | null;
     categoryName: string | null;
     incomeBudgetMonth: string | null;
-    inflowClassification: "income" | "category-inflow" | "reconciliation-adjustment" | null;
+    inflowClassification: "income" | "category-inflow" | null;
     transferAccountId: string | null;
     transferAccountName: string | null;
     transferAccountParticipation: "on-budget" | "off-budget" | null;
@@ -3326,7 +3269,7 @@ function queryTransactions(query: LocalTransactionQuery) {
       categoryId: string | null;
       categoryName: string | null;
       incomeBudgetMonth: string | null;
-      inflowClassification: "income" | "category-inflow" | "reconciliation-adjustment" | null;
+      inflowClassification: "income" | "category-inflow" | null;
       transferAccountId: string | null;
       transferAccountName: string | null;
       transferAccountParticipation: "on-budget" | "off-budget" | null;
@@ -3419,7 +3362,7 @@ function getTransaction(budgetId: string, transactionId: string): LocalTransacti
     payeeId: string | null; payeeName: string | null; rawPayeeName: string | null;
     categoryId: string | null;
     categoryName: string | null; incomeBudgetMonth: string | null;
-    inflowClassification: "income" | "category-inflow" | "reconciliation-adjustment" | null; transferAccountId: string | null;
+    inflowClassification: "income" | "category-inflow" | null; transferAccountId: string | null;
     transferTransactionId: string | null; generatedFromSchedule: number;
     scheduledTransactionId: string | null; scheduledOccurrenceDate: string | null;
     updatedAt: string;
@@ -3504,7 +3447,7 @@ function getPersistedTransactionForVerification(
     categoryId: string | null;
     categoryName: string | null;
     incomeBudgetMonth: string | null;
-    inflowClassification: "income" | "category-inflow" | "reconciliation-adjustment" | null;
+    inflowClassification: "income" | "category-inflow" | null;
     transferAccountId: string | null;
     transferTransactionId: string | null;
     generatedFromSchedule: number;
