@@ -30,7 +30,7 @@ test("measures real Register navigation, paging and interaction with 5000 transa
 
   const seedStartedAt = performance.now();
   const seedBatches = await page.evaluate(async (id) => {
-    const batches: { batch: number; elapsedMs: number }[] = [];
+    const batches: { batch: number; elapsedMs: number; workerQueueMs: number | null; workerExecutionMs: number | null; otherMs: number | null }[] = [];
     const { getBudgetPersistenceProvider } = await import("/src/features/persistence/budgetPersistenceProviderFactory.ts");
     const { useUIStore } = await import("/src/stores/uiStore.ts");
     const budgetId = useUIStore.getState().selectedBudgetId;
@@ -47,11 +47,22 @@ test("measures real Register navigation, paging and interaction with 5000 transa
         };
       });
       const batchStart = performance.now();
+      const previousTimingCount = performance.getEntriesByName("budget-app:import-worker:timing").length;
       await engine.commitImportBatch({
         budgetId, accountId: id, additions, updates: [],
         provenanceAssignments: [], payeeCreations: [],
       });
-      batches.push({ batch: offset / 250 + 1, elapsedMs: Math.round((performance.now() - batchStart) * 100) / 100 });
+      const elapsedMs = Math.round((performance.now() - batchStart) * 100) / 100;
+      const marks = performance.getEntriesByName("budget-app:import-worker:timing");
+      const timing = marks.length > previousTimingCount ? marks.at(-1)?.detail as
+        { queueMs: number; workerMs: number } | undefined : undefined;
+      const round = (value: number) => Math.round(value * 100) / 100;
+      batches.push({
+        batch: offset / 250 + 1, elapsedMs,
+        workerQueueMs: timing ? round(timing.queueMs) : null,
+        workerExecutionMs: timing ? round(timing.workerMs) : null,
+        otherMs: timing ? round(elapsedMs - timing.queueMs - timing.workerMs) : null,
+      });
     }
     return batches;
   }, accountId);
