@@ -117,7 +117,7 @@ export function splitDraftsFromTransaction(
     incomeBudgetMonth: incomeCategory
       ? line.incomeBudgetMonth ?? transaction.date.slice(0, 7)
       : line.incomeBudgetMonth,
-    inflowClassification: incomeCategory ? "income" : line.inflowClassification,
+    inflowClassification: incomeCategory ? "income" : line.inflowClassification === "reconciliation-adjustment" ? undefined : line.inflowClassification,
     countCategoryInflowAsIncome:
       Boolean(line.categoryId) &&
       line.inflowClassification === "income",
