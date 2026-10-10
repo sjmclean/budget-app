@@ -46,11 +46,21 @@ function isRegisterColumnVisible(
   return visibleColumns.has(column);
 }
 
+// Rows share one formatter per currency instead of allocating several
+// Intl.NumberFormat instances every time the 100-row page changes.
+const currencyFormatters = new Map<string, Intl.NumberFormat>();
+
 function formatMoney(value: number, currencyCode: string) {
-  return new Intl.NumberFormat("en-AU", {
-    style: "currency",
-    currency: currencyCode,
-  }).format(value);
+  let formatter = currencyFormatters.get(currencyCode);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat("en-AU", {
+      style: "currency",
+      currency: currencyCode,
+    });
+    if (currencyFormatters.size >= 16) currencyFormatters.clear();
+    currencyFormatters.set(currencyCode, formatter);
+  }
+  return formatter.format(value);
 }
 
 
