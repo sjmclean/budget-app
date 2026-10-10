@@ -368,4 +368,34 @@ test("register commands and history emit bounded committed worker deltas", async
   await page.getByRole("link", { name: /^Delta Checking/ }).click();
   await expect(page).toHaveURL(new RegExp(`/accounts/${accountId}$`));
   await expect(page.getByText("Freshness Probe Merchant", { exact: true })).toBeVisible();
+
+  // Import batches must request an authoritative Register refresh, while
+  // ordinary edits and undo/redo above still return precise row patches.
+  await page.evaluate(() => {
+    const traffic = (window as typeof window & { __registerDeltaTraffic: { deltas: unknown[] } }).__registerDeltaTraffic;
+    traffic.deltas.length = 0;
+  });
+  await page.evaluate(async (sourceAccountId) => {
+    const { getBudgetPersistenceProvider } = await import("/src/features/persistence/budgetPersistenceProviderFactory.ts");
+    const { useUIStore } = await import("/src/stores/uiStore.ts");
+    const budgetId = useUIStore.getState().selectedBudgetId;
+    const engine = getBudgetPersistenceProvider().localBudgetEngine;
+    if (!budgetId || !engine) throw new Error("Missing local engine");
+    await engine.commitImportBatch({
+      budgetId, accountId: sourceAccountId,
+      additions: [{
+        id: crypto.randomUUID(), budgetId, accountId: sourceAccountId,
+        date: "2026-09-29", amount: -321,
+        payeeName: "Bulk Refresh Probe",
+      }],
+      updates: [], provenanceAssignments: [], payeeCreations: [],
+    });
+  }, accountId);
+  await expect(page.getByText("Bulk Refresh Probe", { exact: true })).toBeVisible();
+  const bulkDeltas = await page.evaluate(() => (
+    window as typeof window & { __registerDeltaTraffic: { deltas: { mode: string; affectedAccountIds?: string[] }[] } }
+  ).__registerDeltaTraffic.deltas);
+  expect(bulkDeltas.some((delta) =>
+    delta.mode === "refresh-required" && delta.affectedAccountIds?.includes(accountId)
+  )).toBe(true);
 });
