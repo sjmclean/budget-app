@@ -280,7 +280,7 @@ test("register commands and history emit bounded committed worker deltas", async
     await engine.commitImportBatch({ budgetId, accountId, additions, updates: [], provenanceAssignments: [], payeeCreations: [] });
   }, accountId);
   const largeImportDelta = await page.evaluate(() => (window as typeof window & { __registerDeltaTraffic: { deltas: { mode: string; reason?: string; affectedAccountIds?: string[]; afterRows?: unknown[] }[] } }).__registerDeltaTraffic.deltas.findLast((delta) => delta.mode === "refresh-required"));
-  expect(largeImportDelta?.reason).toBe("delta-too-large");
+  expect(largeImportDelta?.reason).toBe("unsupported-register-change");
   expect(largeImportDelta?.affectedAccountIds).toContain(accountId);
   expect(largeImportDelta?.afterRows).toBeUndefined();
   expect(JSON.stringify(largeImportDelta).length).toBeLessThan(5_000);
