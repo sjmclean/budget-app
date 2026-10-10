@@ -75,10 +75,26 @@ export function ReconciliationPanel({
         </label>
       </div>
       {preview ? (
-        <div role="status">
-          Cleared balance at statement date: <strong>{currency(preview.clearedBalanceMinor)}</strong>
-          {" · "}Transactions to reconcile: <strong>{preview.eligibleTransactionCount}</strong>
-          {difference !== null ? <>{" · "}Difference: <strong>{currency(difference)}</strong></> : null}
+        <div role="status" aria-label="Reconciliation summary" style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 16, display: "grid", gap: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16, flexWrap: "wrap" }}>
+            <span className="muted">Statement closing balance</span>
+            <strong style={{ fontVariantNumeric: "tabular-nums" }}>{statementBalanceMinor !== null ? currency(statementBalanceMinor) : "—"}</strong>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16, flexWrap: "wrap" }}>
+            <span className="muted">Cleared balance at statement date</span>
+            <strong style={{ fontVariantNumeric: "tabular-nums" }}>{currency(preview.clearedBalanceMinor)}</strong>
+          </div>
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12, display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16, flexWrap: "wrap" }}>
+            <strong>Difference</strong>
+            <strong style={{ fontSize: "1.25rem", fontVariantNumeric: "tabular-nums" }}>{difference !== null ? currency(difference) : "—"}</strong>
+          </div>
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12, display: "grid", gap: 4 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+              <span>Cleared transactions awaiting reconciliation</span>
+              <strong style={{ fontVariantNumeric: "tabular-nums" }}>{preview.eligibleTransactionCount.toLocaleString()}</strong>
+            </div>
+            <small className="muted">Includes all cleared, not-yet-reconciled transactions dated on or before the statement date. This is not the number of discrepancies.</small>
+          </div>
         </div>
       ) : <span className="muted">Loading statement-date balance…</span>}
       {error ? <p role="alert">{error}</p> : null}
