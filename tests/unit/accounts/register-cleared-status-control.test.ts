@@ -23,7 +23,9 @@ test("reconciled status is display-only rather than a misleading button", () => 
 
   assert.match(reconciled, /<span/);
   assert.doesNotMatch(reconciled, /<button/);
-  assert.match(reconciled, /aria-label="Transaction reconciled"/);
+  assert.match(reconciled, /aria-label="Transaction reconciled and locked"/);
+  assert.match(reconciled, /<Lock size=\{20\}/);
+  assert.match(reconciled, />R<\/span>/);
 });
 
 test("desktop cleared status target is at least two rem square with visible focus", () => {
