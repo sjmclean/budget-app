@@ -67,6 +67,8 @@ const FIRST_ARGUMENT_OBJECT_BUDGET_METHODS = new Set([
   "commitImportBatchWithHistory",
   "moveTransactions",
   "setTransactionsCleared",
+  "completeReconciliation",
+  "listReconciliationCheckpoints",
   "captureTransactionHistorySnapshots",
   "restoreTransactionHistorySnapshot",
   "deleteTransactionHistorySnapshot",
