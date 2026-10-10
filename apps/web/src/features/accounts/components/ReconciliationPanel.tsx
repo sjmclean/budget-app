@@ -110,7 +110,7 @@ export function ReconciliationPanel({
                     await commands.addTransaction({
                       id, budgetId, accountId, date: statementDate,
                       amount: difference, payeeName: "Balance Adjustment",
-                      incomeBudgetMonth: statementDate.slice(0, 7), inflowClassification: "reconciliation-adjustment",
+                      incomeBudgetMonth: statementDate.slice(0, 7), inflowClassification: "income",
                       memo: adjustmentMemo.trim(),
                     });
                     await commands.setTransactionsCleared({ budgetId, transactionIds: [id], cleared: true });
