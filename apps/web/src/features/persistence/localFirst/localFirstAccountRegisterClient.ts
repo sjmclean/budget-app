@@ -1502,10 +1502,20 @@ export function createLocalBudgetRuntime(
     updateTransaction: publicOrdinaryCommands.updateTransaction,
     toggleTransactionCleared: publicOrdinaryCommands.toggleTransactionCleared,
     setTransactionsCleared: publicOrdinaryCommands.setTransactionsCleared,
+    completeReconciliation: publicOrdinaryCommands.completeReconciliation,
     deleteTransaction: publicOrdinaryCommands.deleteTransaction,
     addTransactionAttachment: publicOrdinaryCommands.addTransactionAttachment,
     removeTransactionAttachment: publicOrdinaryCommands.removeTransactionAttachment,
     readTransactionAttachment: attachmentCommands.readTransactionAttachment,
+    async previewReconciliation(input) {
+      const local = await syncThenDatabase(input.budgetId);
+      const result = await local.prepareReconciliation(input);
+      return { clearedBalanceMinor: result.clearedBalanceMinor, eligibleTransactionCount: result.transactions.length };
+    },
+    async listReconciliationCheckpoints(input) {
+      const local = await syncThenDatabase(input.budgetId);
+      return local.listReconciliationCheckpoints(input);
+    },
     async listAccounts(budgetId) {
       const local = await syncThenDatabase(budgetId);
       return (await local.listAccounts(budgetId)).map((row) => ({

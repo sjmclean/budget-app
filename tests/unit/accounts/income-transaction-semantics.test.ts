@@ -128,3 +128,4 @@ test("uncategorised inflows, outflows and transfers cannot masquerade as income"
     /Outflows and transfers/,
   );
 });
+

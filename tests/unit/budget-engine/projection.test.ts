@@ -1173,3 +1173,4 @@ test("credit-card payment inside a cash split consumes payment reserve", () => {
     "the non-transfer split still consumes its spending category",
   );
 });
+

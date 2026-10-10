@@ -410,6 +410,16 @@ function initialiseSchema(options: { deferTransactionIndexes?: boolean } = {}): 
       "ALTER TABLE local_budget_outbox ADD COLUMN base_cursor INTEGER NOT NULL DEFAULT 0",
     );
   }
+  execute(`CREATE TABLE IF NOT EXISTS local_reconciliation_checkpoints (
+    id TEXT PRIMARY KEY,
+    budget_id TEXT NOT NULL,
+    account_id TEXT NOT NULL,
+    statement_date TEXT NOT NULL,
+    statement_balance_minor INTEGER NOT NULL,
+    completed_at TEXT NOT NULL,
+    transaction_ids_json TEXT NOT NULL
+  )`);
+  execute("CREATE INDEX IF NOT EXISTS local_reconciliation_by_account ON local_reconciliation_checkpoints(budget_id, account_id, statement_date)");
   execute(
     options.deferTransactionIndexes
       ? LOCAL_REGISTER_BASE_SCHEMA_SQL
@@ -1363,7 +1373,17 @@ function applyRemoteMutations(
           ],
         );
       }
-      if (
+      if (mutation.domain === "transactions" &&
+          mutation.entityId.startsWith("reconciliation:")) {
+        if (mutation.operation !== "upsert") {
+          throw workerError("INVALID_RECONCILIATION_CHECKPOINT", "Checkpoint history cannot be deleted by ordinary mutations.");
+        }
+        const checkpoint = mutation.payload as ReplicatedReconciliationCheckpoint;
+        if (mutation.entityId !== `reconciliation:${checkpoint.id}`) {
+          throw workerError("INVALID_RECONCILIATION_CHECKPOINT", "Checkpoint mutation identity mismatch.");
+        }
+        storeReplicatedReconciliationCheckpoint(checkpoint);
+      } else if (
         mutation.domain === "transactions" &&
         mutation.entityId.startsWith("attachment:")
       ) {
@@ -3572,10 +3592,23 @@ type ImportAttachmentWrite = {
   readonly mutation: LocalBudgetMutation;
 };
 
+function assertHistoryDoesNotModifyReconciled(transactionIds: readonly string[]): void {
+  for (const id of new Set(transactionIds)) {
+    const row = resultRows<{ clearedStatus: string }>(
+      "SELECT cleared_status AS clearedStatus FROM local_transactions WHERE budget_id = ? AND id = ?",
+      [activeBudgetId, id],
+    )[0];
+    if (row?.clearedStatus === "reconciled") {
+      throw workerError("RECONCILED_TRANSACTION_LOCKED", "Reconciled transactions cannot be changed by history or imports.");
+    }
+  }
+}
+
 function applyTransactionBatchInCurrentTransaction(
   writes: readonly TransactionBatchWrite[],
   requireAbsentTransactionIds: readonly string[] = [],
   verifyWrittenTransactions = false,
+  allowReconciliationStatusTransition = false,
 ): void {
   const requiredAbsentIds = new Set(requireAbsentTransactionIds);
   if (requiredAbsentIds.size !== requireAbsentTransactionIds.length) {
@@ -3619,6 +3652,15 @@ function applyTransactionBatchInCurrentTransaction(
   }
 
   for (const { transaction, mutation, resolveConflictId } of writes) {
+    const existingStatus = resultRows<{ clearedStatus: string }>(
+      "SELECT cleared_status AS clearedStatus FROM local_transactions WHERE budget_id = ? AND id = ?",
+      [activeBudgetId, transaction.id],
+    )[0]?.clearedStatus;
+    if (existingStatus === "reconciled" ||
+        (transaction.clearedStatus === "reconciled" &&
+          !(allowReconciliationStatusTransition && existingStatus === "cleared"))) {
+      throw workerError("RECONCILED_TRANSACTION_LOCKED", "Reconciliation status can only be set by the completion command.");
+    }
     resolveLocalConflictInTransaction(resolveConflictId);
 
     const previousMonth = resultRows<{ month: string }>(
@@ -3718,6 +3760,193 @@ function applyTransactionBatchInCurrentTransaction(
         `Transaction ${transactionId} differs from the record prepared for persistence.`,
       );
     }
+  }
+}
+
+
+/**
+ * Balance, eligibility, checkpoint and outbox writes share one SQLite transaction.
+ * The command layer must generate ordinary transaction mutations so the status
+ * transitions participate in existing replication. Checkpoints are local until
+ * reconciliation history is added to the replicated domain model.
+ */
+function listReconciliationCheckpoints(request: Extract<LocalBudgetWorkerRequest, { type: "listReconciliationCheckpoints" }>) {
+  if (request.budgetId !== activeBudgetId) {
+    throw workerError("BUDGET_SCOPE_MISMATCH", "The reconciliation belongs to another budget.");
+  }
+  return resultRows<{
+    id: string; budgetId: string; accountId: string; statementDate: string;
+    statementBalanceMinor: number; completedAt: string; transactionIdsJson: string;
+  }>(
+    `SELECT id, budget_id AS budgetId, account_id AS accountId,
+       statement_date AS statementDate, statement_balance_minor AS statementBalanceMinor,
+       completed_at AS completedAt, transaction_ids_json AS transactionIdsJson
+       FROM local_reconciliation_checkpoints WHERE budget_id = ? AND account_id = ?
+       ORDER BY completed_at DESC, id DESC`,
+    [request.budgetId, request.accountId],
+  ).map(({ transactionIdsJson, ...row }) => ({
+    ...row, transactionIds: JSON.parse(transactionIdsJson) as string[],
+  }));
+}
+
+function prepareReconciliation(request: Extract<LocalBudgetWorkerRequest, { type: "prepareReconciliation" }>) {
+  if (request.budgetId !== activeBudgetId) {
+    throw workerError("BUDGET_SCOPE_MISMATCH", "The reconciliation belongs to another budget.");
+  }
+  const account = resultRows<{ openingBalance: number }>(
+    "SELECT opening_balance AS openingBalance FROM local_accounts WHERE budget_id = ? AND id = ?",
+    [request.budgetId, request.accountId],
+  )[0];
+  if (!account) throw workerError("ACCOUNT_NOT_FOUND", "The reconciliation account was not found.");
+  const rows = resultRows<{ id: string }>(
+    `SELECT id FROM local_transactions WHERE budget_id = ? AND account_id = ?
+      AND date <= ? AND cleared_status = 'cleared' ORDER BY date, id`,
+    [request.budgetId, request.accountId, request.statementDate],
+  );
+  const clearedAmounts = resultRows<{ amount: number }>(
+    "SELECT amount FROM local_transactions WHERE budget_id = ? AND account_id = ? AND date <= ? AND cleared_status IN ('cleared','reconciled')",
+    [request.budgetId, request.accountId, request.statementDate],
+  );
+  return {
+    openingBalanceMinor: account.openingBalance,
+    clearedBalanceMinor: clearedAmounts.reduce((total, row) => total + row.amount, account.openingBalance),
+    transactions: rows.map(({ id }) => {
+      const record = getPersistedTransactionForVerification(request.budgetId, id);
+      if (!record) throw workerError("RECONCILIATION_STALE", "A transaction disappeared.");
+      return record;
+    }),
+  };
+}
+
+interface ReplicatedReconciliationCheckpoint {
+  readonly kind: "reconciliation-checkpoint";
+  readonly id: string;
+  readonly budgetId: string;
+  readonly accountId: string;
+  readonly statementDate: string;
+  readonly statementBalanceMinor: number;
+  readonly completedAt: string;
+  readonly transactionIds: readonly string[];
+}
+
+function storeReplicatedReconciliationCheckpoint(payload: ReplicatedReconciliationCheckpoint): void {
+  if (payload.kind !== "reconciliation-checkpoint" ||
+      !payload.id || !payload.accountId || payload.budgetId !== activeBudgetId ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(payload.statementDate) ||
+      !Number.isSafeInteger(payload.statementBalanceMinor) ||
+      !Number.isFinite(Date.parse(payload.completedAt)) ||
+      !Array.isArray(payload.transactionIds) ||
+      payload.transactionIds.some((id) => typeof id !== "string" || !id) ||
+      new Set(payload.transactionIds).size !== payload.transactionIds.length) {
+    throw workerError("INVALID_RECONCILIATION_CHECKPOINT", "Invalid replicated reconciliation checkpoint.");
+  }
+  execute(
+    `INSERT INTO local_reconciliation_checkpoints
+     (id, budget_id, account_id, statement_date, statement_balance_minor, completed_at, transaction_ids_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       budget_id=excluded.budget_id, account_id=excluded.account_id,
+       statement_date=excluded.statement_date, statement_balance_minor=excluded.statement_balance_minor,
+       completed_at=excluded.completed_at, transaction_ids_json=excluded.transaction_ids_json`,
+    [payload.id, payload.budgetId, payload.accountId, payload.statementDate,
+     payload.statementBalanceMinor, payload.completedAt, JSON.stringify(payload.transactionIds)],
+  );
+}
+
+function completeReconciliation(request: Extract<LocalBudgetWorkerRequest, { type: "completeReconciliation" }>) {
+  if (request.budgetId !== activeBudgetId || !request.accountId || !request.checkpointId) {
+    throw workerError("BUDGET_SCOPE_MISMATCH", "Invalid reconciliation budget or account.");
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(request.statementDate) ||
+      !Number.isSafeInteger(request.statementBalanceMinor) ||
+      !Number.isFinite(Date.parse(request.completedAt))) {
+    throw workerError("INVALID_RECONCILIATION", "Invalid reconciliation statement or completion timestamp.");
+  }
+  for (const { mutation } of request.writes) assertMutationScope(mutation);
+  assertMutationScope(request.checkpointMutation);
+  if (request.checkpointMutation.domain !== "transactions" ||
+      request.checkpointMutation.entityId !== `reconciliation:${request.checkpointId}` ||
+      request.checkpointMutation.operation !== "upsert") {
+    throw workerError("INVALID_RECONCILIATION_CHECKPOINT", "Invalid checkpoint mutation.");
+  }
+  execute("BEGIN IMMEDIATE");
+  try {
+    const account = resultRows<{ openingBalance: number }>(
+      "SELECT opening_balance AS openingBalance FROM local_accounts WHERE budget_id = ? AND id = ?",
+      [request.budgetId, request.accountId],
+    )[0];
+    if (!account) throw workerError("ACCOUNT_NOT_FOUND", "Reconciliation account was not found.");
+    const rows = resultRows<{ id: string; amount: number; clearedStatus: string }>(
+      `SELECT id, amount, cleared_status AS clearedStatus FROM local_transactions
+       WHERE budget_id = ? AND account_id = ? AND date <= ?`,
+      [request.budgetId, request.accountId, request.statementDate],
+    );
+    let balance = account.openingBalance;
+    const eligible = new Set<string>();
+    for (const row of rows) {
+      if (row.clearedStatus === "cleared" || row.clearedStatus === "reconciled") {
+        balance += row.amount;
+        if (row.clearedStatus === "cleared") eligible.add(row.id);
+      }
+    }
+    if (!Number.isSafeInteger(balance) || balance !== request.statementBalanceMinor) {
+      throw workerError("RECONCILIATION_BALANCE_MISMATCH", "Cleared balance does not match the statement.");
+    }
+    if (eligible.size !== request.writes.length ||
+        request.writes.some(({ transaction }) => !eligible.has(transaction.id))) {
+      throw workerError("RECONCILIATION_STALE", "Eligible transactions changed; refresh reconciliation.");
+    }
+    const ids: string[] = [];
+    for (const { transaction, mutation } of request.writes) {
+      const original = getPersistedTransactionForVerification(request.budgetId, transaction.id);
+      if (!original || original.accountId !== request.accountId || original.clearedStatus !== "cleared" ||
+          transaction.clearedStatus !== "reconciled" || mutation.domain !== "transactions" ||
+          mutation.entityId !== transaction.id || mutation.operation !== "upsert" ||
+          JSON.stringify(mutation.payload) !== JSON.stringify(transaction) ||
+          JSON.stringify({ ...original, clearedStatus: "reconciled", updatedAt: transaction.updatedAt }) !==
+          JSON.stringify(transaction)) {
+        throw workerError("RECONCILIATION_STALE", "Reconciliation write does not match the current transaction.");
+      }
+      ids.push(transaction.id);
+    }
+    // Reconciliation changes only status and update time. Rewriting the entire
+    // transaction (including splits, tags and import provenance) is expensive
+    // for historical accounts with thousands of cleared entries.
+    execute(
+      `UPDATE local_transactions SET cleared_status = 'reconciled', updated_at = ?
+       WHERE budget_id = ? AND account_id = ? AND date <= ? AND cleared_status = 'cleared'`,
+      [request.completedAt, request.budgetId, request.accountId, request.statementDate],
+    );
+    const updatedCount = resultRows<{ count: number }>("SELECT changes() AS count")[0]?.count;
+    if (updatedCount !== request.writes.length) {
+      throw workerError("RECONCILIATION_STALE", "The eligible transaction count changed during reconciliation.");
+    }
+    for (const { mutation } of request.writes) insertOutbox(mutation);
+    execute(
+      `INSERT INTO local_reconciliation_checkpoints
+       (id, budget_id, account_id, statement_date, statement_balance_minor, completed_at, transaction_ids_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [request.checkpointId, request.budgetId, request.accountId, request.statementDate,
+       request.statementBalanceMinor, request.completedAt, JSON.stringify(ids)],
+    );
+    const checkpointPayload = request.checkpointMutation.payload as ReplicatedReconciliationCheckpoint;
+    if (checkpointPayload.kind !== "reconciliation-checkpoint" ||
+        checkpointPayload.id !== request.checkpointId ||
+        checkpointPayload.budgetId !== request.budgetId ||
+        checkpointPayload.accountId !== request.accountId ||
+        checkpointPayload.statementDate !== request.statementDate ||
+        checkpointPayload.statementBalanceMinor !== request.statementBalanceMinor ||
+        checkpointPayload.completedAt !== request.completedAt ||
+        JSON.stringify(checkpointPayload.transactionIds) !== JSON.stringify(ids)) {
+      throw workerError("INVALID_RECONCILIATION_CHECKPOINT", "Checkpoint mutation does not match completion.");
+    }
+    insertOutbox(request.checkpointMutation);
+    writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + request.writes.length + 1));
+    execute("COMMIT");
+    return { checkpointId: request.checkpointId, transactionIds: ids };
+  } catch (error) {
+    execute("ROLLBACK");
+    throw error;
   }
 }
 
@@ -4167,6 +4396,8 @@ function replaceImportHistorySnapshot(
   for (const mutation of mutations) assertMutationScope(mutation);
   execute("BEGIN IMMEDIATE");
   try {
+ 
+    assertHistoryDoesNotModifyReconciled([...expected.transactions.transactions, ...replacement.transactions.transactions].map(({ id }) => id));
     const current = captureImportHistorySnapshot(activeBudgetId!, expected.transactionIds, expected.payeeIds);
     if (!importHistorySnapshotsEqual(current, expected)) {
       throw workerError("IMPORT_HISTORY_CONFLICT", "Current import-owned state no longer matches the expected snapshot.");
@@ -4341,6 +4572,8 @@ function deleteTransactionHistorySnapshot(
   validateHistoryMutations(snapshot, mutations, "delete");
   execute("BEGIN IMMEDIATE");
   try {
+ 
+    assertHistoryDoesNotModifyReconciled(snapshot.transactions.map(({ id }) => id));
     const current = captureTransactionHistorySnapshots(snapshot.budgetId, snapshot.transactions.map(({ id }) => id));
     if (!transactionHistorySnapshotsEqual(current, snapshot)) {
       throw workerError("TRANSACTION_HISTORY_CONFLICT", "Persisted transaction graph no longer matches its snapshot.");
@@ -4372,6 +4605,8 @@ function replaceTransactionHistorySnapshot(
   validateHistoryReplacementMutations(expected, replacement, mutations);
   execute("BEGIN IMMEDIATE");
   try {
+ 
+    assertHistoryDoesNotModifyReconciled([...expected.transactions, ...replacement.transactions].map(({ id }) => id));
     const current = captureTransactionHistorySnapshots(
       expected.budgetId,
       expected.transactions.map(({ id }) => id),
@@ -6480,6 +6715,12 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       return getBudgetProjectionDiagnostic(request.budgetId, request.month);
     case "writeTransaction":
       return writeTransaction(request.transaction, request.mutation, request.resolveConflictId);
+    case "listReconciliationCheckpoints":
+      return listReconciliationCheckpoints(request);
+    case "prepareReconciliation":
+      return prepareReconciliation(request);
+    case "completeReconciliation":
+      return completeReconciliation(request);
     case "writeTransactionBatch":
       return writeTransactionBatch(
         request.writes,

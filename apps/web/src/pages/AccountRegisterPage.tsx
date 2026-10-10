@@ -25,6 +25,7 @@ import {
 import { SelectionBar } from "../components/ui/SelectionBar";
 import { ScheduledTransactionsPreview } from "../components/accounts/ScheduledTransactionsPreview";
 import { RegisterToolbar } from "../features/accounts/components/RegisterToolbar";
+import { ReconciliationPanel } from "../features/accounts/components/ReconciliationPanel";
 import {
   TransactionEditRow,
   TransactionEntryRow,
@@ -553,6 +554,7 @@ export function AccountRegisterPage() {
     }
   }, [data]);
 
+  const [showReconciliation, setShowReconciliation] = useState(false);
   const [showEntryRow, setShowEntryRow] = useState(false);
   const [editingTransactionId, setEditingTransactionId] = useState<
     string | null
@@ -1822,6 +1824,8 @@ export function AccountRegisterPage() {
               });
             }}
             onOpenTagManager={() => setIsTransactionTagManagerOpen(true)}
+            canReconcile={storageMode === "sqlite" && Boolean(activeBudgetId && persistenceGateway.localBudgetEngine && persistenceGateway.accountRegisterQueries)}
+            onOpenReconcile={() => setShowReconciliation(true)}
             scheduledDueCount={scheduledDueCount}
             categoryFilter={categoryFilter}
             categoriesEnabled={data.accountType !== "Tracking"}
@@ -1835,6 +1839,17 @@ export function AccountRegisterPage() {
             onRedo={() => void redo()}
           />
 
+          {activeRegisterView === "register" && storageMode === "sqlite" && activeBudgetId && persistenceGateway.localBudgetEngine && persistenceGateway.accountRegisterQueries ? (
+            <>
+              {showReconciliation ? (
+                <ReconciliationPanel budgetId={activeBudgetId} accountId={accountId}
+                  currencyCode={data.currencyCode} categoryOptions={categoryOptions} commands={persistenceGateway.localBudgetEngine}
+                  queries={persistenceGateway.accountRegisterQueries}
+                  onComplete={() => setShowReconciliation(false)}
+                  onClose={() => setShowReconciliation(false)} />
+              ) : null}
+            </>
+          ) : null}
           {activeRegisterView === "register" ? registerColumnHeader : null}
           {activeRegisterView === "register" && committedRegisterSearch ? (
             <div className="register-search-status" role="status">

@@ -16,11 +16,11 @@ const runtimeSource = readFileSync(
   "utf8",
 );
 
-test("the internal registry exactly covers the 45 authoritative ordinary commands", () => {
+test("the internal registry exactly covers the 46 authoritative ordinary commands", () => {
   const registered = [...registrySource.matchAll(/^    (\w+): \{ execute:/gm)]
     .map((match) => match[1]);
 
-  assert.equal(LOCAL_BUDGET_COMMAND_METHODS.length, 45);
+  assert.equal(LOCAL_BUDGET_COMMAND_METHODS.length, 46);
   assert.equal(registered.length, LOCAL_BUDGET_COMMAND_METHODS.length);
   assert.equal(new Set(registered).size, registered.length);
   assert.deepEqual(

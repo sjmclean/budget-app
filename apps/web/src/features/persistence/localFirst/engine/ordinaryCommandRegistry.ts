@@ -57,6 +57,7 @@ export function createOrdinaryCommandHandlerRegistry(
     updateTransaction: { execute: (transactionId, input) => implementations.updateTransaction(transactionId, input) },
     toggleTransactionCleared: { execute: (transactionId, input) => implementations.toggleTransactionCleared(transactionId, input) },
     setTransactionsCleared: { execute: (input) => implementations.setTransactionsCleared(input) },
+    completeReconciliation: { execute: (input) => implementations.completeReconciliation(input) },
     deleteTransaction: { execute: (transactionId, input) => implementations.deleteTransaction(transactionId, input) },
     restoreTransactionHistorySnapshot: { execute: (input) => implementations.restoreTransactionHistorySnapshot(input) },
     deleteTransactionHistorySnapshot: { execute: (input) => implementations.deleteTransactionHistorySnapshot(input) },

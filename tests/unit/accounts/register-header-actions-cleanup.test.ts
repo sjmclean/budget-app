@@ -56,7 +56,7 @@ test("register options keeps undo and redo persistently available", () => {
 test("register options menu keeps infrequent actions concise", () => {
   assert.match(toolbar, />Import transactions<\/button>/);
   assert.match(toolbar, />Manage tags<\/button>/);
-  assert.match(toolbar, /<button type="button" role="menuitem" disabled>Reconcile<\/button>/);
+  assert.match(toolbar, /<button type="button" role="menuitem" disabled=\{!canReconcile\} onClick=\{\(\) => \{ onOpenReconcile\(\); closeMenu\(\{ restoreFocus: true \}\); \}\}>Reconcile<\/button>/);
   assert.match(toolbar, />\s*Customize register…\s*<\/button>/);
   assert.doesNotMatch(toolbar, /role="menuitemcheckbox"/);
   assert.doesNotMatch(toolbar, /register-column-option/);
@@ -79,8 +79,11 @@ test("undo and redo actions dismiss the contextual toast without clearing histor
   assert.doesNotMatch(undoToast, /applicationHistory\.clear/);
 });
 
-test("reconciliation remains visible as a disabled future option", () => {
-  assert.match(toolbar, /disabled>Reconcile<\/button>/);
+test("reconciliation is exposed through Register options when supported", () => {
+  assert.match(toolbar, /canReconcile: boolean;/);
+  assert.match(toolbar, /onOpenReconcile: \(\) => void;/);
+  assert.match(toolbar, /disabled=\{!canReconcile\}/);
+  assert.match(toolbar, /onOpenReconcile\(\); closeMenu\(\{ restoreFocus: true \}\);/);
 });
 
 test("register layout controls live in a dedicated customization dialog", () => {

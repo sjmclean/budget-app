@@ -368,6 +368,34 @@ export type LocalBudgetWorkerRequest =
     }
   | {
       readonly requestId: string;
+      readonly type: "listReconciliationCheckpoints";
+      readonly budgetId: string;
+      readonly accountId: string;
+    }
+  | {
+      readonly requestId: string;
+      readonly type: "prepareReconciliation";
+      readonly budgetId: string;
+      readonly accountId: string;
+      readonly statementDate: string;
+    }
+  | {
+      readonly requestId: string;
+      readonly type: "completeReconciliation";
+      readonly budgetId: string;
+      readonly accountId: string;
+      readonly checkpointId: string;
+      readonly statementDate: string;
+      readonly statementBalanceMinor: number;
+      readonly completedAt: string;
+      readonly checkpointMutation: LocalBudgetMutation;
+      readonly writes: readonly {
+        readonly transaction: import("./registerSchema").LocalTransactionRecord;
+        readonly mutation: LocalBudgetMutation;
+      }[];
+    }
+  | {
+      readonly requestId: string;
       readonly type: "writeTransactionBatch";
       readonly writes: readonly {
         readonly transaction: LocalTransactionRecord;

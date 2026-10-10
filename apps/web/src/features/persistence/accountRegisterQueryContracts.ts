@@ -231,6 +231,31 @@ export interface LocalBudgetRuntimeClient extends AccountRegisterQueryPort {
     input: TransactionTarget,
   ): Promise<void>;
 
+  previewReconciliation(input: {
+    readonly budgetId: string;
+    readonly accountId: string;
+    readonly statementDate: string;
+  }): Promise<{ readonly clearedBalanceMinor: number; readonly eligibleTransactionCount: number }>;
+
+  listReconciliationCheckpoints(input: {
+    readonly budgetId: string;
+    readonly accountId: string;
+  }): Promise<readonly {
+    readonly id: string;
+    readonly accountId: string;
+    readonly statementDate: string;
+    readonly statementBalanceMinor: number;
+    readonly completedAt: string;
+    readonly transactionIds: readonly string[];
+  }[]>;
+
+  completeReconciliation(input: {
+    readonly budgetId: string;
+    readonly accountId: string;
+    readonly statementDate: string;
+    readonly statementBalanceMinor: number;
+  }): Promise<{ readonly checkpointId: string; readonly transactionIds: readonly string[] }>;
+
   setTransactionsCleared(input: {
     readonly budgetId: string;
     readonly transactionIds: readonly string[];
@@ -511,7 +536,7 @@ export const LOCAL_BUDGET_COMMAND_METHODS = [
   "createCategoryGoal", "updateCategoryGoal", "deleteCategoryGoal", "replaceCategoryGoalHistoryState",
   "setAccountClosed", "addTransaction", "commitTransactionBatch", "commitImportBatch",
   "commitImportBatchWithHistory", "replaceImportHistorySnapshot", "moveTransactions",
-  "updateTransaction", "toggleTransactionCleared", "setTransactionsCleared", "deleteTransaction",
+  "updateTransaction", "toggleTransactionCleared", "setTransactionsCleared", "completeReconciliation", "deleteTransaction",
   "restoreTransactionHistorySnapshot", "deleteTransactionHistorySnapshot", "replaceTransactionHistorySnapshot",
   "addTransactionAttachment", "removeTransactionAttachment",
   "createAccount", "replaceAccountHistoryState", "replaceBudgetMonthHistoryState", "updateAccount", "deleteAccount",
