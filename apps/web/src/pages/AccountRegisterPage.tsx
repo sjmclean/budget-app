@@ -25,6 +25,7 @@ import {
 import { SelectionBar } from "../components/ui/SelectionBar";
 import { ScheduledTransactionsPreview } from "../components/accounts/ScheduledTransactionsPreview";
 import { RegisterToolbar } from "../features/accounts/components/RegisterToolbar";
+import { ReconciliationPanel } from "../features/accounts/components/ReconciliationPanel";
 import {
   TransactionEditRow,
   TransactionEntryRow,
@@ -553,6 +554,7 @@ export function AccountRegisterPage() {
     }
   }, [data]);
 
+  const [showReconciliation, setShowReconciliation] = useState(false);
   const [showEntryRow, setShowEntryRow] = useState(false);
   const [editingTransactionId, setEditingTransactionId] = useState<
     string | null
@@ -1835,6 +1837,21 @@ export function AccountRegisterPage() {
             onRedo={() => void redo()}
           />
 
+          {activeRegisterView === "register" && storageMode === "sqlite" && activeBudgetId && persistenceGateway.localBudgetEngine ? (
+            <>
+              <div style={{ padding: "6px 16px" }}>
+                <button type="button" onClick={() => setShowReconciliation((value) => !value)}
+                  aria-expanded={showReconciliation}>
+                  {showReconciliation ? "Close reconciliation" : "Reconcile account"}
+                </button>
+              </div>
+              {showReconciliation ? (
+                <ReconciliationPanel budgetId={activeBudgetId} accountId={accountId}
+                  currencyCode={data.currencyCode} engine={persistenceGateway.localBudgetEngine}
+                  onComplete={() => setShowReconciliation(false)} />
+              ) : null}
+            </>
+          ) : null}
           {activeRegisterView === "register" ? registerColumnHeader : null}
           {activeRegisterView === "register" && committedRegisterSearch ? (
             <div className="register-search-status" role="status">
