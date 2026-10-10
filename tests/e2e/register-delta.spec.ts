@@ -230,8 +230,20 @@ test("register commands and history emit bounded committed worker deltas", async
     await engine.commitImportBatch({ budgetId, accountId, additions: [{ id, budgetId, accountId, date: "2026-09-14", amount: -201, payeeName: "Small Import" }], updates: [], provenanceAssignments: [], payeeCreations: [] });
     return id;
   }, accountId);
-  const smallImportDelta = await page.evaluate((importId) => (window as typeof window & { __registerDeltaTraffic: { deltas: { mode: string; afterRows?: { row: { id: string } }[] }[] } }).__registerDeltaTraffic.deltas.findLast((delta) => delta.mode === "patch" && delta.afterRows?.some(({ row }) => row.id === importId)), importId);
-  expect(smallImportDelta).toBeDefined();
+  const smallImport = await page.evaluate(async ({ accountId, importId }) => {
+    const { getBudgetPersistenceProvider } = await import("/src/features/persistence/budgetPersistenceProviderFactory.ts");
+    const { useUIStore } = await import("/src/stores/uiStore.ts");
+    const budgetId = useUIStore.getState().selectedBudgetId;
+    const provider = getBudgetPersistenceProvider();
+    if (!budgetId || !provider.accountRegisterQueries) throw new Error("Missing register query service");
+    const rows = await provider.accountRegisterQueries.queryLocalTransactions({ budgetId, accountId, limit: 250 });
+    const deltas = (window as typeof window & { __registerDeltaTraffic: { deltas: { mode: string; affectedAccountIds?: string[] }[] } }).__registerDeltaTraffic.deltas;
+    return {
+      refreshed: deltas.some((delta) => delta.mode === "refresh-required" && delta.affectedAccountIds?.includes(accountId)),
+      persisted: rows.rows.some((row) => row.id === importId),
+    };
+  }, { accountId, importId });
+  expect(smallImport).toEqual({ refreshed: true, persisted: true });
   await page.evaluate(async ({ accountId, importId }) => {
     const providerPath = "/src/features/persistence/budgetPersistenceProviderFactory.ts";
     const storePath = "/src/stores/uiStore.ts";
@@ -242,8 +254,20 @@ test("register commands and history emit bounded committed worker deltas", async
     if (!budgetId || !engine) throw new Error("The local command engine is unavailable.");
     await engine.commitImportBatch({ budgetId, accountId, additions: [], updates: [{ id: importId, budgetId, accountId, date: "2026-09-14", amount: -202, payeeName: "Small Import Updated" }], provenanceAssignments: [], payeeCreations: [] });
   }, { accountId, importId });
-  const matchedImportDelta = await page.evaluate((importId) => (window as typeof window & { __registerDeltaTraffic: { deltas: { mode: string; beforeRows?: { row: { id: string; amount: number } }[]; afterRows?: { row: { id: string; amount: number } }[] }[] } }).__registerDeltaTraffic.deltas.findLast((delta) => delta.mode === "patch" && delta.beforeRows?.some(({ row }) => row.id === importId && row.amount === -201) && delta.afterRows?.some(({ row }) => row.id === importId && row.amount === -202)), importId);
-  expect(matchedImportDelta).toBeDefined();
+  const matchedImport = await page.evaluate(async ({ accountId, importId }) => {
+    const { getBudgetPersistenceProvider } = await import("/src/features/persistence/budgetPersistenceProviderFactory.ts");
+    const { useUIStore } = await import("/src/stores/uiStore.ts");
+    const budgetId = useUIStore.getState().selectedBudgetId;
+    const provider = getBudgetPersistenceProvider();
+    if (!budgetId || !provider.accountRegisterQueries) throw new Error("Missing register query service");
+    const rows = await provider.accountRegisterQueries.queryLocalTransactions({ budgetId, accountId, limit: 250 });
+    const deltas = (window as typeof window & { __registerDeltaTraffic: { deltas: { mode: string; affectedAccountIds?: string[] }[] } }).__registerDeltaTraffic.deltas;
+    return {
+      refreshed: deltas.some((delta) => delta.mode === "refresh-required" && delta.affectedAccountIds?.includes(accountId)),
+      persisted: rows.rows.some((row) => row.id === importId && row.amount === -202),
+    };
+  }, { accountId, importId });
+  expect(matchedImport).toEqual({ refreshed: true, persisted: true });
   await page.evaluate(async (accountId) => {
     const providerPath = "/src/features/persistence/budgetPersistenceProviderFactory.ts";
     const storePath = "/src/stores/uiStore.ts";
