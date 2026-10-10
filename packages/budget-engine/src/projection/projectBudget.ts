@@ -556,7 +556,7 @@ function indexActivity(
     if (transferAccountId) return;
     if (
       categoryId === null &&
-      inflowClassification === "income" &&
+      (inflowClassification === "income" || inflowClassification === "reconciliation-adjustment") &&
       incomeBudgetMonth
     ) {
       const month = requireExplicitIncomeBudgetMonth(
