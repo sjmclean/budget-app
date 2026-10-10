@@ -27,6 +27,7 @@ type ExtractedTransactionCommands = Pick<
   | "updateTransaction"
   | "toggleTransactionCleared"
   | "setTransactionsCleared"
+  | "completeReconciliation"
   | "deleteTransaction"
 >;
 
@@ -174,6 +175,36 @@ export function createTransactionCommands(
         ? deriveTransactionChangeScope({ budgetId: input.budgetId, before: previousRecords, after: records,
             transactionIds: [...previousRecords, ...records].map(({ id }) => id) })
         : emptyCommandChange(input.budgetId), registerDelta);
+    },
+
+    async completeReconciliation(input) {
+      const local = await dependencies.requireDatabase(input.budgetId);
+      const snapshot = await local.prepareReconciliation(input);
+      const now = new Date().toISOString();
+      const checkpointId = createRuntimeUuid();
+      const records = snapshot.transactions.map((original) => ({
+        ...original,
+        clearedStatus: "reconciled",
+        updatedAt: now,
+      }));
+      const mutations = records.map((record) =>
+        dependencies.createMutation(input.budgetId, "transactions", record.id, "upsert", record));
+      const result = await local.completeReconciliation({
+        ...input,
+        checkpointId,
+        completedAt: now,
+        writes: records.map((transaction, index) => ({
+          transaction,
+          mutation: mutations[index]!,
+        })),
+      });
+      return committedCommandResult(result, mutations,
+        deriveTransactionChangeScope({
+          budgetId: input.budgetId,
+          before: snapshot.transactions,
+          after: records,
+          transactionIds: records.map(({ id }) => id),
+        }));
     },
 
     async deleteTransaction(transactionId, input) {
