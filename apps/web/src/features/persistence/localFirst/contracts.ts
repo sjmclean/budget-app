@@ -388,6 +388,7 @@ export type LocalBudgetWorkerRequest =
       readonly statementDate: string;
       readonly statementBalanceMinor: number;
       readonly completedAt: string;
+      readonly checkpointMutation: LocalBudgetMutation;
       readonly writes: readonly {
         readonly transaction: import("./registerSchema").LocalTransactionRecord;
         readonly mutation: LocalBudgetMutation;
