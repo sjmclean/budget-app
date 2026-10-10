@@ -3738,6 +3738,25 @@ function applyTransactionBatchInCurrentTransaction(
  * transitions participate in existing replication. Checkpoints are local until
  * reconciliation history is added to the replicated domain model.
  */
+function listReconciliationCheckpoints(request: Extract<LocalBudgetWorkerRequest, { type: "listReconciliationCheckpoints" }>) {
+  if (request.budgetId !== activeBudgetId) {
+    throw workerError("BUDGET_SCOPE_MISMATCH", "The reconciliation belongs to another budget.");
+  }
+  return resultRows<{
+    id: string; budgetId: string; accountId: string; statementDate: string;
+    statementBalanceMinor: number; completedAt: string; transactionIdsJson: string;
+  }>(
+    `SELECT id, budget_id AS budgetId, account_id AS accountId,
+       statement_date AS statementDate, statement_balance_minor AS statementBalanceMinor,
+       completed_at AS completedAt, transaction_ids_json AS transactionIdsJson
+       FROM local_reconciliation_checkpoints WHERE budget_id = ? AND account_id = ?
+       ORDER BY completed_at DESC, id DESC`,
+    [request.budgetId, request.accountId],
+  ).map(({ transactionIdsJson, ...row }) => ({
+    ...row, transactionIds: JSON.parse(transactionIdsJson) as string[],
+  }));
+}
+
 function prepareReconciliation(request: Extract<LocalBudgetWorkerRequest, { type: "prepareReconciliation" }>) {
   if (request.budgetId !== activeBudgetId) {
     throw workerError("BUDGET_SCOPE_MISMATCH", "The reconciliation belongs to another budget.");
@@ -6588,6 +6607,8 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       return getBudgetProjectionDiagnostic(request.budgetId, request.month);
     case "writeTransaction":
       return writeTransaction(request.transaction, request.mutation, request.resolveConflictId);
+    case "listReconciliationCheckpoints":
+      return listReconciliationCheckpoints(request);
     case "prepareReconciliation":
       return prepareReconciliation(request);
     case "completeReconciliation":
