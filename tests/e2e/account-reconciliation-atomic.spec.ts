@@ -28,9 +28,6 @@ test("reconciliation completes atomically and a failed statement preserves statu
   await page.getByPlaceholder("Outflow").press("Enter");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByText("Statement Merchant", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Mark transaction cleared", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Mark transaction uncleared", exact: true })).toBeVisible();
-
   const accountId = new URL(page.url()).pathname.split("/").at(-1)!;
   const evidence = await page.evaluate(async (accountId) => {
     const { getBudgetPersistenceProvider } = await import("/src/features/persistence/budgetPersistenceProviderFactory.ts");
@@ -38,6 +35,11 @@ test("reconciliation completes atomically and a failed statement preserves statu
     const budgetId = useUIStore.getState().selectedBudgetId;
     const engine = getBudgetPersistenceProvider().localBudgetEngine;
     if (!budgetId || !engine) throw new Error("An active local budget engine is required.");
+
+    const initial = await engine.getAccountRegisterBootstrap({ budgetId, accountId, limit: 150 });
+    const merchant = initial.page.rows.find((row) => row.payeeName === "Statement Merchant");
+    if (!merchant) throw new Error("The statement transaction was not saved.");
+    await engine.setTransactionsCleared({ budgetId, transactionIds: [merchant.id], cleared: true });
 
     const statementDate = "2026-12-31";
     const input = { budgetId, accountId, statementDate };
