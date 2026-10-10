@@ -410,6 +410,16 @@ function initialiseSchema(options: { deferTransactionIndexes?: boolean } = {}): 
       "ALTER TABLE local_budget_outbox ADD COLUMN base_cursor INTEGER NOT NULL DEFAULT 0",
     );
   }
+  execute(`CREATE TABLE IF NOT EXISTS local_reconciliation_checkpoints (
+    id TEXT PRIMARY KEY,
+    budget_id TEXT NOT NULL,
+    account_id TEXT NOT NULL,
+    statement_date TEXT NOT NULL,
+    statement_balance_minor INTEGER NOT NULL,
+    completed_at TEXT NOT NULL,
+    transaction_ids_json TEXT NOT NULL
+  )`);
+  execute("CREATE INDEX IF NOT EXISTS local_reconciliation_by_account ON local_reconciliation_checkpoints(budget_id, account_id, statement_date)");
   execute(
     options.deferTransactionIndexes
       ? LOCAL_REGISTER_BASE_SCHEMA_SQL
@@ -3721,6 +3731,80 @@ function applyTransactionBatchInCurrentTransaction(
   }
 }
 
+
+/**
+ * Balance, eligibility, checkpoint and outbox writes share one SQLite transaction.
+ * The command layer must generate ordinary transaction mutations so the status
+ * transitions participate in existing replication. Checkpoints are local until
+ * reconciliation history is added to the replicated domain model.
+ */
+function completeReconciliation(request: Extract<LocalBudgetWorkerRequest, { type: "completeReconciliation" }>) {
+  if (request.budgetId !== activeBudgetId || !request.accountId || !request.checkpointId) {
+    throw workerError("BUDGET_SCOPE_MISMATCH", "Invalid reconciliation budget or account.");
+  }
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(request.statementDate) ||
+      !Number.isSafeInteger(request.statementBalanceMinor) ||
+      !Number.isFinite(Date.parse(request.completedAt))) {
+    throw workerError("INVALID_RECONCILIATION", "Invalid reconciliation statement or completion timestamp.");
+  }
+  for (const { mutation } of request.writes) assertMutationScope(mutation);
+  execute("BEGIN IMMEDIATE");
+  try {
+    const account = resultRows<{ openingBalance: number }>(
+      "SELECT opening_balance AS openingBalance FROM local_accounts WHERE budget_id = ? AND id = ?",
+      [request.budgetId, request.accountId],
+    )[0];
+    if (!account) throw workerError("ACCOUNT_NOT_FOUND", "Reconciliation account was not found.");
+    const rows = resultRows<{ id: string; amount: number; clearedStatus: string }>(
+      `SELECT id, amount, cleared_status AS clearedStatus FROM local_transactions
+       WHERE budget_id = ? AND account_id = ? AND date <= ?`,
+      [request.budgetId, request.accountId, request.statementDate],
+    );
+    let balance = account.openingBalance;
+    const eligible = new Set<string>();
+    for (const row of rows) {
+      if (row.clearedStatus === "cleared" || row.clearedStatus === "reconciled") {
+        balance += row.amount;
+        if (row.clearedStatus === "cleared") eligible.add(row.id);
+      }
+    }
+    if (!Number.isSafeInteger(balance) || balance !== request.statementBalanceMinor) {
+      throw workerError("RECONCILIATION_BALANCE_MISMATCH", "Cleared balance does not match the statement.");
+    }
+    if (eligible.size !== request.writes.length ||
+        request.writes.some(({ transaction }) => !eligible.has(transaction.id))) {
+      throw workerError("RECONCILIATION_STALE", "Eligible transactions changed; refresh reconciliation.");
+    }
+    const ids: string[] = [];
+    for (const { transaction, mutation } of request.writes) {
+      const original = getPersistedTransactionForVerification(request.budgetId, transaction.id);
+      if (!original || original.accountId !== request.accountId || original.clearedStatus !== "cleared" ||
+          transaction.clearedStatus !== "reconciled" || mutation.domain !== "transactions" ||
+          mutation.entityId !== transaction.id || mutation.operation !== "upsert" ||
+          JSON.stringify(mutation.payload) !== JSON.stringify(transaction) ||
+          JSON.stringify({ ...original, clearedStatus: "reconciled", updatedAt: transaction.updatedAt }) !==
+          JSON.stringify(transaction)) {
+        throw workerError("RECONCILIATION_STALE", "Reconciliation write does not match the current transaction.");
+      }
+      ids.push(transaction.id);
+    }
+    applyTransactionBatchInCurrentTransaction(request.writes, [], true);
+    execute(
+      `INSERT INTO local_reconciliation_checkpoints
+       (id, budget_id, account_id, statement_date, statement_balance_minor, completed_at, transaction_ids_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [request.checkpointId, request.budgetId, request.accountId, request.statementDate,
+       request.statementBalanceMinor, request.completedAt, JSON.stringify(ids)],
+    );
+    writeMetadata("localRevision", String(Number(readMetadata("localRevision") ?? "0") + request.writes.length));
+    execute("COMMIT");
+    return { checkpointId: request.checkpointId, transactionIds: ids };
+  } catch (error) {
+    execute("ROLLBACK");
+    throw error;
+  }
+}
+
 function writeTransactionBatch(
   writes: readonly TransactionBatchWrite[],
   requireAbsentTransactionIds: readonly string[] = [],
@@ -6480,6 +6564,8 @@ async function handle(request: LocalBudgetWorkerRequest): Promise<unknown> {
       return getBudgetProjectionDiagnostic(request.budgetId, request.month);
     case "writeTransaction":
       return writeTransaction(request.transaction, request.mutation, request.resolveConflictId);
+    case "completeReconciliation":
+      return completeReconciliation(request);
     case "writeTransactionBatch":
       return writeTransactionBatch(
         request.writes,
