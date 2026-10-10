@@ -1841,14 +1841,12 @@ export function AccountRegisterPage() {
 
           {activeRegisterView === "register" && storageMode === "sqlite" && activeBudgetId && persistenceGateway.localBudgetEngine && persistenceGateway.accountRegisterQueries ? (
             <>
-              {showReconciliation ? <div style={{ padding: "6px 16px" }}>
-                <button type="button" onClick={() => setShowReconciliation(false)}>Close reconciliation</button>
-              </div> : null}
               {showReconciliation ? (
                 <ReconciliationPanel budgetId={activeBudgetId} accountId={accountId}
                   currencyCode={data.currencyCode} commands={persistenceGateway.localBudgetEngine}
                   queries={persistenceGateway.accountRegisterQueries}
-                  onComplete={() => setShowReconciliation(false)} />
+                  onComplete={() => setShowReconciliation(false)}
+                  onClose={() => setShowReconciliation(false)} />
               ) : null}
             </>
           ) : null}
