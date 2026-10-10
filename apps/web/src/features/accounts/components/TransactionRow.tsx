@@ -651,7 +651,10 @@ function TransactionStatus({
         title="Reconciled — this transaction is locked and cannot be edited or deleted"
         aria-label="Transaction reconciled and locked"
       >
-        <Lock size={14} aria-hidden="true" />
+        <span aria-hidden="true" style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", width: 20, height: 20 }}>
+          <Lock size={20} strokeWidth={1.8} />
+          <span style={{ position: "absolute", top: 9, left: 0, width: "100%", textAlign: "center", fontSize: 8, fontWeight: 800, lineHeight: "9px", pointerEvents: "none" }}>R</span>
+        </span>
       </span>
     );
   }
