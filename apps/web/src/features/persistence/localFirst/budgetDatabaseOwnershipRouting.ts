@@ -69,6 +69,7 @@ const FIRST_ARGUMENT_OBJECT_BUDGET_METHODS = new Set([
   "setTransactionsCleared",
   "completeReconciliation",
   "listReconciliationCheckpoints",
+  "previewReconciliation",
   "captureTransactionHistorySnapshots",
   "restoreTransactionHistorySnapshot",
   "deleteTransactionHistorySnapshot",
