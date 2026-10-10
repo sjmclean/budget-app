@@ -368,6 +368,20 @@ export type LocalBudgetWorkerRequest =
     }
   | {
       readonly requestId: string;
+      readonly type: "completeReconciliation";
+      readonly budgetId: string;
+      readonly accountId: string;
+      readonly checkpointId: string;
+      readonly statementDate: string;
+      readonly statementBalanceMinor: number;
+      readonly completedAt: string;
+      readonly writes: readonly {
+        readonly transaction: import("./registerSchema").LocalTransactionRecord;
+        readonly mutation: LocalBudgetMutation;
+      }[];
+    }
+  | {
+      readonly requestId: string;
       readonly type: "writeTransactionBatch";
       readonly writes: readonly {
         readonly transaction: LocalTransactionRecord;
