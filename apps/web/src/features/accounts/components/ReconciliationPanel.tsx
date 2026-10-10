@@ -97,7 +97,7 @@ export function ReconciliationPanel({
                     const id = crypto.randomUUID();
                     await commands.addTransaction({
                       id, budgetId, accountId, date: statementDate,
-                      amount: difference / 100, payeeName: "Balance Adjustment",
+                      amount: difference, payeeName: "Balance Adjustment",
                       memo: adjustmentMemo.trim(),
                     });
                     await commands.setTransactionsCleared({ budgetId, transactionIds: [id], cleared: true });
