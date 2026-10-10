@@ -3785,7 +3785,7 @@ function completeReconciliation(request: Extract<LocalBudgetWorkerRequest, { typ
   if (request.budgetId !== activeBudgetId || !request.accountId || !request.checkpointId) {
     throw workerError("BUDGET_SCOPE_MISMATCH", "Invalid reconciliation budget or account.");
   }
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(request.statementDate) ||
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(request.statementDate) ||
       !Number.isSafeInteger(request.statementBalanceMinor) ||
       !Number.isFinite(Date.parse(request.completedAt))) {
     throw workerError("INVALID_RECONCILIATION", "Invalid reconciliation statement or completion timestamp.");
