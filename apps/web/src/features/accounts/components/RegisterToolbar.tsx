@@ -175,6 +175,8 @@ interface RegisterToolbarProps {
   onToggleColumn: (columnId: RegisterColumnId) => void;
   onResetColumns: () => void;
   onOpenImport: () => void;
+  canReconcile: boolean;
+  onOpenReconcile: () => void;
   onOpenTagManager: () => void;
   scheduledDueCount: number;
   categoryFilter: "all" | "uncategorised";
@@ -196,6 +198,7 @@ export function RegisterToolbar(props: RegisterToolbarProps) {
     searchSuggestions, activeSearchSuggestionIndex, onSearchDraftChange, onSearchOpenChange,
     onSearchKeyDown, onCommitSearch, onHighlightSearchSuggestion, onClearSearch,
     columns, visibleColumnSet, onToggleColumn, onResetColumns, onOpenImport,
+    canReconcile, onOpenReconcile,
     onOpenTagManager, scheduledDueCount, categoryFilter, categoriesEnabled, onCategoryFilterChange,
     canUndo, canRedo, isHistoryBusy, undoTitle, redoTitle, onUndo, onRedo,
   } = props;
@@ -231,7 +234,7 @@ export function RegisterToolbar(props: RegisterToolbarProps) {
         <div className="register-options-divider" role="separator" />
         <button type="button" role="menuitem" onClick={() => { onOpenImport(); closeMenu({ restoreFocus: true }); }}>Import transactions</button>
         <button type="button" role="menuitem" onClick={() => { onOpenTagManager(); closeMenu({ restoreFocus: true }); }}>Manage tags</button>
-        <button type="button" role="menuitem" disabled>Reconcile</button>
+        <button type="button" role="menuitem" disabled={!canReconcile} onClick={() => { onOpenReconcile(); closeMenu({ restoreFocus: true }); }}>Reconcile</button>
         <div className="register-options-divider" role="separator" />
         <button
           type="button"
