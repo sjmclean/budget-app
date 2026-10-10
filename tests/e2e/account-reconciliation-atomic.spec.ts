@@ -99,6 +99,15 @@ test("reconciliation completes atomically and a failed statement preserves statu
   await expect(page.getByLabel("Transaction reconciled")).toBeVisible();
   await page.reload();
   await expect(page.getByLabel("Transaction reconciled")).toBeVisible();
+  await page.getByRole("button", { name: "Reconcile account", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Reconcile account" })).toBeVisible();
+  await page.getByLabel("Statement date").fill("2026-12-31");
+  await page.getByLabel("Statement closing balance").fill("-12.34");
+  await expect(page.getByText("Cleared balance at statement date:")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Finish reconciliation" })).toBeEnabled();
+  await page.getByLabel("Statement closing balance").fill("-10.00");
+  await expect(page.getByRole("button", { name: "Finish reconciliation" })).toBeDisabled();
+
   const persisted = await page.evaluate(async (accountId) => {
     const { getBudgetPersistenceProvider } = await import("/src/features/persistence/budgetPersistenceProviderFactory.ts");
     const { useUIStore } = await import("/src/stores/uiStore.ts");
