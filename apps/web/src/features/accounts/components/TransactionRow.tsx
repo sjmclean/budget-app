@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, CornerDownRight, Paperclip, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, CornerDownRight, Lock, Paperclip, Plus } from "lucide-react";
 import {
   memo,
   useEffect,
@@ -648,10 +648,10 @@ function TransactionStatus({
     return (
       <span
         className="register-status register-status-reconciled"
-        title="Reconciled"
-        aria-label="Transaction reconciled"
+        title="Reconciled — this transaction is locked and cannot be edited or deleted"
+        aria-label="Transaction reconciled and locked"
       >
-        R
+        <Lock size={14} aria-hidden="true" />
       </span>
     );
   }
