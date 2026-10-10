@@ -51,13 +51,31 @@ test("reconciliation completes atomically and a failed statement preserves statu
       mismatchRejected = /balance|statement|match/i.test(String(error));
     }
     const afterMismatch = await engine.listReconciliationCheckpoints({ budgetId, accountId });
+    const afterFailure = await engine.getAccountRegisterBootstrap({ budgetId, accountId, limit: 150 });
+    const stillCleared = afterFailure.page.rows.some((row) => row.clearedStatus === "cleared" && row.payeeName === "Statement Merchant");
+
     const beforeSuccess = await engine.getAccountRegisterBootstrap({
       budgetId, accountId, limit: 150,
     });
     const success = await engine.completeReconciliation({ ...input, statementBalanceMinor: -1234 });
     const afterSuccess = await engine.listReconciliationCheckpoints({ budgetId, accountId });
+    let editingBlocked = false;
+    let deletionBlocked = false;
+    try {
+      await engine.setTransactionsCleared({ budgetId, transactionIds: success.transactionIds, cleared: false });
+    } catch (error) {
+      editingBlocked = /reconciled|locked/i.test(String(error));
+    }
+    try {
+      await engine.deleteTransaction(success.transactionIds[0]!, { budgetId, accountId });
+    } catch (error) {
+      deletionBlocked = /reconciled|locked/i.test(String(error));
+    }
+    const afterProtectedMutations = await engine.listReconciliationCheckpoints({ budgetId, accountId });
+
     return {
-      mismatchRejected,
+      mismatchRejected, stillCleared, editingBlocked, deletionBlocked,
+      protectedCheckpointCount: afterProtectedMutations.length,
       beforeCount: before.length,
       afterMismatchCount: afterMismatch.length,
       clearedBeforeCompletion: beforeSuccess.page.rows.some((row) => row.clearedStatus === "cleared"),
@@ -67,6 +85,10 @@ test("reconciliation completes atomically and a failed statement preserves statu
   }, accountId);
 
   expect(evidence.mismatchRejected).toBe(true);
+  expect(evidence.stillCleared).toBe(true);
+  expect(evidence.editingBlocked).toBe(true);
+  expect(evidence.deletionBlocked).toBe(true);
+  expect(evidence.protectedCheckpointCount).toBe(1);
   expect(evidence.beforeCount).toBe(0);
   expect(evidence.afterMismatchCount).toBe(0);
   expect(evidence.clearedBeforeCompletion).toBe(true);
