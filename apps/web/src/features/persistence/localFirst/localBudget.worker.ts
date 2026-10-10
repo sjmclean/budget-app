@@ -513,7 +513,8 @@ function initialiseSchema(options: { deferTransactionIndexes?: boolean } = {}): 
   if (!splitColumns.has("inflow_classification")) {
     execute("ALTER TABLE local_transaction_splits ADD COLUMN inflow_classification TEXT");
   }
-  migrateReconciliationClassificationConstraint();\n  const payeeColumns = new Set(
+  migrateReconciliationClassificationConstraint();
+  const payeeColumns = new Set(
     resultRows<{ name: string }>("PRAGMA table_info(local_payees)").map(({ name }) => name),
   );
   for (const [name, declaration] of [
