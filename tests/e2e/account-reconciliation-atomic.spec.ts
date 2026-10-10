@@ -134,6 +134,12 @@ test("reconciliation completes atomically and a failed statement preserves statu
     if (!budgetId || !engine) throw new Error("Budget must survive a page reload.");
     return engine.listReconciliationCheckpoints({ budgetId, accountId });
   }, accountId);
-  expect(persisted).toHaveLength(1);
-  expect(persisted[0]?.transactionIds).toEqual(evidence.success.transactionIds);
+  expect(persisted).toHaveLength(2);
+  const originalCheckpoint = persisted.find((checkpoint) => checkpoint.id === evidence.success.checkpointId);
+  expect(originalCheckpoint?.transactionIds).toEqual(evidence.success.transactionIds);
+  expect(originalCheckpoint?.statementBalanceMinor).toBe(-1234);
+  const adjustmentCheckpoint = persisted.find((checkpoint) => checkpoint.id !== evidence.success.checkpointId);
+  expect(adjustmentCheckpoint?.statementBalanceMinor).toBe(-1000);
+  expect(adjustmentCheckpoint?.transactionIds).toHaveLength(1);
+  expect(adjustmentCheckpoint?.transactionIds[0]).not.toBe(evidence.success.transactionIds[0]);
 });
