@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
+import type { BudgetCategoryOption } from "../../budget/budgetViewTypes";
 import type { LocalBudgetRuntimeClient } from "../../persistence/accountRegisterQueryContracts";
 
 type ReconciliationPreview = Pick<LocalBudgetRuntimeClient, "previewReconciliation">;
 type ReconciliationCommand = Pick<LocalBudgetRuntimeClient, "completeReconciliation" | "addTransaction" | "setTransactionsCleared">;
 
 export function ReconciliationPanel({
-  budgetId, accountId, currencyCode, queries, commands, onComplete, onClose,
+  budgetId, accountId, currencyCode, categoryOptions, queries, commands, onComplete, onClose,
 }: {
   budgetId: string;
   accountId: string;
   currencyCode: string;
+  categoryOptions: BudgetCategoryOption[];
   queries: ReconciliationPreview;
   commands: ReconciliationCommand;
   onComplete?: () => void;
@@ -23,6 +25,7 @@ export function ReconciliationPanel({
   const [finished, setFinished] = useState(false);
   const [showAdjustmentConfirmation, setShowAdjustmentConfirmation] = useState(false);
   const [adjustmentMemo, setAdjustmentMemo] = useState("Statement balance adjustment");
+  const [adjustmentCategoryId, setAdjustmentCategoryId] = useState("");
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -93,7 +96,15 @@ export function ReconciliationPanel({
                 <input aria-label="Adjustment memo" value={adjustmentMemo}
                   onChange={(event) => setAdjustmentMemo(event.target.value)} />
               </label>
-              <p>Confirm a {difference > 0 ? "deposit" : "withdrawal"} of <strong>{currency(Math.abs(difference))}</strong> dated {statementDate}. It will be saved as a separate, cleared Uncategorised transaction. Choose a category in the register before finishing reconciliation if you want to categorise it.</p>
+              <label>Adjustment category{" "}
+                <select aria-label="Adjustment category" value={adjustmentCategoryId} onChange={(event) => setAdjustmentCategoryId(event.target.value)}>
+                  <option value="">Uncategorised</option>
+                  {categoryOptions.filter((category) => !category.isArchived).map((category) => (
+                    <option key={category.id} value={category.id}>{category.groupName} — {category.name}</option>
+                  ))}
+                </select>
+              </label>
+              <p>Confirm a {difference > 0 ? "deposit" : "withdrawal"} of <strong>{currency(Math.abs(difference))}</strong> dated {statementDate}. It will be saved as a separate, cleared transaction in the selected category. Uncategorised is the default. Choose a category now because reconciliation will lock the transaction.</p>
               <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" disabled={busy || !adjustmentMemo.trim()} onClick={async () => {
                   if (difference === null || !Number.isSafeInteger(difference)) return;
@@ -106,10 +117,15 @@ export function ReconciliationPanel({
                       setShowAdjustmentConfirmation(false);
                       throw new Error("The cleared balance changed. Review the new difference before adjusting.");
                     }
+                    const selectedCategory = categoryOptions.find((category) => category.id === adjustmentCategoryId);
+                    if (adjustmentCategoryId && !selectedCategory) throw new Error("The selected adjustment category is no longer available.");
                     const id = crypto.randomUUID();
                     await commands.addTransaction({
                       id, budgetId, accountId, date: statementDate,
                       amount: difference, payeeName: "Balance Adjustment",
+                      categoryId: selectedCategory?.id,
+                      categoryName: selectedCategory?.name,
+                      inflowClassification: selectedCategory && difference > 0 ? "category-inflow" : undefined,
                       memo: adjustmentMemo.trim(),
                     });
                     await commands.setTransactionsCleared({ budgetId, transactionIds: [id], cleared: true });
