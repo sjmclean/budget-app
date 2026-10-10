@@ -33,7 +33,7 @@ export interface BudgetProjectionSplitFact {
   readonly transferAccountId?: string | null;
   /** Explicit month when general income first becomes budgetable. */
   readonly incomeBudgetMonth?: string | null;
-  readonly inflowClassification?: "income" | "category-inflow" | "reconciliation-adjustment" | null;
+  readonly inflowClassification?: "income" | "category-inflow" | null;
   /** Signed integer minor units. */
   readonly amount: number;
 }
@@ -46,7 +46,7 @@ export interface BudgetProjectionTransactionFact {
   readonly transferAccountId?: string | null;
   /** Explicit month when general income first becomes budgetable. */
   readonly incomeBudgetMonth?: string | null;
-  readonly inflowClassification?: "income" | "category-inflow" | "reconciliation-adjustment" | null;
+  readonly inflowClassification?: "income" | "category-inflow" | null;
   readonly amount: number;
   readonly splits?: readonly BudgetProjectionSplitFact[];
 }
@@ -551,12 +551,12 @@ function indexActivity(
     transferAccountId: string | null | undefined,
     amount: number,
     incomeBudgetMonth?: string | null,
-    inflowClassification?: "income" | "category-inflow" | "reconciliation-adjustment" | null,
+    inflowClassification?: "income" | "category-inflow" | null,
   ) {
     if (transferAccountId) return;
     if (
       categoryId === null &&
-      (inflowClassification === "income" || inflowClassification === "reconciliation-adjustment") &&
+      inflowClassification === "income" &&
       incomeBudgetMonth
     ) {
       const month = requireExplicitIncomeBudgetMonth(
