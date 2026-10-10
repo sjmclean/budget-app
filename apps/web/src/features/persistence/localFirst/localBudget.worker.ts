@@ -3755,6 +3755,8 @@ function writeTransactionBatch(
 }
 
 let latestImportSqliteMs: number | undefined;
+let latestImportDeltaBeforeMs: number | undefined;
+let latestImportDeltaAfterMs: number | undefined;
 
 function writeImportBatch(
   payeeWrites: readonly ImportPayeeWrite[],
@@ -6757,6 +6759,8 @@ function materialiseRegisterRows(budgetId: string, roots: readonly string[]): Ac
 }
 
 async function handleWithRegisterDelta(request: LocalBudgetWorkerRequest): Promise<{ result: unknown; registerDelta?: AccountRegisterMutationDelta }> {
+  const diagnostic = request.type === "writeImportBatch";
+  const deltaStartedAt = diagnostic ? performance.now() : 0;
   const plan = registerDeltaPlan(request);
   if (!plan || plan.rootIds.length === 0) return { result: await handle(request) };
   const roots = [...new Set(plan.rootIds)];
@@ -6768,23 +6772,31 @@ async function handleWithRegisterDelta(request: LocalBudgetWorkerRequest): Promi
       ? registerAccountIdsForRoots(plan.budgetId, beforeRoots)
       : [];
   const beforeRows = tooLarge || beforeRoots.length > MAX_REGISTER_DELTA_TRANSACTION_ROOTS ? [] : materialiseRegisterRows(plan.budgetId, beforeRoots);
+  if (diagnostic) latestImportDeltaBeforeMs = performance.now() - deltaStartedAt;
   const result = await handle(request);
+  const deltaAfterStartedAt = diagnostic ? performance.now() : 0;
   const accountIds = new Set(plan.knownAccountIds);
   for (const accountId of largeBeforeAccountIds) accountIds.add(accountId);
   for (const { accountId } of beforeRows) accountIds.add(accountId);
   if (tooLarge || beforeRoots.length > MAX_REGISTER_DELTA_TRANSACTION_ROOTS) {
     for (const accountId of registerAccountIdsForRoots(plan.budgetId, roots)) accountIds.add(accountId);
+    if (diagnostic) latestImportDeltaAfterMs = performance.now() - deltaAfterStartedAt;
     return { result, registerDelta: { mode: "refresh-required", budgetId: plan.budgetId, affectedAccountIds: [...accountIds], reason: "delta-too-large" } };
   }
   const afterRoots = expandRegisterRoots(plan.budgetId, [...new Set([...beforeRoots, ...roots])]);
   if (afterRoots.length > MAX_REGISTER_DELTA_TRANSACTION_ROOTS) {
     for (const accountId of registerAccountIdsForRoots(plan.budgetId, afterRoots)) accountIds.add(accountId);
+    if (diagnostic) latestImportDeltaAfterMs = performance.now() - deltaAfterStartedAt;
     return { result, registerDelta: { mode: "refresh-required", budgetId: plan.budgetId, affectedAccountIds: [...accountIds], reason: "delta-too-large" } };
   }
   const afterRows = materialiseRegisterRows(plan.budgetId, afterRoots);
   for (const { accountId } of afterRows) accountIds.add(accountId);
-  if (JSON.stringify(beforeRows) === JSON.stringify(afterRows)) return { result };
-  return { result, registerDelta: { mode: "patch", budgetId: plan.budgetId, affectedAccountIds: [...accountIds], beforeRows, afterRows,
+  if (JSON.stringify(beforeRows) === JSON.stringify(afterRows)) {
+    if (diagnostic) latestImportDeltaAfterMs = performance.now() - deltaAfterStartedAt;
+    return { result };
+  }
+  if (diagnostic) latestImportDeltaAfterMs = performance.now() - deltaAfterStartedAt;
+    return { result, registerDelta: { mode: "patch", budgetId: plan.budgetId, affectedAccountIds: [...accountIds], beforeRows, afterRows,
     summaries: [...accountIds].map((accountId) => getAccountSummary(plan.budgetId, accountId)) } };
 }
 
@@ -6793,7 +6805,11 @@ self.onmessage = (event: MessageEvent<LocalBudgetWorkerRequest>) => {
   const request = event.data;
   const receivedAt = request.type === "writeImportBatch" ? performance.now() : null;
   const operation = requestTail.then(async () => {
-    if (receivedAt !== null) latestImportSqliteMs = undefined;
+    if (receivedAt !== null) {
+      latestImportSqliteMs = undefined;
+      latestImportDeltaBeforeMs = undefined;
+      latestImportDeltaAfterMs = undefined;
+    }
     const startedAt = receivedAt === null ? null : performance.now();
     const value = await handleWithRegisterDelta(request);
     const finishedAt = startedAt === null ? null : performance.now();
@@ -6801,7 +6817,9 @@ self.onmessage = (event: MessageEvent<LocalBudgetWorkerRequest>) => {
       ...value,
       importTiming: receivedAt === null || startedAt === null || finishedAt === null
         ? undefined
-        : { queueMs: startedAt - receivedAt, workerMs: finishedAt - startedAt, sqliteMs: latestImportSqliteMs ?? null },
+        : { queueMs: startedAt - receivedAt, workerMs: finishedAt - startedAt, sqliteMs: latestImportSqliteMs ?? null,
+          deltaBeforeMs: latestImportDeltaBeforeMs ?? null,
+          deltaAfterMs: latestImportDeltaAfterMs ?? null },
     };
   });
   requestTail = operation.catch(() => undefined);
