@@ -834,7 +834,7 @@ export class LocalBudgetDatabaseClient {
     readonly budgetId: string;
     readonly accountId: string;
     readonly statementDate: string;
-  }): Promise<{ readonly openingBalanceMinor: number; readonly transactions: readonly LocalTransactionRecord[] }> {
+  }): Promise<{ readonly openingBalanceMinor: number; readonly clearedBalanceMinor: number; readonly transactions: readonly LocalTransactionRecord[] }> {
     return this.#request({
       requestId: createRuntimeUuid(),
       type: "prepareReconciliation",
